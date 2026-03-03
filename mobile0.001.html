@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mini RPG - Multiplataforma</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="gameContainer">
+    
+    <div id="map"></div>
+
+    <div id="floatingHud">
+        <div class="hud-header">
+            <span id="playerClassName">Personaje</span> <span id="playerLevel">(Lv. 1)</span>
+        </div>
+        <div class="bar-container">
+            <div class="hp-fill" id="playerHpBar"></div>
+            <div class="bar-text" id="playerHpText"></div>
+        </div>
+        <div class="bar-container">
+            <div class="mp-fill" id="playerMpBar"></div>
+            <div class="bar-text" id="playerMpText"></div>
+        </div>
+        <div style="font-size: 11px; color: #aaa; border-top: 1px solid #333; padding-top: 5px; margin-top:5px;">
+            📍 <span id="mapName">Común</span>
+        </div>
+    </div>
+
+    <button id="mobileMenuBtn" onclick="toggleMainMenu()">📜 Menú</button>
+
+    <div id="touchControls">
+        <div class="d-pad">
+            <button class="dp-btn up" onmousedown="startTouchMove(0,-1)" ontouchstart="startTouchMove(0,-1)">▲</button>
+            <div class="dp-row">
+                <button class="dp-btn left" onmousedown="startTouchMove(-1,0)" ontouchstart="startTouchMove(-1,0)">◀</button>
+                <button class="dp-btn right" onmousedown="startTouchMove(1,0)" ontouchstart="startTouchMove(1,0)">▶</button>
+            </div>
+            <button class="dp-btn down" onmousedown="startTouchMove(0,1)" ontouchstart="startTouchMove(0,1)">▼</button>
+        </div>
+    </div>
+
+    <div id="contextActionBar" style="display: none;">
+        <button id="btnShopContext" onclick="openShop()"><img src="img/items/coin.png" class="icon"> Tienda</button>
+        <button id="btnQuestContext" onclick="openNPCModal()">👥 Hablar</button>
+    </div>
+
+    <div id="mainMenuModal" class="modal-overlay">
+        <div class="modal-card" style="width: 90%; max-width: 450px;">
+            <h2 style="margin: 0 0 15px 0; color: #fff;">⏸️ Menú Principal</h2>
+            
+            <div class="menu-section">
+                <h3>📊 Estadísticas</h3>
+                <div id="menuStats"></div>
+                <div id="menuEquipment"></div>
+            </div>
+
+            <div class="menu-section">
+                <h3>🎒 Mochila</h3>
+                <div style="display: flex; gap: 5px;">
+                    <button onclick="usePotion()">Usar HP</button>
+                    <button onclick="useManaPotion()" style="background: #2196f3; color: white;">Usar MP</button>
+                </div>
+                <button class="btn-success" onclick="openInventory()" style="margin-top:5px;">Ver Inventario</button>
+            </div>
+
+            <div class="menu-section">
+                <h3>⚙️ Sistema</h3>
+                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                    <button class="btn-sys" onclick="saveGame()">💾 Guardar</button>
+                    <button class="btn-sys" onclick="loadGameBtn()">📂 Cargar</button>
+                </div>
+                <button class="btn-danger" onclick="resetGame()">🗑️ Borrar Partida</button>
+            </div>
+
+            <button class="btn-danger" onclick="toggleMainMenu()" style="margin-top: 10px;">❌ Regresar al Juego</button>
+        </div>
+    </div>
+
+    <div id="classModal" class="modal-overlay" style="z-index: 200;">
+        <div class="modal-card" style="width: 95%; max-width: 750px;">
+            <h2>Elige tu Camino</h2>
+            <div class="class-flex">
+                <div class="class-option" onclick="selectClass('Guerrero')">
+                    <img src="img/player/guerrero_select.png" class="select-img">
+                    <h3>Guerrero</h3>
+                    <button>Elegir</button>
+                </div>
+                <div class="class-option" onclick="selectClass('Mago')">
+                    <img src="img/player/mago_select.png" class="select-img">
+                    <h3>Mago</h3>
+                    <button style="background: #2196f3; color: white;">Elegir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="npcModal" class="modal-overlay" style="z-index: 1010;">
+        <div class="modal-card" style="width: 90%; max-width: 450px;">
+            <h2 id="npcName"></h2>
+            <div id="npcIcon"></div>
+            <div class="npc-dialog-box"><p id="npcDialog"></p></div>
+            <div id="npcQuestDetail" class="quest-box"></div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-success" onclick="acceptNPCQuest()">✔️ Aceptar</button>
+                <button class="btn-danger" onclick="closeNPCModal()">❌ Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="combatModal" class="modal-overlay" style="z-index: 1000;">
+        <div class="modal-card" id="combatCard" style="width: 98%; max-width: 850px;">
+            <div class="combat-vs-container">
+                <div class="combat-side">
+                    <h3 id="combatPlayerName">Tú</h3>
+                    <img id="combatPlayerImg" src="img/player/heroe.png" class="combat-img">
+                    <div class="bar-container"><div class="hp-fill" id="combatPlayerHpBar"></div><div class="bar-text" id="combatPlayerHpText"></div></div>
+                </div>
+                <div class="vs-text">VS</div>
+                <div class="combat-side">
+                    <h3 id="modalName">Enemigo</h3>
+                    <img id="modalImg" src="" class="combat-img">
+                    <div class="bar-container"><div class="hp-fill" id="enemyHpBar"></div><div class="bar-text" id="enemyHpText"></div></div>
+                </div>
+            </div>
+            <div id="modalLog" class="combat-log"></div>
+            <div class="combat-actions">
+                <button onclick="doAttack()">🗡️ Atacar</button>
+                <button onclick="castSpell('fuego')" class="btn-magic">🔥 Fuego</button>
+                <button onclick="castSpell('curar')" class="btn-magic">💚 Curar</button>
+                <button onclick="doFlee()" class="btn-danger">🏃 Huir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shopModal" class="modal-overlay" style="z-index: 1010;">
+        <div class="modal-card" style="width: 90%; max-width: 450px;">
+            <h2>🏪 Mercado</h2>
+            <div class="shop-tabs">
+                <button id="tabBuy" onclick="switchShopTab('buy')" class="active-tab">Comprar</button>
+                <button id="tabSell" onclick="switchShopTab('sell')">Vender</button>
+            </div>
+            <div id="shopContentBuy" class="scroll-area"></div>
+            <div id="shopContentSell" class="scroll-area" style="display: none;"></div>
+            <button class="btn-danger" onclick="closeShop()">Salir</button>
+        </div>
+    </div>
+
+    <div id="invModal" class="modal-overlay" style="z-index: 1020;">
+        <div class="modal-card" style="width: 95%; max-width: 600px;">
+            <h2>🎒 Inventario</h2>
+            <div class="inv-split">
+                <div class="inv-column">
+                    <h4>Equipado</h4>
+                    <div id="invEquipped"></div>
+                </div>
+                <div class="inv-column">
+                    <h4>Mochila</h4>
+                    <div id="invBag"></div>
+                </div>
+            </div>
+            <button class="btn-danger" onclick="closeInventory()" style="margin-top: 15px;">Cerrar</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

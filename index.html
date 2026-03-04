@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mini RPG - Mundo Inmersivo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="gameContainer">
+    
+    <div id="map"></div>
+
+    <div id="floatingHud">
+        <div class="hud-header">
+            <span id="playerClassName">Personaje</span> <span id="playerLevel" style="color:#fff; font-size:12px;">(Lv. 1)</span>
+        </div>
+        <div class="bar-container">
+            <div class="hp-fill" id="playerHpBar"></div>
+            <div class="bar-text" id="playerHpText"></div>
+        </div>
+        <div class="bar-container" style="margin-bottom: 8px;">
+            <div class="mp-fill" id="playerMpBar"></div>
+            <div class="bar-text" id="playerMpText"></div>
+        </div>
+        <div style="font-size: 11px; color: #aaa; border-top: 1px solid #333; padding-top: 5px;">
+            📍 Zona: <span id="mapName" style="font-weight: bold;">Común</span>
+        </div>
+        <div style="font-size: 10px; color: #888; margin-top: 3px;" class="pc-only-text">
+            Presiona <b>[ESC]</b> para Menú
+        </div>
+    </div>
+
+    <button id="mobileMenuBtn" onpointerdown="event.preventDefault(); toggleMainMenu();">📜 Menú</button>
+
+    <div id="touchControls">
+        <div class="d-pad">
+            <button class="dp-btn up" onpointerdown="event.preventDefault(); startTouchMove(0,-1)">▲</button>
+            <div class="dp-row">
+                <button class="dp-btn left" onpointerdown="event.preventDefault(); startTouchMove(-1,0)">◀</button>
+                <button class="dp-btn right" onpointerdown="event.preventDefault(); startTouchMove(1,0)">▶</button>
+            </div>
+            <button class="dp-btn down" onpointerdown="event.preventDefault(); startTouchMove(0,1)">▼</button>
+        </div>
+    </div>
+
+    <div id="contextActionBar" style="display: none;">
+        <button id="btnShopContext" onclick="openShop()"><img src="img/items/coin.png" class="icon"> Tienda</button>
+        <button id="btnQuestContext" onclick="openNPCModal()">👥 Hablar</button>
+    </div>
+
+    <div id="mainMenuModal" class="modal-overlay">
+        <div class="modal-card" style="width: 450px;">
+            <h2 style="margin: 0 0 15px 0; color: #fff;">⏸️ Menú Principal</h2>
+            
+            <div class="menu-section">
+                <h3>📊 Estadísticas</h3>
+                <div id="menuStats" style="font-size: 14px; line-height: 1.5;"></div>
+                <div id="menuEquipment" style="margin-top: 8px; font-size: 13px; border-top: 1px dashed #4a5a80; padding-top: 8px;"></div>
+            </div>
+
+            <div class="menu-section">
+                <h3>📜 Misión Actual</h3>
+                <div id="quest" style="font-size: 13px;">Explora para encontrar la Ciudad.</div>
+            </div>
+
+            <div class="menu-section">
+                <h3>🎒 Inventario y Uso</h3>
+                <div style="display: flex; gap: 5px;">
+                    <button onclick="usePotion()"><img src="img/items/potion.png" class="icon"> Usar HP</button>
+                    <button onclick="useManaPotion()" style="background: #2196f3; color: white;"><img src="img/items/mana_potion.png" class="icon"> Usar MP</button>
+                </div>
+                <button class="btn-success" onclick="openInventory()" style="margin-top:5px;">Abrir Inventario Completo</button>
+            </div>
+
+            <div class="menu-section">
+                <h3>⚙️ Sistema</h3>
+                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                    <button class="btn-sys" onclick="saveGame()">💾 Guardar</button>
+                    <button class="btn-sys" onclick="loadGameBtn()">📂 Cargar</button>
+                </div>
+                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                    <button class="btn-sys-alt" onclick="toggleAudio()" id="btnAudio">🔊 Sonido: ON</button>
+                    <button class="btn-sys-alt pc-only-btn" onclick="toggleFullscreen()">🔲 Pantalla Completa</button>
+                </div>
+                <button class="btn-danger" onclick="resetGame()">🗑️ Borrar Partida</button>
+            </div>
+
+            <div class="menu-section">
+                <h3>📖 Registro de Eventos</h3>
+                <div class="log" id="menuLog" style="height: 60px;">Bienvenido. Un mundo inmenso te aguarda.</div>
+            </div>
+
+            <button class="btn-danger" onclick="toggleMainMenu()" style="margin-top: 10px;">❌ Cerrar Menú</button>
+        </div>
+    </div>
+
+    <div id="classModal" class="modal-overlay" style="z-index: 200;">
+        <div class="modal-card" style="width: 750px;">
+            <h2 style="margin: 0 0 15px 0; color: #fff; font-size: 24px;">Elige tu Camino</h2>
+            <div class="responsive-flex">
+                <div class="class-option class-guerrero" onclick="selectClass('Guerrero')" style="flex: 1;">
+                    <img src="img/player/guerrero_select.png" alt="Guerrero" class="responsive-img">
+                    <h3 style="color: #4caf50; margin-top: 0; font-size: 20px;">Guerrero</h3>
+                    <p style="font-size: 14px; color: #aaa; margin-bottom: 15px;">Gana por desgaste. Resiste daño, pero debe curarse a menudo.</p>
+                    <ul style="text-align: left; font-size: 13px; color: #ddd; padding-left: 20px;">
+                        <li>HP Inicial: 60</li>
+                        <li>MP Inicial: 10</li>
+                        <li>Arma: Espada Rota</li>
+                    </ul>
+                    <button style="background: #4caf50; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Elegir Guerrero</button>
+                </div>
+                <div class="class-option class-mago" onclick="selectClass('Mago')" style="flex: 1;">
+                    <img src="img/player/mago_select.png" alt="Mago" class="responsive-img">
+                    <h3 style="color: #2196f3; margin-top: 0; font-size: 20px;">Mago</h3>
+                    <p style="font-size: 14px; color: #aaa; margin-bottom: 15px;">Daño explosivo, frágil y muy dependiente del Maná.</p>
+                    <ul style="text-align: left; font-size: 13px; color: #ddd; padding-left: 20px;">
+                        <li>HP Inicial: 35</li>
+                        <li>MP Inicial: 40</li>
+                        <li>Arma: Varita Astillada</li>
+                    </ul>
+                    <button style="background: #2196f3; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Elegir Mago</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="npcModal" class="modal-overlay" style="z-index: 1010;">
+        <div class="modal-card" style="width: 450px;">
+            <h2 id="npcName" style="margin: 0 0 15px 0; color: #fff; font-size: 24px;">NPC Nombre</h2>
+            <div id="npcIcon" style="text-align: center; margin-bottom: 15px;"></div>
+            <div class="npc-dialog-box"><p id="npcDialog" style="margin: 0; font-size: 16px; color: #ddd; font-style: italic;">"Cargando diálogo..."</p></div>
+            <div style="background: #101a2b; padding: 15px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; border-left: 3px solid #ffeb3b; text-align: left;">
+                <b style="color: #ffeb3b;">Nueva Tarea:</b><br><span id="npcQuestDetail">Detalle de la misión generada.</span>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-success" onclick="acceptNPCQuest()" style="padding: 12px; font-size: 14px;">✔️ Aceptar Misión</button>
+                <button class="btn-danger" onclick="closeNPCModal()" style="padding: 12px; font-size: 14px;">❌ Rechazar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="combatModal" class="modal-overlay" style="z-index: 1000;">
+        <div class="modal-card" id="combatCard" style="width: 850px;">
+            <div class="combat-vs-container">
+                <div class="combat-side">
+                    <h3 id="combatPlayerName" style="margin: 0 0 10px 0; color: var(--accent); text-transform: uppercase; font-size: 20px;">Héroe</h3>
+                    <img id="combatPlayerImg" src="" class="responsive-img-combat" style="transition: 0.1s;">
+                    <div class="bar-container" style="height: 20px;">
+                        <div class="hp-fill" id="combatPlayerHpBar"></div>
+                        <div class="bar-text" id="combatPlayerHpText" style="line-height: 20px; font-size: 13px;"></div>
+                    </div>
+                    <div class="bar-container" style="height: 20px; margin-top: 8px;">
+                        <div class="mp-fill" id="combatPlayerMpBar"></div>
+                        <div class="bar-text" id="combatPlayerMpText" style="line-height: 20px; font-size: 13px;"></div>
+                    </div>
+                </div>
+
+                <div class="vs-text">VS</div>
+
+                <div class="combat-side border-red">
+                    <h3 id="modalName" style="margin: 0 0 10px 0; color: #f44336; text-transform: uppercase; font-size: 20px;">Enemigo</h3>
+                    <img id="modalImg" src="" class="responsive-img-combat" style="transition: 0.1s;">
+                    <div class="bar-container" style="height: 20px;">
+                        <div class="hp-fill" id="enemyHpBar"></div>
+                        <div class="bar-text" id="enemyHpText" style="line-height: 20px; font-size: 13px;"></div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 15px; color: #ccc; font-weight: bold;">
+                        Atk: <span id="enemyAtk"></span> | Def: <span id="enemyDef"></span>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 13px; color: #ffeb3b; min-height: 18px;" id="enemyTraitDisplay"></div>
+                </div>
+            </div>
+
+            <div style="height: 80px; font-size: 14px; color: #fff; margin-bottom: 15px; background: #000; padding: 10px; border-radius: 6px; border: 1px solid #333; overflow-y: auto; text-align: left; line-height: 1.5;" id="modalLog"></div>
+            
+            <div class="combat-actions">
+                <button id="btnAttack" onclick="doAttack()" style="font-size: 16px; padding: 12px;"><img src="img/weapons/sword.png" class="icon"> Atacar</button>
+                <button id="btnMagic1" class="btn-magic" onclick="castSpell('fuego')" style="font-size: 16px; padding: 12px;">🔥 Fuego (12MP)</button>
+                <button id="btnMagic2" class="btn-magic" onclick="castSpell('curar')" style="font-size: 16px; padding: 12px;">💚 Curar (15MP)</button>
+                <button id="btnFlee" class="btn-danger" onclick="doFlee()" style="font-size: 16px; padding: 12px;">🏃 Huir</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shopModal" class="modal-overlay" style="z-index: 1010;">
+        <div class="modal-card" style="width: 450px;">
+            <h2 style="margin: 0 0 15px 0; color: #fff;">🏪 Mercado <span id="shopTier"></span></h2>
+            
+            <div class="shop-tabs">
+                <button id="tabBuy" onclick="switchShopTab('buy')" class="active-tab">Comprar</button>
+                <button id="tabSell" onclick="switchShopTab('sell')">Vender Botín</button>
+            </div>
+
+            <div id="shopContentBuy" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px;"></div>
+            <div id="shopContentSell" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; display: none;"></div>
+            
+            <button class="btn-danger" onclick="closeShop()">Salir de la tienda</button>
+        </div>
+    </div>
+
+    <div id="invModal" class="modal-overlay" style="z-index: 1020;">
+        <div class="modal-card" style="width: 580px;">
+            <h2 style="margin: 0 0 15px 0; color: #fff;">🎒 Inventario</h2>
+            
+            <div class="inv-split">
+                <div style="flex: 1; background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;">
+                    <h3 style="color:var(--accent); margin-top:0; font-size:16px;">🗡️ Equipado</h3>
+                    <div id="invEquipped"></div>
+                </div>
+                
+                <div style="flex: 1; background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;">
+                    <h3 style="color:var(--accent); margin-top:0; font-size:16px;">📦 En Mochila</h3>
+                    <div id="invBag" style="max-height: 300px; overflow-y: auto; padding-right: 5px;"></div>
+                </div>
+            </div>
+
+            <button class="btn-danger" onclick="closeInventory()" style="margin-top: 15px;">Cerrar Inventario</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

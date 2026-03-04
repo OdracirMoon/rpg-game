@@ -1,0 +1,272 @@
+:root { --bg: #000; --panel: #0f1a2a; --accent: #7ad7ff; --text: #e6f2ff; }
+body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; height: calc(var(--vh, 1vh) * 100); }
+
+#gameContainer { position: relative; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); background: #000; overflow: hidden; }
+
+#map { display: grid; gap: 2px; background: #000; width: 100%; height: 100%; overflow: hidden; scroll-behavior: smooth; align-content: start; justify-content: start; }
+
+#floatingHud { position: absolute; top: 20px; left: 20px; background: rgba(15, 26, 42, 0.85); padding: 15px; border-radius: 8px; border: 2px solid var(--accent); width: 220px; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.8); pointer-events: none; }
+.hud-header { color: var(--accent); font-weight: bold; margin-bottom: 10px; font-size: 16px; text-transform: uppercase; }
+
+#contextActionBar { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
+#contextActionBar button { padding: 15px 30px; font-size: 18px; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); width: auto; margin: 0; }
+
+.menu-section { background: #0b1220; padding: 12px; border-radius: 6px; margin-bottom: 10px; text-align: left; }
+.menu-section h3 { margin: 0 0 10px 0; color: var(--accent); font-size: 14px; border-bottom: 1px solid #14203a; padding-bottom: 5px; }
+
+.tile { width: 512px; height: 512px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; transition: background-color 0.2s; }
+.tile img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; z-index: 2; }
+
+.grass { background-image: url('img/tiles/tile_grass.png'); background-color: #184b20; background-size: cover; image-rendering: pixelated; }
+.water { background-image: url('img/tiles/tile_water.png'); background-color: #10304a; background-size: cover; image-rendering: pixelated; }
+.path { background-image: url('img/tiles/tile_path.png'); background-color: #5d4037; background-size: cover; image-rendering: pixelated; }
+.wall { background-image: url('img/tiles/tile_wall.png'), url('img/tiles/tile_grass.png'); background-color: #444; background-size: cover; image-rendering: pixelated; }
+.gate { background-image: url('img/tiles/tile_wall.png'); background-color: #9c27b0; filter: hue-rotate(280deg) brightness(1.5); background-size: cover; image-rendering: pixelated; box-shadow: 0 0 15px #9c27b0 inset; }
+
+.city { background-color: #4a5a80; background-image: url('img/tiles/tile_city.png'), url('img/tiles/tile_path.png'); background-size: 200% 200%, cover; image-rendering: pixelated; border-radius: 0; }
+.city-tl { background-position: 0% 0%, center; }
+.city-tr { background-position: 100% 0%, center; }
+.city-bl { background-position: 0% 100%, center; }
+.city-br { background-position: 100% 100%, center; }
+
+.fog { background: #03070d !important; background-image: none !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.8) !important; border: 1px solid #060a12; }
+
+.color-comun { color: #aaaaaa; } .color-pococomun { color: #4caf50; } .color-raro { color: #2196f3; }
+.color-epico { color: #9c27b0; } .color-legendario { color: #ff9800; } .color-mitico { color: #ffeb3b; }
+
+button { width: 100%; background: var(--accent); border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; color: #05101f; margin-bottom: 5px; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+button:hover:not(:disabled) { filter: brightness(1.2); }
+button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0.6; }
+.btn-sys { background: #4a5a80; color: white; }
+.btn-sys-alt { background: #5a7090; color: white; }
+.btn-danger { background: #e55353; color: white; }
+.btn-magic { background: #ab47bc; color: white; }
+.btn-success { background: #4caf50; color: white; }
+
+.log { height: 80px; overflow-y: auto; background: #000; padding: 8px; font-size: 12px; border-radius: 6px; color: #aaa; }
+.stat-bonus { color: #4caf50; font-weight: bold; }
+.stat-magic { color: #2196f3; font-weight: bold; }
+.icon { width: 16px; height: 16px; object-fit: contain; image-rendering: pixelated; vertical-align: middle; }
+
+.bar-container { width: 100%; height: 16px; background: #223; border-radius: 4px; overflow: hidden; border: 1px solid #000; position: relative; margin-top: 4px; }
+.hp-fill { height: 100%; background: #4caf50; transition: width 0.3s ease, background-color 0.3s ease; }
+.mp-fill { height: 100%; background: #2196f3; transition: width 0.3s ease; }
+.bar-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; font-size: 11px; font-weight: bold; color: white; line-height: 16px; text-shadow: 1px 1px 2px #000; }
+
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; overflow: hidden; }
+.modal-card { background: #14203a; padding: 20px; border-radius: 12px; text-align: center; width: 320px; max-height: 90vh; overflow-y: auto; border: 2px solid var(--accent); box-shadow: 0 0 20px rgba(122, 215, 255, 0.3); }
+
+.npc-dialog-box { background: #0b1220; border: 1px solid #4a5a80; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; position: relative; }
+.npc-dialog-box::before { content: ''; position: absolute; top: -10px; left: 20px; border-width: 0 10px 10px 10px; border-style: solid; border-color: transparent transparent #0b1220 transparent; }
+
+/* FIX: Se ha ELIMINADO la regla antigua que hacía que #modalImg fuera pequeño (80px) en PC globalmente. */
+
+.shop-item { background: #0b1220; padding: 8px; margin-bottom: 8px; border-radius: 6px; text-align: left; font-size: 13px; display: flex; justify-content: space-between; align-items: center;}
+.shop-item button { width: auto; padding: 5px 10px; margin: 0; font-size: 12px; }
+.combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.combat-actions button { margin-bottom: 0; font-size: 16px; padding: 12px; }
+
+/* ================== PESTAÑAS DE TIENDA ================== */
+.shop-tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+.shop-tabs button { background: #14203a; color: #888; width: 50%; font-size: 14px; padding: 10px; border-radius: 6px; box-shadow: inset 0 0 5px #000; margin-bottom: 0;}
+.shop-tabs button.active-tab { background: var(--accent); color: #05101f; box-shadow: none; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0b1220; border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: #4a5a80; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+@keyframes flashDamage { 0% { filter: brightness(1); transform: scale(1); } 50% { filter: brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5); transform: scale(0.9); } 100% { filter: brightness(1); transform: scale(1); } }
+@keyframes flashHeal { 0% { filter: brightness(1); transform: scale(1); } 50% { filter: brightness(1.5) sepia(1) hue-rotate(90deg) saturate(5); transform: scale(1.1); } 100% { filter: brightness(1); transform: scale(1); } }
+@keyframes shakeScreen { 0% { transform: translate(1px, 1px) rotate(0deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 40% { transform: translate(3px, 2px) rotate(0deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 100% { transform: translate(0px, 0px) rotate(0deg); } }
+
+.anim-damage { animation: flashDamage 0.3s ease; }
+.anim-heal { animation: flashHeal 0.4s ease; }
+.anim-shake { animation: shakeScreen 0.3s ease; }
+
+.class-option { background: #0b1220; padding: 15px; border-radius: 8px; flex: 1; text-align: center; cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+.class-option:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.class-guerrero { border-color: #4caf50; }
+.class-mago { border-color: #2196f3; }
+
+/* =========================================
+   FIX PC: TAMAÑOS ESTRICTOS E IGUALES
+   ========================================= */
+/* Ventana de combate más ancha en PC para que quepan imágenes grandes */
+#combatCard {
+    width: 950px; 
+}
+
+/* Las imágenes 1024x1024 se encajan en 256px sin deformarse */
+.class-img, .combat-img {
+    width: 100%;
+    max-width: 256px;  /* Aumentado para PC */
+    height: 256px;     /* Aumentado para PC */
+    object-fit: contain; /* Encaja contenido sin recortar */
+    display: block;
+    margin: 0 auto 15px auto;
+    image-rendering: auto; /* Mejor renderizado para imágenes HD */
+    transition: transform 0.1s;
+}
+
+/* Icono NPC específico para que no use la regla gigante de PC */
+#npcIcon img {
+    max-width: 180px;
+    height: 180px;
+    object-fit: contain;
+}
+
+/* =========================================
+   ADAPTACIÓN RESPONSIVE Y MÓVIL
+   ========================================= */
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block;
+    }
+    
+    .desktop-only {
+        display: none !important;
+    }
+
+    /* Reducción estricta para imágenes en celulares */
+    .class-img, .combat-img {
+        max-width: 120px !important;
+        height: 120px !important;
+    }
+    
+    #npcIcon img {
+        max-width: 120px !important;
+        height: 120px !important;
+    }
+
+    /* FIX MÓVIL: Subimos los controles para que no queden cortados abajo */
+    #dpad {
+        position: absolute;
+        bottom: 70px; /* SUBIDO de 20px */
+        right: 40px;  /* Ajustado hacia adentro */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 50;
+    }
+    .dpad-mid {
+        display: flex;
+        gap: 60px; /* Un poco más de espacio táctil */
+        margin: 8px 0;
+    }
+    .dpad-btn {
+        width: 60px; /* Ligeramente más grande */
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(15, 26, 42, 0.85); /* Más opaco */
+        border: 2px solid var(--accent);
+        font-size: 28px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0;
+        margin: 0;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+        backdrop-filter: blur(3px);
+        color: white;
+        touch-action: manipulation;
+    }
+    .dpad-btn:active {
+        background: rgba(122, 215, 255, 0.5);
+        transform: scale(0.95);
+    }
+
+    #btnMobileMenu {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 50;
+        width: auto;
+        padding: 12px 18px;
+        background: rgba(15, 26, 42, 0.9);
+        border: 2px solid var(--accent);
+        border-radius: 8px;
+        color: var(--accent);
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+        font-size: 16px;
+        margin: 0;
+    }
+
+    #floatingHud {
+        transform: scale(0.8);
+        transform-origin: top left;
+        top: 15px;
+        left: 15px;
+        width: 190px;
+    }
+    
+    /* FIX MÓVIL: Botones de Ciudad subidos también */
+    #contextActionBar {
+        bottom: 70px; /* SUBIDO de 20px */
+        left: 40px;  /* Ajustado hacia adentro */
+        transform: none;
+        flex-direction: column; 
+        gap: 12px;
+    }
+    #contextActionBar button {
+        padding: 12px 20px;
+        font-size: 16px;
+        border-radius: 8px;
+        width: 100%;
+    }
+
+    .modal-card {
+        width: 95% !important;
+        padding: 15px;
+    }
+
+    #classContainer {
+        flex-direction: column !important;
+        gap: 10px;
+    }
+    .class-option {
+        padding: 10px;
+    }
+
+    #combatContainer {
+        flex-direction: column !important;
+        gap: 10px;
+    }
+    .combat-entity {
+        width: 100% !important;
+        padding: 10px !important;
+        box-sizing: border-box;
+    }
+    .combat-vs {
+        font-size: 24px !important;
+        margin: 5px 0 !important;
+    }
+    
+    .combat-actions {
+        grid-template-columns: 1fr; /* 1 botón por línea */
+        gap: 8px;
+    }
+    .combat-actions button {
+        font-size: 16px;
+        padding: 15px;
+    }
+
+    #invContainer {
+        flex-direction: column !important;
+    }
+    
+    .shop-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .shop-item button {
+        width: 100%;
+        padding: 10px;
+    }
+}

@@ -48,11 +48,6 @@
         </div>
     </div>
 
-    <div id="contextActionBar" style="display: none;">
-        <button id="btnShopContext" onclick="openShop()"><img src="img/items/coin.png" class="icon"> Tienda</button>
-        <button id="btnQuestContext" onclick="openNPCModal()">👥 Hablar</button>
-    </div>
-
     <div id="mainMenuModal" class="modal-overlay">
         <div class="modal-card" style="width: 450px;">
             <h2 style="margin: 0 0 15px 0; color: #fff;">⏸️ Menú Principal</h2>
@@ -65,7 +60,7 @@
 
             <div class="menu-section">
                 <h3>📜 Misión Actual</h3>
-                <div id="quest" style="font-size: 13px;">Explora para encontrar la Ciudad.</div>
+                <div id="quest" style="font-size: 13px;">Explora y habla con los NPCs en el mapa.</div>
             </div>
 
             <div class="menu-section">
@@ -101,7 +96,7 @@
     </div>
 
     <div id="classModal" class="modal-overlay" style="z-index: 200;">
-        <div class="modal-card" style="width: 950px;">
+        <div class="modal-card" style="width: 950px; max-width: 95vw;">
             <h2 style="margin: 0 0 15px 0; color: #fff; font-size: 24px;">Elige tu Camino</h2>
             <div id="classContainer" style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
                 
@@ -222,34 +217,34 @@
     </div>
 
     <div id="shopModal" class="modal-overlay" style="z-index: 1010;">
-        <div class="modal-card" style="width: 450px;">
-            <h2 style="margin: 0 0 15px 0; color: #fff;">🏪 Mercado <span id="shopTier"></span></h2>
+        <div class="modal-card" style="width: 700px; max-width: 95vw;">
+            <h2 style="margin: 0 0 15px 0; color: #fff;">🏪 Mercader <span id="shopTier"></span></h2>
             
             <div class="shop-tabs">
                 <button id="tabBuy" onclick="switchShopTab('buy')" class="active-tab">Comprar</button>
                 <button id="tabSell" onclick="switchShopTab('sell')">Vender Botín</button>
             </div>
 
-            <div id="shopContentBuy" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px;"></div>
-            <div id="shopContentSell" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; display: none;"></div>
+            <div id="shopContentBuy" class="large-item-grid" style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;"></div>
+            <div id="shopContentSell" class="large-item-grid" style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; display: none; padding-right: 5px;"></div>
             
             <button class="btn-danger" onclick="closeShop()">Salir de la tienda</button>
         </div>
     </div>
 
     <div id="invModal" class="modal-overlay" style="z-index: 1020;">
-        <div class="modal-card" style="width: 580px;">
+        <div class="modal-card" style="width: 700px; max-width: 95vw;">
             <h2 style="margin: 0 0 15px 0; color: #fff;">🎒 Inventario</h2>
             
-            <div id="invContainer" style="display: flex; gap: 15px; text-align: left;">
-                <div style="flex: 1; background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;">
+            <div id="invContainer" style="display: flex; gap: 15px; text-align: left; flex-direction: column;">
+                <div style="background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;">
                     <h3 style="color:var(--accent); margin-top:0; font-size:16px;">🗡️ Equipado</h3>
-                    <div id="invEquipped"></div>
+                    <div id="invEquipped" class="large-item-grid"></div>
                 </div>
                 
-                <div style="flex: 1; background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;">
+                <div style="background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;">
                     <h3 style="color:var(--accent); margin-top:0; font-size:16px;">📦 En Mochila</h3>
-                    <div id="invBag" style="max-height: 300px; overflow-y: auto; padding-right: 5px;"></div>
+                    <div id="invBag" class="large-item-grid" style="max-height: 40vh; overflow-y: auto; padding-right: 5px;"></div>
                 </div>
             </div>
 

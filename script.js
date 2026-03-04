@@ -39,7 +39,6 @@ const bgm = {
 Object.values(bgm).forEach(track => { track.loop = true; track.volume = 0.3; });
 Object.values(sfx).forEach(track => { track.volume = 0.7; });
 let currentBGM = null;
-let wasInCity = false; 
 let isMenuOpen = false; 
 
 function playSFX(audioObj) {
@@ -61,7 +60,6 @@ function toggleAudio() {
     if (soundEnabled) {
         playSFX(sfx.ui_click);
         if (inCombat && currentEnemyTile && currentEnemyTile.enemy.isBoss) playBGM('boss');
-        else if (wasInCity) playBGM('city');
         else playBGM('field');
     } else { Object.values(bgm).forEach(t => t.pause()); }
 }
@@ -86,22 +84,21 @@ function toggleMainMenu() {
     document.getElementById('mainMenuModal').style.display = isMenuOpen ? 'flex' : 'none';
 }
 
-
 /* =========================================
    SISTEMA DE NPCs Y LORE
    ========================================= */
 const npcsData = [
-    { name: 'Alcalde Rufus', img: 'img/npcs/alcalde.png', dialogues: ['¡Por favor, héroe! Nuestra ciudad está en peligro.', 'Los caminos ya no son seguros. ¿Nos ayudarás?', 'Te pagaré con fondos de la ciudad si nos proteges.'] },
-    { name: 'Herrero Balder', img: 'img/npcs/herrero.png', dialogues: ['Necesito materiales, pero esos bichos molestan a los mineros.', 'Si despejas la zona, mis martillos volverán a sonar.', 'Las armas no se forjan solas. ¡Ayúdame a limpiar el mapa!'] },
-    { name: 'Sabia Elara', img: 'img/npcs/sabia.png', dialogues: ['Siento una perturbación en el flujo del maná... Ve a investigar.', 'Los astros me dijeron que vendrías. Un mal acecha ahí fuera.', 'Toma esta tarea. Es tu destino, lo quieras o no.'] },
-    { name: 'Guardia Thorne', img: 'img/npcs/guardia.png', dialogues: ['Ojalá pudiera ir yo, pero me lastimé la rodilla con una flecha.', '¡Mantén los ojos abiertos! Hay bestias muy feas cruzando el bosque.', 'Mi lanza está oxidada, será mejor que tú hagas el trabajo sucio.'] }
+    { name: 'Alcalde Rufus', img: 'img/npcs/alcalde.png', dialogues: ['¡Por favor, héroe! El mundo está en peligro.', 'Los caminos ya no son seguros. ¿Nos ayudarás?'] },
+    { name: 'Herrero Balder', img: 'img/npcs/herrero.png', dialogues: ['Necesito materiales, pero esos bichos molestan a los mineros.', 'Las armas no se forjan solas. ¡Ayúdame a limpiar la zona!'] },
+    { name: 'Sabia Elara', img: 'img/npcs/sabia.png', dialogues: ['Siento una perturbación en el flujo del maná... Ve a investigar.', 'Toma esta tarea. Es tu destino, lo quieras o no.'] },
+    { name: 'Guardia Thorne', img: 'img/npcs/guardia.png', dialogues: ['Ojalá pudiera ir yo, pero me lastimé la rodilla con una flecha.', 'Mi lanza está oxidada, será mejor que tú hagas el trabajo sucio.'] }
 ];
 
 let pendingQuest = null;
 
-function openNPCModal() {
+function openSpecificNPCModal(npcData) {
     if (quest) {
-        playSFX(sfx.error); logMsg("El NPC dice: '¡Termina la misión que te dimos primero!'"); return;
+        playSFX(sfx.error); logMsg(`${npcData.name} te dice: '¡Termina la misión que tienes primero!'`); return;
     }
     
     playSFX(sfx.ui_click);
@@ -121,11 +118,10 @@ function openNPCModal() {
         pendingQuest = { type: 'collect_gold', goal: gTarget, progress: 0, rewardType: 'xp', rewardAmount: 15 * (currentZoneIndex + 1), text: `Consigue ${gTarget} de oro` };
     }
 
-    const npc = npcsData[Math.floor(Math.random() * npcsData.length)];
-    const dialog = npc.dialogues[Math.floor(Math.random() * npc.dialogues.length)];
+    const dialog = npcData.dialogues[Math.floor(Math.random() * npcData.dialogues.length)];
     
-    document.getElementById('npcIcon').innerHTML = `<img src="${npc.img}">`;
-    document.getElementById('npcName').textContent = npc.name;
+    document.getElementById('npcIcon').innerHTML = `<img src="${npcData.img}">`;
+    document.getElementById('npcName').textContent = npcData.name;
     document.getElementById('npcDialog').textContent = `"${dialog}"`;
     
     let rewardText = pendingQuest.rewardAmount + " " + (pendingQuest.rewardType === 'gold' ? 'Oro' : pendingQuest.rewardType === 'xp' ? 'XP' : 'Poción');
@@ -137,19 +133,96 @@ function openNPCModal() {
 function closeNPCModal() { playSFX(sfx.ui_click); pendingQuest = null; document.getElementById('npcModal').style.display = 'none'; }
 function acceptNPCQuest() { quest = pendingQuest; pendingQuest = null; playSFX(sfx.quest_accept); logMsg("¡Misión aceptada!"); updateHUD(); saveGame(); document.getElementById('npcModal').style.display = 'none'; }
 
-
 /* =========================================
    SISTEMA BASE DEL JUEGO Y BALANCE
    ========================================= */
 const SAVE_KEY = 'miniRPG_WorldSave';
 
 const mapData = [
-    { rarity: 'Común', css: 'rarity-comun', colorClass: 'color-comun', colorHex: '#888', recLevel: '1-3', newEnemies: [{ name: 'Slime', hp: 15, atk: 7, def: 1, mag: 2, gold: 3, xp: 4, img: 'img/enemies/green_slime.png' }, { name: 'Rata', hp: 12, atk: 9, def: 0, mag: 0, gold: 3, xp: 4, img: 'img/enemies/rat.png' }], boss: { name: 'Slime Gigante', hp: 50, atk: 12, def: 3, mag: 4, trait: 'regen', gold: 25, xp: 25, img: 'img/bosses/giant_slime.png' }, shop: { weapons: [{ name: 'Daga de Hierro', atk: 3, mag: 0, price: 30, icon: 'sword.png' }, { name: 'Varita de Hueso', atk: 0, mag: 4, price: 40, icon: 'staff.png' }], armors: [{ name: 'Chaleco de cuero', def: 2, hpBonus: 15, mpBonus: 0, price: 40, icon: 'armor.png' }, { name: 'Túnica de aprendiz', def: 1, hpBonus: 0, mpBonus: 20, price: 40, icon: 'robe.png' }] } },
-    { rarity: 'Poco Común', css: 'rarity-pococomun', colorClass: 'color-pococomun', colorHex: '#4caf50', recLevel: '4-6', newEnemies: [{ name: 'Goblin', hp: 25, atk: 12, def: 2, mag: 0, gold: 6, xp: 8, img: 'img/enemies/goblin.png' }], boss: { name: 'Rey Goblin', hp: 90, atk: 18, def: 4, mag: 5, trait: 'crit', gold: 60, xp: 40, img: 'img/bosses/king_goblin.png' }, shop: { weapons: [{ name: 'Espada corta', atk: 6, mag: 0, price: 80, icon: 'sword.png' }, { name: 'Cetro de cristal', atk: 0, mag: 7, price: 100, icon: 'staff.png' }], armors: [{ name: 'Cota verde', def: 4, hpBonus: 30, mpBonus: 0, price: 120, icon: 'armor.png' }, { name: 'Manto místico', def: 2, hpBonus: 10, mpBonus: 40, price: 120, icon: 'robe.png' }] } },
-    { rarity: 'Raro', css: 'rarity-raro', colorClass: 'color-raro', colorHex: '#2196f3', recLevel: '7-10', newEnemies: [{ name: 'Lobo Oscuro', hp: 40, atk: 18, def: 3, mag: 0, gold: 12, xp: 14, img: 'img/enemies/dark_wolf.png' }], boss: { name: 'Bestia Alfa', hp: 150, atk: 25, def: 6, mag: 8, trait: 'crit', gold: 120, xp: 80, img: 'img/bosses/aplha_beast.png' }, shop: { weapons: [{ name: 'Espada larga', atk: 12, mag: 0, price: 250, icon: 'sword.png' }, { name: 'Bastón lunar', atk: 0, mag: 12, price: 300, icon: 'staff.png' }], armors: [{ name: 'Armadura de acero', def: 8, hpBonus: 60, mpBonus: 0, price: 400, icon: 'armor.png' }, { name: 'Túnica estelar', def: 4, hpBonus: 15, mpBonus: 80, price: 400, icon: 'robe.png' }] } },
-    { rarity: 'Épico', css: 'rarity-epico', colorClass: 'color-epico', colorHex: '#9c27b0', recLevel: '11-15', newEnemies: [{ name: 'Caballero Maldito', hp: 65, atk: 25, def: 6, mag: 10, gold: 25, xp: 28, img: 'img/enemies/cursed_knight.png' }], boss: { name: 'Caballero Oscuro', hp: 250, atk: 35, def: 10, mag: 15, trait: 'vampire', gold: 250, xp: 150, img: 'img/bosses/dark_knight.png' }, shop: { weapons: [{ name: 'Mandoble oscuro', atk: 20, mag: 0, price: 700, icon: 'sword.png' }, { name: 'Bastón del vacío', atk: 0, mag: 22, price: 800, icon: 'staff.png' }], armors: [{ name: 'Coraza oscura', def: 15, hpBonus: 120, mpBonus: 0, price: 1200, icon: 'armor.png' }, { name: 'Túnica espectral', def: 7, hpBonus: 30, mpBonus: 150, price: 1200, icon: 'robe.png' }] } },
-    { rarity: 'Legendario', css: 'rarity-legendario', colorClass: 'color-legendario', colorHex: '#ff9800', recLevel: '16-20', newEnemies: [{ name: 'Demonio Infernal', hp: 100, atk: 35, def: 8, mag: 20, gold: 50, xp: 60, img: 'img/enemies/infernal_demon.png' }], boss: { name: 'Señor Demonio', hp: 450, atk: 50, def: 15, mag: 25, trait: 'vampire', gold: 500, xp: 300, img: 'img/bosses/lord_demon.png' }, shop: { weapons: [{ name: 'Hacha del Caos', atk: 35, mag: 0, price: 2000, icon: 'sword.png' }, { name: 'Cetro solar', atk: 0, mag: 38, price: 2500, icon: 'staff.png' }], armors: [{ name: 'Coraza del caos', def: 25, hpBonus: 250, mpBonus: 0, price: 3500, icon: 'armor.png' }, { name: 'Manto infernal', def: 12, hpBonus: 50, mpBonus: 300, price: 3500, icon: 'robe.png' }] } },
-    { rarity: 'Mítico', css: 'rarity-mitico', colorClass: 'color-mitico', colorHex: '#ffeb3b', recLevel: '21+', newEnemies: [{ name: 'Dragón Antiguo', hp: 180, atk: 50, def: 12, mag: 30, gold: 100, xp: 120, img: 'img/enemies/dragon.png' }], boss: { name: 'Dragón Dorado', hp: 800, atk: 70, def: 25, mag: 40, trait: 'regen', gold: 1000, xp: 600, img: 'img/bosses/golden_dragon.png' }, shop: { weapons: [{ name: 'Lanza divina', atk: 60, mag: 0, price: 6000, icon: 'sword.png' }, { name: 'Báculo del tiempo', atk: 0, mag: 65, price: 8000, icon: 'staff.png' }], armors: [{ name: 'Coraza divina', def: 40, hpBonus: 500, mpBonus: 0, price: 12000, icon: 'armor.png' }, { name: 'Túnica astral', def: 20, hpBonus: 100, mpBonus: 600, price: 12000, icon: 'robe.png' }] } }
+    { rarity: 'Común', css: 'rarity-comun', colorClass: 'color-comun', colorHex: '#888', recLevel: '1-3', newEnemies: [{ name: 'Slime', hp: 15, atk: 7, def: 1, mag: 2, gold: 3, xp: 4, img: 'img/enemies/green_slime.png' }, { name: 'Rata', hp: 12, atk: 9, def: 0, mag: 0, gold: 3, xp: 4, img: 'img/enemies/rat.png' }], boss: { name: 'Slime Gigante', hp: 50, atk: 12, def: 3, mag: 4, trait: 'regen', gold: 25, xp: 25, img: 'img/bosses/giant_slime.png' }, 
+      shop: { 
+        weapons: [
+            { name: 'Daga de Hierro', atk: 3, mag: 0, price: 30, icon: 'iron_dagger.png' },
+            { name: 'Varita Astillada', atk: 0, mag: 4, price: 30, icon: 'wood_staff.png' },
+            { name: 'Arco de Madera', atk: 2, mag: 1, price: 30, icon: 'wood_bow.png' }
+        ], 
+        armors: [
+            { name: 'Chaleco de Cuero', def: 2, hpBonus: 15, mpBonus: 0, price: 40, icon: 'leather_vest.png' },
+            { name: 'Túnica Rasgada', def: 1, hpBonus: 0, mpBonus: 20, price: 40, icon: 'torn_robe.png' },
+            { name: 'Capa de Cazador', def: 1, hpBonus: 10, mpBonus: 5, price: 40, icon: 'hunter_cloak.png' }
+        ] 
+      } 
+    },
+    { rarity: 'Poco Común', css: 'rarity-pococomun', colorClass: 'color-pococomun', colorHex: '#4caf50', recLevel: '4-6', newEnemies: [{ name: 'Goblin', hp: 25, atk: 12, def: 2, mag: 0, gold: 6, xp: 8, img: 'img/enemies/goblin.png' }], boss: { name: 'Rey Goblin', hp: 90, atk: 18, def: 4, mag: 5, trait: 'crit', gold: 60, xp: 40, img: 'img/bosses/king_goblin.png' }, 
+      shop: { 
+        weapons: [
+            { name: 'Espada de Acero', atk: 7, mag: 0, price: 90, icon: 'steel_sword.png' },
+            { name: 'Cetro de Cristal', atk: 0, mag: 8, price: 90, icon: 'crystal_scepter.png' },
+            { name: 'Arco Compuesto', atk: 5, mag: 2, price: 90, icon: 'composite_bow.png' }
+        ], 
+        armors: [
+            { name: 'Cota de Malla', def: 4, hpBonus: 30, mpBonus: 0, price: 120, icon: 'chainmail.png' },
+            { name: 'Manto Místico', def: 2, hpBonus: 10, mpBonus: 40, price: 120, icon: 'mystic_mantle.png' },
+            { name: 'Jubón Reforzado', def: 3, hpBonus: 20, mpBonus: 10, price: 120, icon: 'reinforced_tunic.png' }
+        ] 
+      } 
+    },
+    { rarity: 'Raro', css: 'rarity-raro', colorClass: 'color-raro', colorHex: '#2196f3', recLevel: '7-10', newEnemies: [{ name: 'Lobo Oscuro', hp: 40, atk: 18, def: 3, mag: 0, gold: 12, xp: 14, img: 'img/enemies/dark_wolf.png' }], boss: { name: 'Bestia Alfa', hp: 150, atk: 25, def: 6, mag: 8, trait: 'crit', gold: 120, xp: 80, img: 'img/bosses/aplha_beast.png' }, 
+      shop: { 
+        weapons: [
+            { name: 'Espada Larga', atk: 12, mag: 0, price: 250, icon: 'long_sword.png' },
+            { name: 'Bastón Lunar', atk: 0, mag: 14, price: 250, icon: 'lunar_staff.png' },
+            { name: 'Arco Largo', atk: 10, mag: 3, price: 250, icon: 'long_bow.png' }
+        ], 
+        armors: [
+            { name: 'Armadura de Acero', def: 8, hpBonus: 60, mpBonus: 0, price: 400, icon: 'steel_armor.png' },
+            { name: 'Túnica Estelar', def: 4, hpBonus: 15, mpBonus: 80, price: 400, icon: 'stellar_robe.png' },
+            { name: 'Armadura Ligera', def: 6, hpBonus: 40, mpBonus: 20, price: 400, icon: 'light_armor.png' }
+        ] 
+      } 
+    },
+    { rarity: 'Épico', css: 'rarity-epico', colorClass: 'color-epico', colorHex: '#9c27b0', recLevel: '11-15', newEnemies: [{ name: 'Caballero Maldito', hp: 65, atk: 25, def: 6, mag: 10, gold: 25, xp: 28, img: 'img/enemies/cursed_knight.png' }], boss: { name: 'Caballero Oscuro', hp: 250, atk: 35, def: 10, mag: 15, trait: 'vampire', gold: 250, xp: 150, img: 'img/bosses/dark_knight.png' }, 
+      shop: { 
+        weapons: [
+            { name: 'Mandoble Oscuro', atk: 20, mag: 0, price: 750, icon: 'dark_greatsword.png' },
+            { name: 'Bastón del Vacío', atk: 0, mag: 23, price: 750, icon: 'void_staff.png' },
+            { name: 'Arco de Sombras', atk: 16, mag: 6, price: 750, icon: 'shadow_bow.png' }
+        ], 
+        armors: [
+            { name: 'Coraza Oscura', def: 15, hpBonus: 120, mpBonus: 0, price: 1200, icon: 'dark_plate.png' },
+            { name: 'Túnica Espectral', def: 7, hpBonus: 30, mpBonus: 150, price: 1200, icon: 'spectral_robe.png' },
+            { name: 'Manto de Asesino', def: 11, hpBonus: 80, mpBonus: 40, price: 1200, icon: 'assassin_mantle.png' }
+        ] 
+      } 
+    },
+    { rarity: 'Legendario', css: 'rarity-legendario', colorClass: 'color-legendario', colorHex: '#ff9800', recLevel: '16-20', newEnemies: [{ name: 'Demonio Infernal', hp: 100, atk: 35, def: 8, mag: 20, gold: 50, xp: 60, img: 'img/enemies/infernal_demon.png' }], boss: { name: 'Señor Demonio', hp: 450, atk: 50, def: 15, mag: 25, trait: 'vampire', gold: 500, xp: 300, img: 'img/bosses/lord_demon.png' }, 
+      shop: { 
+        weapons: [
+            { name: 'Hacha del Caos', atk: 35, mag: 0, price: 2200, icon: 'chaos_axe.png' },
+            { name: 'Cetro Solar', atk: 0, mag: 40, price: 2200, icon: 'solar_scepter.png' },
+            { name: 'Arco de Fuego', atk: 28, mag: 10, price: 2200, icon: 'fire_bow.png' }
+        ], 
+        armors: [
+            { name: 'Coraza del Caos', def: 25, hpBonus: 250, mpBonus: 0, price: 3500, icon: 'chaos_plate.png' },
+            { name: 'Manto Infernal', def: 12, hpBonus: 50, mpBonus: 300, price: 3500, icon: 'infernal_mantle.png' },
+            { name: 'Armadura Escamada', def: 18, hpBonus: 150, mpBonus: 80, price: 3500, icon: 'scaled_armor.png' }
+        ] 
+      } 
+    },
+    { rarity: 'Mítico', css: 'rarity-mitico', colorClass: 'color-mitico', colorHex: '#ffeb3b', recLevel: '21+', newEnemies: [{ name: 'Dragón Antiguo', hp: 180, atk: 50, def: 12, mag: 30, gold: 100, xp: 120, img: 'img/enemies/dragon.png' }], boss: { name: 'Dragón Dorado', hp: 800, atk: 70, def: 25, mag: 40, trait: 'regen', gold: 1000, xp: 600, img: 'img/bosses/golden_dragon.png' }, 
+      shop: { 
+        weapons: [
+            { name: 'Lanza Divina', atk: 60, mag: 0, price: 6500, icon: 'divine_spear.png' },
+            { name: 'Báculo del Tiempo', atk: 0, mag: 68, price: 6500, icon: 'time_staff.png' },
+            { name: 'Arco Celestial', atk: 50, mag: 15, price: 6500, icon: 'celestial_bow.png' }
+        ], 
+        armors: [
+            { name: 'Coraza Divina', def: 40, hpBonus: 500, mpBonus: 0, price: 12000, icon: 'divine_plate.png' },
+            { name: 'Túnica Astral', def: 20, hpBonus: 100, mpBonus: 600, price: 12000, icon: 'astral_robe.png' },
+            { name: 'Manto Etéreo', def: 30, hpBonus: 300, mpBonus: 200, price: 12000, icon: 'ethereal_mantle.png' }
+        ] 
+      } 
+    }
 ];
 
 const MAP_W = 100; 
@@ -216,7 +289,6 @@ function loadGameBtn() {
             if(!player.inventory) player.inventory = { weapons: [], armors: [] };
             if(!player.playerClass) player.playerClass = "Guerrero";
             
-            // Compatibilidad hacia atrás
             if(player.ep === undefined) player.ep = player.baseMaxEp || 50;
             if(player.energyPotions === undefined) player.energyPotions = 0;
             if(!player.mapImg) player.mapImg = `img/player/${player.playerClass.toLowerCase()}_mapa.png`;
@@ -251,7 +323,6 @@ function selectClass(className) {
     player.gold = 0; 
     player.weapon = null; 
     
-    // Asignación de imágenes basadas en la clase elegida
     let classNameLower = className.toLowerCase();
     player.mapImg = `img/player/${classNameLower}_mapa.png`;
     player.combatImg = `img/player/${classNameLower}_combate.png`;
@@ -261,27 +332,26 @@ function selectClass(className) {
         player.baseMaxMp = 10; player.mp = 10;
         player.baseMaxEp = 50; player.ep = 50;
         player.baseAtk = 5; player.baseDef = 4; player.baseMag = 1;
-        player.weapon = { name: 'Espada Rota', atk: 2, mag: 0, price: 10, colorClass: 'color-comun', icon: 'sword.png' };
+        player.weapon = { name: 'Espada Rota', atk: 2, mag: 0, price: 10, colorClass: 'color-comun', icon: 'iron_dagger.png' };
     } else if (className === 'Mago') {
         player.baseMaxHp = 30; player.hp = 30;
         player.baseMaxMp = 60; player.mp = 60;
         player.baseMaxEp = 40; player.ep = 40;
         player.baseAtk = 2; player.baseDef = 1; player.baseMag = 5;
         player.manaPotions = 3; 
-        player.weapon = { name: 'Varita Astillada', atk: 0, mag: 3, price: 10, colorClass: 'color-comun', icon: 'staff.png' };
+        player.weapon = { name: 'Varita Astillada', atk: 0, mag: 3, price: 10, colorClass: 'color-comun', icon: 'wood_staff.png' };
     } else if (className === 'Arquero') {
         player.baseMaxHp = 45; player.hp = 45;
         player.baseMaxMp = 20; player.mp = 20;
         player.baseMaxEp = 80; player.ep = 80;
         player.baseAtk = 4; player.baseDef = 2; player.baseMag = 2;
-        player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'bow.png' }; 
+        player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'wood_bow.png' }; 
     } else if (className === 'Simple') {
         player.baseMaxHp = 40; player.hp = 40;
         player.baseMaxMp = 10; player.mp = 10;
         player.baseMaxEp = 40; player.ep = 40;
         player.baseAtk = 2; player.baseDef = 1; player.baseMag = 1;
-        player.gold = 100; // Ventaja inicial
-        // Sin arma, confía en el oro inicial para sobrevivir
+        player.gold = 100; 
     }
     
     document.getElementById('classModal').style.display = 'none';
@@ -371,7 +441,7 @@ function generateWorld() {
             if(x===0 || y===0 || x===MAP_W-1 || y===MAP_H-1) type = 'water';
             else if (x === 32 || x === 65 || y === 50) type = 'wall'; 
             
-            worldMap[y * MAP_W + x] = { x, y, type, enemy: null, isCity: false, isBossTile: false, discovered: false, zone: getZoneIndex(x,y) };
+            worldMap[y * MAP_W + x] = { x, y, type, enemy: null, npc: null, merchant: false, isBossTile: false, discovered: false, zone: getZoneIndex(x,y) };
         }
     }
 
@@ -392,17 +462,6 @@ function generateWorld() {
             if(poi.gX) drawPathWorld(poi.gX, poi.gY, nextPoi.cX, nextPoi.cY);
         }
 
-        for(let cy = poi.cY; cy <= poi.cY+1; cy++){
-            for(let cx = poi.cX; cx <= poi.cX+1; cx++){
-                let t = worldMap[cy * MAP_W + cx];
-                t.isCity = true;
-                if(cx===poi.cX && cy===poi.cY) t.type = 'city city-tl';
-                if(cx===poi.cX+1 && cy===poi.cY) t.type = 'city city-tr';
-                if(cx===poi.cX && cy===poi.cY+1) t.type = 'city city-bl';
-                if(cx===poi.cX+1 && cy===poi.cY+1) t.type = 'city city-br';
-            }
-        }
-
         let bTile = worldMap[poi.bY * MAP_W + poi.bX];
         bTile.isBossTile = true;
         bTile.enemy = scaleEnemy(mapData[poi.bIdx].boss, true, poi.bIdx);
@@ -419,10 +478,11 @@ function generateWorld() {
         for(let i=0; i<=z; i++) enemiesPools[z].push(...mapData[i].newEnemies);
     }
 
+    // Spawn de enemigos aleatorios
     for(let i=0; i < MAP_W * MAP_H; i++) {
         let t = worldMap[i];
         if(t.type === 'grass' || t.type === 'path') {
-            if(!t.isCity && !t.isBossTile && !(t.x === 16 && t.y === 25)) { 
+            if(!t.isBossTile && !(t.x === 16 && t.y === 25)) { 
                 if(Math.random() < 0.06) {
                     let pool = enemiesPools[t.zone];
                     let template = pool[Math.floor(Math.random() * pool.length)];
@@ -433,6 +493,37 @@ function generateWorld() {
             }
         }
     }
+
+    // ========================================================
+    // NUEVO: 1 NPC Misión y 1 Mercader EXCLUSIVAMENTE EN LOS CAMINOS
+    // ========================================================
+    for(let z = 0; z <= 5; z++) {
+        // Filtramos PRINCIPALMENTE los caminos ('path') de la zona actual
+        let zoneTiles = worldMap.filter(t => t.zone === z && t.type === 'path' && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
+        
+        // Si la generación hizo un camino muy corto (menos de 2 casillas), rellenamos con pasto
+        if (zoneTiles.length < 2) {
+            let extraTiles = worldMap.filter(t => t.zone === z && t.type === 'grass' && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
+            zoneTiles = zoneTiles.concat(extraTiles);
+        }
+
+        // Mezclamos las posiciones disponibles aleatoriamente
+        zoneTiles.sort(() => Math.random() - 0.5); 
+        
+        // Seleccionamos un único NPC aleatorio de los 4 posibles
+        let randomNPC = npcsData[Math.floor(Math.random() * npcsData.length)];
+
+        // Colocamos el NPC en la primera casilla vacía del camino
+        if(zoneTiles[0]) { 
+            zoneTiles[0].npc = randomNPC; 
+        }
+        
+        // Colocamos al Mercader en la segunda casilla vacía del camino
+        if(zoneTiles[1]) { 
+            zoneTiles[1].merchant = true; 
+        }
+    }
+    // ========================================================
 
     player.x = 16; player.y = 25; 
     playSFX(sfx.map_change);
@@ -464,7 +555,6 @@ function render() {
     m.style.gridAutoRows = `512px`;
     m.innerHTML = ''; 
     
-    let inCityArea = false;
     currentZoneIndex = getZoneIndex(player.x, player.y);
     
     const vRadiusX = 4;
@@ -490,26 +580,17 @@ function render() {
 
                 if (player.x === t.x && player.y === t.y) { 
                     d.innerHTML = `<img src="${player.mapImg}">`; 
-                    if (t.isCity) inCityArea = true; 
                 } 
                 else if (t.enemy) { d.innerHTML = `<img src="${t.enemy.img}">`; }
+                else if (t.merchant) { d.innerHTML = `<img src="img/npcs/merchant.png" style="filter: drop-shadow(0 0 10px #4caf50);">`; }
+                else if (t.npc) { d.innerHTML = `<img src="${t.npc.img}" style="filter: drop-shadow(0 0 10px #ffeb3b);">`; }
             }
             m.appendChild(d);
         }
     }
     
     setTimeout(centerCamera, 10);
-
-    if (!inCombat) {
-        if (inCityArea && !wasInCity) { playSFX(sfx.city_enter); playBGM('city'); } 
-        else if (!inCityArea && wasInCity) { playBGM('field'); }
-    }
-    wasInCity = inCityArea;
-
-    document.getElementById('contextActionBar').style.display = inCityArea && !inCombat ? 'flex' : 'none';
-    
     document.getElementById('mapName').textContent = mapData[currentZoneIndex].rarity;
-    
     updateHUD();
 }
 
@@ -547,8 +628,8 @@ function updateHUD() {
         let eqEl = document.getElementById('menuEquipment');
         if (eqEl) {
             eqEl.innerHTML = `
-                <img src="img/weapons/${player.weapon ? player.weapon.icon : 'sword.png'}" class="icon"> <b>Arma:</b> <span class="${player.weapon ? player.weapon.colorClass : ''}">${player.weapon ? player.weapon.name : 'Ninguna'}</span><br>
-                <img src="img/weapons/${player.armor ? player.armor.icon : 'armor.png'}" class="icon"> <b>Armadura:</b> <span class="${player.armor ? player.armor.colorClass : ''}">${player.armor ? player.armor.name : 'Ninguna'}</span>
+                <img src="img/weapons/${player.weapon ? player.weapon.icon : 'iron_dagger.png'}" class="icon"> <b>Arma:</b> <span class="${player.weapon ? player.weapon.colorClass : ''}">${player.weapon ? player.weapon.name : 'Ninguna'}</span><br>
+                <img src="img/weapons/${player.armor ? player.armor.icon : 'leather_vest.png'}" class="icon"> <b>Armadura:</b> <span class="${player.armor ? player.armor.colorClass : ''}">${player.armor ? player.armor.name : 'Ninguna'}</span>
             `;
         }
 
@@ -557,45 +638,43 @@ function updateHUD() {
             if (quest) {
                 questEl.innerHTML = `<b>Obj:</b> ${quest.text}<br><b>Prog:</b> [${quest.progress}/${quest.goal}]<br><b>Rec:</b> ${quest.rewardAmount} ${quest.rewardType === 'gold' ? 'Oro' : quest.rewardType === 'xp' ? 'XP' : 'Poción'}`;
             } else {
-                questEl.innerHTML = "No tienes tareas activas.";
+                questEl.innerHTML = "No tienes tareas activas. Explora el mapa para encontrar NPCs.";
             }
         }
     } catch (e) {}
 }
 
 /* =========================================
-   SISTEMA DE INVENTARIO MEJORADO
+   SISTEMA DE INVENTARIO Y EQUIPAMIENTO 
    ========================================= */
 function openInventory() {
     playSFX(sfx.ui_click);
     
-    // RENDERIZAR EQUIPADO
     let htmlEq = '';
     if (player.weapon) {
         let statText = player.weapon.atk > 0 ? `ATK +${player.weapon.atk}` : `MAG +${player.weapon.mag}`;
         htmlEq += `<div class="shop-item"><div><img src="img/weapons/${player.weapon.icon}" class="icon"> <span class="${player.weapon.colorClass}">${player.weapon.name}</span><br><small>${statText}</small></div><button onclick="unequipItem('weapon')" class="btn-danger">Desequipar</button></div>`;
     } else {
-        htmlEq += `<p style="font-size:12px; color:#aaa;">Arma: Nada equipado</p>`;
+        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px;">Arma: Nada equipado</p>`;
     }
     
     if (player.armor) {
         let statText = player.armor.mpBonus > 0 ? `DEF +${player.armor.def} | MANÁ +${player.armor.mpBonus}` : `DEF +${player.armor.def} | VIDA +${player.armor.hpBonus}`;
         htmlEq += `<div class="shop-item"><div><img src="img/weapons/${player.armor.icon}" class="icon"> <span class="${player.armor.colorClass}">${player.armor.name}</span><br><small>${statText}</small></div><button onclick="unequipItem('armor')" class="btn-danger">Desequipar</button></div>`;
     } else {
-        htmlEq += `<p style="font-size:12px; color:#aaa; margin-top:15px;">Armadura: Nada equipado</p>`;
+        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px;">Armadura: Nada equipado</p>`;
     }
     document.getElementById('invEquipped').innerHTML = htmlEq;
 
-    // RENDERIZAR MOCHILA
-    let htmlBag = '<h4 style="color:#fff; margin:0 0 5px 0; font-size:13px;">Armas</h4>';
-    if(player.inventory.weapons.length === 0) htmlBag += '<p style="font-size:12px; color:#aaa;">No tienes armas.</p>';
+    let htmlBag = '<h4>Armas</h4>';
+    if(player.inventory.weapons.length === 0) htmlBag += '<p style="font-size:12px; color:#aaa; text-align:center;">No tienes armas en la mochila.</p>';
     player.inventory.weapons.forEach((w, idx) => {
         let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
         htmlBag += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${w.colorClass}">${w.name}</span><br><small>${statText}</small></div><button onclick="equipFromInv('weapon', ${idx})" style="background:var(--accent); color:#000;">Equipar</button></div>`;
     });
     
-    htmlBag += '<h4 style="color:#fff; margin:15px 0 5px 0; font-size:13px;">Armaduras</h4>';
-    if(player.inventory.armors.length === 0) htmlBag += '<p style="font-size:12px; color:#aaa;">No tienes armaduras.</p>';
+    htmlBag += '<h4>Armaduras</h4>';
+    if(player.inventory.armors.length === 0) htmlBag += '<p style="font-size:12px; color:#aaa; text-align:center;">No tienes armaduras en la mochila.</p>';
     player.inventory.armors.forEach((a, idx) => {
         let statText = a.mpBonus > 0 ? `DEF +${a.def} | MANÁ +${a.mpBonus}` : `DEF +${a.def} | VIDA +${a.hpBonus}`;
         htmlBag += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${a.colorClass}">${a.name}</span><br><small>${statText}</small></div><button onclick="equipFromInv('armor', ${idx})" style="background:var(--accent); color:#000;">Equipar</button></div>`;
@@ -639,18 +718,17 @@ function equipFromInv(type, idx) {
 }
 
 /* =========================================
-   SISTEMA DE TIENDA Y ECONOMÍA (COMPRA/VENTA)
+   SISTEMA DE TIENDA (COMPRA/VENTA)
    ========================================= */
 function openShop() {
     playSFX(sfx.shop_open); 
     const cd = mapData[currentZoneIndex];
     document.getElementById('shopTier').textContent = `(${cd.rarity})`; document.getElementById('shopTier').className = cd.colorClass;
     
-    // Generar pestaña de Compra
     let htmlBuy = `
-        <div class="shop-item"><span><img src="img/items/potion.png" class="icon"> Poción (+25 HP)</span><button onclick="buyPotion()">20 <img src="img/items/coin.png" class="icon"></button></div>
-        <div class="shop-item"><span><img src="img/items/mana_potion.png" class="icon"> Maná (+20 MP)</span><button onclick="buyManaPotion()">25 <img src="img/items/coin.png" class="icon"></button></div>
-        <div class="shop-item"><span><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> Energía (+30 EP)</span><button onclick="buyEnergyPotion()">15 <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/potion.png" class="icon"> <span>Poción (+25 HP)</span></div><button onclick="buyPotion()">20 <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/mana_potion.png" class="icon"> <span>Maná (+20 MP)</span></div><button onclick="buyManaPotion()">25 <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> <span>Energía (+30 EP)</span></div><button onclick="buyEnergyPotion()">15 <img src="img/items/coin.png" class="icon"></button></div>
     `;
     cd.shop.weapons.forEach(w => { 
         let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
@@ -662,23 +740,23 @@ function openShop() {
     });
     document.getElementById('shopContentBuy').innerHTML = htmlBuy; 
     
-    renderSellTab(); // Preparar pestaña de Venta
-    switchShopTab('buy'); // Por defecto abre en Comprar
+    renderSellTab(); 
+    switchShopTab('buy'); 
     
     document.getElementById('shopModal').style.display = 'flex';
 }
 
 function renderSellTab() {
-    let htmlSell = '<h4 style="color:#fff; margin:0 0 5px 0; font-size:13px;">Tus Armas</h4>';
-    if(player.inventory.weapons.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa;">Mochila vacía.</p>';
+    let htmlSell = '<h4>Tus Armas</h4>';
+    if(player.inventory.weapons.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa; text-align:center;">Mochila vacía.</p>';
     player.inventory.weapons.forEach((w, idx) => {
         let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
-        let sellPrice = Math.floor((w.price || 15) / 2); // Se vende a mitad de precio
+        let sellPrice = Math.floor((w.price || 15) / 2); 
         htmlSell += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${w.colorClass}">${w.name}</span><br><small>${statText}</small></div><button class="btn-success" onclick="sellWeapon(${idx}, ${sellPrice})">+${sellPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
     });
     
-    htmlSell += '<h4 style="color:#fff; margin:10px 0 5px 0; font-size:13px;">Tus Armaduras</h4>';
-    if(player.inventory.armors.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa;">Mochila vacía.</p>';
+    htmlSell += '<h4>Tus Armaduras</h4>';
+    if(player.inventory.armors.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa; text-align:center;">Mochila vacía.</p>';
     player.inventory.armors.forEach((a, idx) => {
         let statText = a.mpBonus > 0 ? `DEF +${a.def} | MANÁ +${a.mpBonus}` : `DEF +${a.def} | VIDA +${a.hpBonus}`;
         let sellPrice = Math.floor((a.price || 20) / 2);
@@ -692,12 +770,12 @@ function switchShopTab(tab) {
     if(tab === 'buy') {
         document.getElementById('tabBuy').classList.add('active-tab');
         document.getElementById('tabSell').classList.remove('active-tab');
-        document.getElementById('shopContentBuy').style.display = 'block';
+        document.getElementById('shopContentBuy').style.display = 'grid';
         document.getElementById('shopContentSell').style.display = 'none';
     } else {
         document.getElementById('tabSell').classList.add('active-tab');
         document.getElementById('tabBuy').classList.remove('active-tab');
-        document.getElementById('shopContentSell').style.display = 'block';
+        document.getElementById('shopContentSell').style.display = 'grid';
         document.getElementById('shopContentBuy').style.display = 'none';
     }
 }
@@ -741,12 +819,11 @@ function buyArmor(name, def, hpBonus, mpBonus, price, colorClass, icon) {
 }
 
 /* =========================================
-   CONTROLES Y MOVIMIENTO
+   CONTROLES Y MOVIMIENTO CON COLISIONES NPC
    ========================================= */
 function move(dx, dy) {
-    if (isMenuOpen || inCombat || document.getElementById('classModal').style.display === 'flex' || document.getElementById('npcModal').style.display === 'flex') return;
+    if (isMenuOpen || inCombat || document.getElementById('classModal').style.display === 'flex' || document.getElementById('npcModal').style.display === 'flex' || document.getElementById('shopModal').style.display === 'flex') return;
     
-    // VERIFICAR ENERGÍA
     if (player.ep <= 0) {
         playSFX(sfx.error);
         logMsg("¡Estás exhausto! Toma una Poción de Energía (EP) o descansa.");
@@ -759,21 +836,29 @@ function move(dx, dy) {
     if (!tile || tile.type === 'water' || tile.type === 'wall') return;
 
     if (tile.type === 'gate' && !flags['boss' + tile.gateIndex]) {
-        playSFX(sfx.error);
-        logMsg("🚫 Una energía oscura te impide el paso. Derrota al Jefe.");
-        return; 
+        playSFX(sfx.error); logMsg("🚫 Una energía oscura te impide el paso. Derrota al Jefe."); return; 
+    }
+
+    if (tile.merchant) {
+        openShop();
+        return;
+    } else if (tile.npc) {
+        openSpecificNPCModal(tile.npc);
+        return;
     }
 
     playSFX(sfx.step); 
     lastPlayerPos = { x: player.x, y: player.y }; 
     player.x = nx; player.y = ny;
-    
-    // Restar energía por moverse
     player.ep -= 1;
     
     updateFOV(); centerCamera();
     
-    if (tile.enemy) startCombat(tile); else render();
+    if (tile.enemy) {
+        startCombat(tile); 
+    } else {
+        render();
+    }
 }
 
 function lockCombatButtons(lock) {
@@ -809,9 +894,8 @@ function startCombat(tile) {
     if (enemy.isBoss) { playSFX(sfx.boss_spawn); playBGM('boss'); } 
     else { playSFX(sfx.enemy_spawn); }
     
-    document.getElementById('contextActionBar').style.display = 'none'; // Oculta barra ciudad al pelear
     document.getElementById('combatModal').style.display = 'flex';
-    document.getElementById('modalLog').innerHTML = ''; // Limpiar log anterior
+    document.getElementById('modalLog').innerHTML = ''; 
     
     document.getElementById('modalName').textContent = enemy.isBoss ? `JEFE: ${enemy.name}` : enemy.name;
     document.getElementById('modalImg').src = enemy.img;
@@ -824,7 +908,7 @@ function startCombat(tile) {
     document.getElementById('enemyTraitDisplay').textContent = traitText;
 
     document.getElementById('combatPlayerName').textContent = player.playerClass || "Héroe";
-    document.getElementById('combatPlayerImg').src = player.combatImg; // Usar el sprite de combate de la clase actual
+    document.getElementById('combatPlayerImg').src = player.combatImg; 
     logCombat(`<div>¡Un <b>${enemy.name}</b> salvaje aparece!</div>`);
     
     updateCombatUI(); render();
@@ -833,7 +917,7 @@ function startCombat(tile) {
 function endCombat() { 
     inCombat = false; currentEnemyTile = null; 
     document.getElementById('combatModal').style.display = 'none'; lockCombatButtons(false);
-    if (wasInCity) playBGM('city'); else playBGM('field');
+    playBGM('field');
     render(); 
 }
 
@@ -999,7 +1083,7 @@ function resolveVictory() {
             if (quest.type === 'kill_boss' && enemy.name === quest.target) quest.progress++;
             if (quest.type === 'collect_gold') quest.progress += enemy.gold;
             if (quest.progress >= quest.goal) { 
-                playSFX(sfx.quest_complete); logMsg(`¡Misión completada! Vuelve a la Ciudad.`); 
+                playSFX(sfx.quest_complete); logMsg(`¡Misión completada! Misión Desbloqueada.`); 
                 if (quest.rewardType === 'gold') player.gold += quest.rewardAmount; 
                 if (quest.rewardType === 'xp') player.xp += quest.rewardAmount; 
                 if (quest.rewardType === 'potion') player.potions += quest.rewardAmount; 
@@ -1071,3 +1155,14 @@ function setupTouchControls() {
 }
 
 setupTouchControls();
+
+/* =========================================
+   SISTEMA DE REGENERACIÓN DE ENERGÍA
+   ========================================= */
+setInterval(() => {
+    // Solo regenera si tienes menos del máximo, no estás en combate y el juego está activo
+    if (player.ep < getMaxEp() && !inCombat && !isMenuOpen && document.getElementById('classModal').style.display !== 'flex') {
+        player.ep += 1;
+        updateHUD(); // Actualiza la barra en pantalla
+    }
+}, 1500); // 1.5 segundos por cada punto de EP

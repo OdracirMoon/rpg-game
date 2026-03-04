@@ -8,14 +8,14 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, 
 #floatingHud { position: absolute; top: 20px; left: 20px; background: rgba(15, 26, 42, 0.85); padding: 15px; border-radius: 8px; border: 2px solid var(--accent); width: 220px; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.8); pointer-events: none; }
 .hud-header { color: var(--accent); font-weight: bold; margin-bottom: 10px; font-size: 16px; text-transform: uppercase; }
 
-#contextActionBar { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; z-index: 10; }
-#contextActionBar button { padding: 15px 30px; font-size: 18px; border-radius: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.8); width: auto; margin: 0; }
+/* Ocultamos esto porque ya no lo usamos (se reemplaza por NPCs en el mapa) */
+#contextActionBar { display: none !important; }
 
 .menu-section { background: #0b1220; padding: 12px; border-radius: 6px; margin-bottom: 10px; text-align: left; }
 .menu-section h3 { margin: 0 0 10px 0; color: var(--accent); font-size: 14px; border-bottom: 1px solid #14203a; padding-bottom: 5px; }
 
 .tile { width: 512px; height: 512px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; transition: background-color 0.2s; }
-.tile img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; z-index: 2; }
+.tile img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; z-index: 2; cursor: pointer; } /* Cursor pointer añadido para clickear NPCs */
 
 .grass { background-image: url('img/tiles/tile_grass.png'); background-color: #184b20; background-size: cover; image-rendering: pixelated; }
 .water { background-image: url('img/tiles/tile_water.png'); background-color: #10304a; background-size: cover; image-rendering: pixelated; }
@@ -23,13 +23,14 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, 
 .wall { background-image: url('img/tiles/tile_wall.png'), url('img/tiles/tile_grass.png'); background-color: #444; background-size: cover; image-rendering: pixelated; }
 .gate { background-image: url('img/tiles/tile_wall.png'); background-color: #9c27b0; filter: hue-rotate(280deg) brightness(1.5); background-size: cover; image-rendering: pixelated; box-shadow: 0 0 15px #9c27b0 inset; }
 
+/* La ciudad ya no se genera pero dejamos las clases por si acaso */
 .city { background-color: #4a5a80; background-image: url('img/tiles/tile_city.png'), url('img/tiles/tile_path.png'); background-size: 200% 200%, cover; image-rendering: pixelated; border-radius: 0; }
 .city-tl { background-position: 0% 0%, center; }
 .city-tr { background-position: 100% 0%, center; }
 .city-bl { background-position: 0% 100%, center; }
 .city-br { background-position: 100% 100%, center; }
 
-.fog { background: #03070d !important; background-image: none !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.8) !important; border: 1px solid #060a12; }
+.fog { background: #03070d !important; background-image: none !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.8) !important; border: 1px solid #060a12; pointer-events: none; }
 
 .color-comun { color: #aaaaaa; } .color-pococomun { color: #4caf50; } .color-raro { color: #2196f3; }
 .color-epico { color: #9c27b0; } .color-legendario { color: #ff9800; } .color-mitico { color: #ffeb3b; }
@@ -51,7 +52,7 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
 .bar-container { width: 100%; height: 16px; background: #223; border-radius: 4px; overflow: hidden; border: 1px solid #000; position: relative; margin-top: 4px; }
 .hp-fill { height: 100%; background: #4caf50; transition: width 0.3s ease, background-color 0.3s ease; }
 .mp-fill { height: 100%; background: #2196f3; transition: width 0.3s ease; }
-.ep-fill { height: 100%; background: #9c27b0; transition: width 0.3s ease; } /* NUEVA BARRA DE ENERGÍA */
+.ep-fill { height: 100%; background: #9c27b0; transition: width 0.3s ease; } 
 .bar-text { position: absolute; width: 100%; text-align: center; top: 0; left: 0; font-size: 11px; font-weight: bold; color: white; line-height: 16px; text-shadow: 1px 1px 2px #000; }
 
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: calc(var(--vh, 1vh) * 100); background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; overflow: hidden; }
@@ -60,8 +61,64 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
 .npc-dialog-box { background: #0b1220; border: 1px solid #4a5a80; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; position: relative; }
 .npc-dialog-box::before { content: ''; position: absolute; top: -10px; left: 20px; border-width: 0 10px 10px 10px; border-style: solid; border-color: transparent transparent #0b1220 transparent; }
 
+/* Estilo base de items (se mantiene para logs o usos pequeños) */
 .shop-item { background: #0b1220; padding: 8px; margin-bottom: 8px; border-radius: 6px; text-align: left; font-size: 13px; display: flex; justify-content: space-between; align-items: center;}
 .shop-item button { width: auto; padding: 5px 10px; margin: 0; font-size: 12px; }
+
+/* ================== NUEVO: CUADRÍCULA DE ÍCONOS GRANDES ================== */
+.large-item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 15px;
+    align-items: stretch;
+}
+
+/* Los encabezados y textos vacíos ocupan toda la fila */
+.large-item-grid h4, .large-item-grid p {
+    grid-column: 1 / -1;
+}
+
+/* Transformamos el .shop-item dentro de esta grilla en tarjetas verticales */
+.large-item-grid .shop-item {
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    text-align: center;
+    margin-bottom: 0; 
+    padding: 15px;
+    border: 1px solid #1a2a45;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.large-item-grid .shop-item:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 5px 15px rgba(122, 215, 255, 0.2);
+}
+
+.large-item-grid .shop-item > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* AQUÍ HACEMOS LOS ÍCONOS GIGANTES */
+.large-item-grid .shop-item img.icon {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 4px 5px rgba(0,0,0,0.8));
+}
+
+.large-item-grid .shop-item button {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    font-size: 14px;
+}
+/* ===================================================================== */
+
 .combat-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
 .combat-actions button { margin-bottom: 0; font-size: 16px; padding: 12px; }
 
@@ -88,14 +145,10 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
 .class-guerrero { border-color: #4caf50; }
 .class-arquero { border-color: #ff9800; } 
 .class-mago { border-color: #2196f3; }
-.class-simple { border-color: #aaaaaa; } /* NUEVO BORDE PARA SIMPLE */
+.class-simple { border-color: #aaaaaa; } 
 
-/* =========================================
-   FIX: TAMAÑOS ESTRICTOS E IGUALES
-   ========================================= */
 #combatCard { width: 950px; }
 
-/* Fuerzo a que NINGUNA imagen supere los 200x200px */
 .class-img, .combat-img {
     width: 100% !important;
     max-width: 200px !important;  
@@ -130,7 +183,6 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
         display: none !important;
     }
 
-    /* Reducción estricta para imágenes en celulares */
     .class-img, .combat-img {
         max-width: 120px !important;
         height: 120px !important;
@@ -201,20 +253,6 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
         left: 15px;
         width: 190px;
     }
-    
-    #contextActionBar {
-        bottom: 70px; 
-        left: 40px;  
-        transform: none;
-        flex-direction: column; 
-        gap: 12px;
-    }
-    #contextActionBar button {
-        padding: 12px 20px;
-        font-size: 16px;
-        border-radius: 8px;
-        width: 100%;
-    }
 
     .modal-card {
         width: 95% !important;
@@ -252,16 +290,18 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
         padding: 15px;
     }
 
-    #invContainer {
+    /* En móviles, la grilla grande se adapta automáticamente gracias al CSS Grid,
+       pero para listas normales (.shop-item fuera de .large-item-grid) se mantiene tu diseño: */
+    #invContainer:not(.large-item-grid) {
         flex-direction: column !important;
     }
     
-    .shop-item {
+    .shop-item:not(.large-item-grid .shop-item) {
         flex-direction: column;
         align-items: flex-start;
         gap: 8px;
     }
-    .shop-item button {
+    .shop-item:not(.large-item-grid .shop-item) button {
         width: 100%;
         padding: 10px;
     }

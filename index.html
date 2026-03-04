@@ -207,12 +207,8 @@
 
             <div style="height: 80px; font-size: 14px; color: #fff; margin-bottom: 15px; background: #000; padding: 10px; border-radius: 6px; border: 1px solid #333; overflow-y: auto; text-align: left; line-height: 1.5;" id="modalLog"></div>
             
-            <div class="combat-actions" style="gap: 10px;">
-                <button id="btnAttack" onclick="doAttack()" style="font-size: 16px; padding: 12px;"><img src="img/weapons/sword.png" class="icon"> Atacar</button>
-                <button id="btnMagic1" class="btn-magic" onclick="castSpell('fuego')" style="font-size: 16px; padding: 12px;">🔥 Fuego (12MP)</button>
-                <button id="btnMagic2" class="btn-magic" onclick="castSpell('curar')" style="font-size: 16px; padding: 12px;">💚 Curar (15MP)</button>
-                <button id="btnFlee" class="btn-danger" onclick="doFlee()" style="font-size: 16px; padding: 12px;">🏃 Huir</button>
-            </div>
+            <div id="combatActions" class="combat-actions" style="gap: 10px;"></div>
+
         </div>
     </div>
 

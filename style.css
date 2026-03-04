@@ -15,7 +15,7 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, 
 .menu-section h3 { margin: 0 0 10px 0; color: var(--accent); font-size: 14px; border-bottom: 1px solid #14203a; padding-bottom: 5px; }
 
 .tile { width: 512px; height: 512px; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; transition: background-color 0.2s; }
-.tile img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; z-index: 2; cursor: pointer; } /* Cursor pointer añadido para clickear NPCs */
+.tile img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; z-index: 2; cursor: pointer; }
 
 .grass { background-image: url('img/tiles/tile_grass.png'); background-color: #184b20; background-size: cover; image-rendering: pixelated; }
 .water { background-image: url('img/tiles/tile_water.png'); background-color: #10304a; background-size: cover; image-rendering: pixelated; }
@@ -23,7 +23,6 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, 
 .wall { background-image: url('img/tiles/tile_wall.png'), url('img/tiles/tile_grass.png'); background-color: #444; background-size: cover; image-rendering: pixelated; }
 .gate { background-image: url('img/tiles/tile_wall.png'); background-color: #9c27b0; filter: hue-rotate(280deg) brightness(1.5); background-size: cover; image-rendering: pixelated; box-shadow: 0 0 15px #9c27b0 inset; }
 
-/* La ciudad ya no se genera pero dejamos las clases por si acaso */
 .city { background-color: #4a5a80; background-image: url('img/tiles/tile_city.png'), url('img/tiles/tile_path.png'); background-size: 200% 200%, cover; image-rendering: pixelated; border-radius: 0; }
 .city-tl { background-position: 0% 0%, center; }
 .city-tr { background-position: 100% 0%, center; }
@@ -43,6 +42,7 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
 .btn-danger { background: #e55353; color: white; }
 .btn-magic { background: #ab47bc; color: white; }
 .btn-success { background: #4caf50; color: white; }
+.btn-skill { background: #ff9800; color: white; } /* NUEVO: Para habilidades que gastan EP */
 
 .log { height: 80px; overflow-y: auto; background: #000; padding: 8px; font-size: 12px; border-radius: 6px; color: #aaa; }
 .stat-bonus { color: #4caf50; font-weight: bold; }
@@ -61,11 +61,10 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
 .npc-dialog-box { background: #0b1220; border: 1px solid #4a5a80; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 15px; position: relative; }
 .npc-dialog-box::before { content: ''; position: absolute; top: -10px; left: 20px; border-width: 0 10px 10px 10px; border-style: solid; border-color: transparent transparent #0b1220 transparent; }
 
-/* Estilo base de items (se mantiene para logs o usos pequeños) */
 .shop-item { background: #0b1220; padding: 8px; margin-bottom: 8px; border-radius: 6px; text-align: left; font-size: 13px; display: flex; justify-content: space-between; align-items: center;}
 .shop-item button { width: auto; padding: 5px 10px; margin: 0; font-size: 12px; }
 
-/* ================== NUEVO: CUADRÍCULA DE ÍCONOS GRANDES ================== */
+/* ================== CUADRÍCULA DE ÍCONOS GRANDES ================== */
 .large-item-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -73,12 +72,10 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
     align-items: stretch;
 }
 
-/* Los encabezados y textos vacíos ocupan toda la fila */
 .large-item-grid h4, .large-item-grid p {
     grid-column: 1 / -1;
 }
 
-/* Transformamos el .shop-item dentro de esta grilla en tarjetas verticales */
 .large-item-grid .shop-item {
     flex-direction: column;
     justify-content: space-between;
@@ -103,7 +100,6 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
     width: 100%;
 }
 
-/* AQUÍ HACEMOS LOS ÍCONOS GIGANTES */
 .large-item-grid .shop-item img.icon {
     width: 72px;
     height: 72px;
@@ -170,139 +166,56 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
 /* =========================================
    ADAPTACIÓN RESPONSIVE Y MÓVIL
    ========================================= */
-.mobile-only {
-    display: none;
-}
+.mobile-only { display: none; }
 
 @media (max-width: 768px) {
-    .mobile-only {
-        display: block;
-    }
-    
-    .desktop-only {
-        display: none !important;
-    }
+    .mobile-only { display: block; }
+    .desktop-only { display: none !important; }
 
-    .class-img, .combat-img {
-        max-width: 120px !important;
-        height: 120px !important;
-    }
-    
-    #npcIcon img {
-        max-width: 120px !important;
-        height: 120px !important;
-    }
+    .class-img, .combat-img { max-width: 120px !important; height: 120px !important; }
+    #npcIcon img { max-width: 120px !important; height: 120px !important; }
 
     #dpad {
-        position: absolute;
-        bottom: 70px; 
-        right: 40px;  
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        z-index: 50;
+        position: absolute; bottom: 70px; right: 40px;  
+        display: flex; flex-direction: column; align-items: center; z-index: 50;
     }
-    .dpad-mid {
-        display: flex;
-        gap: 60px; 
-        margin: 8px 0;
-    }
+    .dpad-mid { display: flex; gap: 60px; margin: 8px 0; }
     .dpad-btn {
-        width: 60px; 
-        height: 60px;
-        border-radius: 50%;
-        background: rgba(15, 26, 42, 0.85); 
-        border: 2px solid var(--accent);
-        font-size: 28px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 0;
-        margin: 0;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.8);
-        backdrop-filter: blur(3px);
-        color: white;
-        touch-action: manipulation;
+        width: 60px; height: 60px; border-radius: 50%;
+        background: rgba(15, 26, 42, 0.85); border: 2px solid var(--accent);
+        font-size: 28px; display: flex; justify-content: center; align-items: center;
+        padding: 0; margin: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+        backdrop-filter: blur(3px); color: white; touch-action: manipulation;
     }
-    .dpad-btn:active {
-        background: rgba(122, 215, 255, 0.5);
-        transform: scale(0.95);
-    }
+    .dpad-btn:active { background: rgba(122, 215, 255, 0.5); transform: scale(0.95); }
 
     #btnMobileMenu {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-        z-index: 50;
-        width: auto;
-        padding: 12px 18px;
-        background: rgba(15, 26, 42, 0.9);
-        border: 2px solid var(--accent);
-        border-radius: 8px;
-        color: var(--accent);
-        font-weight: bold;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.8);
-        font-size: 16px;
-        margin: 0;
+        position: absolute; top: 20px; right: 20px; z-index: 50; width: auto;
+        padding: 12px 18px; background: rgba(15, 26, 42, 0.9); border: 2px solid var(--accent);
+        border-radius: 8px; color: var(--accent); font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.8); font-size: 16px; margin: 0;
     }
 
     #floatingHud {
-        transform: scale(0.8);
-        transform-origin: top left;
-        top: 15px;
-        left: 15px;
-        width: 190px;
+        transform: scale(0.8); transform-origin: top left;
+        top: 15px; left: 15px; width: 190px;
     }
 
-    .modal-card {
-        width: 95% !important;
-        padding: 15px;
-    }
+    .modal-card { width: 95% !important; padding: 15px; }
+    #classContainer { flex-direction: column !important; gap: 10px; }
+    .class-option { padding: 10px; }
 
-    #classContainer {
-        flex-direction: column !important;
-        gap: 10px;
-    }
-    .class-option {
-        padding: 10px;
-    }
-
-    #combatContainer {
-        flex-direction: column !important;
-        gap: 10px;
-    }
-    .combat-entity {
-        width: 100% !important;
-        padding: 10px !important;
-        box-sizing: border-box;
-    }
-    .combat-vs {
-        font-size: 24px !important;
-        margin: 5px 0 !important;
-    }
+    #combatContainer { flex-direction: column !important; gap: 10px; }
+    .combat-entity { width: 100% !important; padding: 10px !important; box-sizing: border-box; }
+    .combat-vs { font-size: 24px !important; margin: 5px 0 !important; }
     
-    .combat-actions {
-        grid-template-columns: 1fr; 
-        gap: 8px;
-    }
-    .combat-actions button {
-        font-size: 16px;
-        padding: 15px;
-    }
+    .combat-actions { grid-template-columns: 1fr; gap: 8px; }
+    .combat-actions button { font-size: 16px; padding: 15px; }
 
-    /* En móviles, la grilla grande se adapta automáticamente gracias al CSS Grid,
-       pero para listas normales (.shop-item fuera de .large-item-grid) se mantiene tu diseño: */
-    #invContainer:not(.large-item-grid) {
-        flex-direction: column !important;
-    }
+    #invContainer:not(.large-item-grid) { flex-direction: column !important; }
     
     .shop-item:not(.large-item-grid .shop-item) {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+        flex-direction: column; align-items: flex-start; gap: 8px;
     }
-    .shop-item:not(.large-item-grid .shop-item) button {
-        width: 100%;
-        padding: 10px;
-    }
+    .shop-item:not(.large-item-grid .shop-item) button { width: 100%; padding: 10px; }
 }

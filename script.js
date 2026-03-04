@@ -240,7 +240,16 @@ let player = {
     inventory: { weapons: [], armors: [] }
 };
 
-let quest = null; let inCombat = false; let currentEnemyTile = null; let lastPlayerPos = { x: 16, y: 25 };
+let quest = null; 
+let inCombat = false; 
+let currentEnemyTile = null; 
+let lastPlayerPos = { x: 16, y: 25 };
+
+// ESTADOS DE COMBATE (NUEVO)
+let combatState = {
+    defBuffTurns: 0,
+    poisonTurns: 0
+};
 
 function getMaxHp() { return player.baseMaxHp + (player.armor ? player.armor.hpBonus : 0); }
 function getMaxMp() { return player.baseMaxMp + (player.armor ? player.armor.mpBonus : 0); }
@@ -478,7 +487,6 @@ function generateWorld() {
         for(let i=0; i<=z; i++) enemiesPools[z].push(...mapData[i].newEnemies);
     }
 
-    // Spawn de enemigos aleatorios
     for(let i=0; i < MAP_W * MAP_H; i++) {
         let t = worldMap[i];
         if(t.type === 'grass' || t.type === 'path') {
@@ -494,36 +502,21 @@ function generateWorld() {
         }
     }
 
-    // ========================================================
-    // NUEVO: 1 NPC Misión y 1 Mercader EXCLUSIVAMENTE EN LOS CAMINOS
-    // ========================================================
     for(let z = 0; z <= 5; z++) {
-        // Filtramos PRINCIPALMENTE los caminos ('path') de la zona actual
         let zoneTiles = worldMap.filter(t => t.zone === z && t.type === 'path' && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
         
-        // Si la generación hizo un camino muy corto (menos de 2 casillas), rellenamos con pasto
         if (zoneTiles.length < 2) {
             let extraTiles = worldMap.filter(t => t.zone === z && t.type === 'grass' && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
             zoneTiles = zoneTiles.concat(extraTiles);
         }
 
-        // Mezclamos las posiciones disponibles aleatoriamente
         zoneTiles.sort(() => Math.random() - 0.5); 
         
-        // Seleccionamos un único NPC aleatorio de los 4 posibles
         let randomNPC = npcsData[Math.floor(Math.random() * npcsData.length)];
 
-        // Colocamos el NPC en la primera casilla vacía del camino
-        if(zoneTiles[0]) { 
-            zoneTiles[0].npc = randomNPC; 
-        }
-        
-        // Colocamos al Mercader en la segunda casilla vacía del camino
-        if(zoneTiles[1]) { 
-            zoneTiles[1].merchant = true; 
-        }
+        if(zoneTiles[0]) { zoneTiles[0].npc = randomNPC; }
+        if(zoneTiles[1]) { zoneTiles[1].merchant = true; }
     }
-    // ========================================================
 
     player.x = 16; player.y = 25; 
     playSFX(sfx.map_change);
@@ -861,11 +854,40 @@ function move(dx, dy) {
     }
 }
 
+/* =========================================
+   NUEVO SISTEMA DE HABILIDADES Y COMBATE
+   ========================================= */
+function generateCombatButtons() {
+    const container = document.getElementById('combatActions');
+    container.innerHTML = ''; 
+
+    // Botón de ataque básico siempre está presente
+    let html = `<button id="btnAttack" onclick="doAttack()" style="font-size: 16px; padding: 12px;"><img src="img/weapons/iron_dagger.png" class="icon"> Atacar</button>`;
+
+    // Generar botones dinámicos según clase
+    if (player.playerClass === 'Guerrero') {
+        html += `<button id="btnSkill1" class="btn-skill" onclick="useSkill('golpe_brutal')" style="font-size: 16px; padding: 12px;">💥 Golpe Brutal (10 EP)</button>`;
+        html += `<button id="btnSkill2" class="btn-skill" onclick="useSkill('grito_guerra')" style="font-size: 16px; padding: 12px;">🛡️ Grito Guerra (15 EP)</button>`;
+    } else if (player.playerClass === 'Arquero') {
+        html += `<button id="btnSkill1" class="btn-skill" onclick="useSkill('tiro_doble')" style="font-size: 16px; padding: 12px;">🏹 Tiro Doble (12 EP)</button>`;
+        html += `<button id="btnSkill2" class="btn-skill" onclick="useSkill('flecha_venenosa')" style="font-size: 16px; padding: 12px;">🐍 Veneno (10 EP)</button>`;
+    } else if (player.playerClass === 'Mago') {
+        html += `<button id="btnSkill1" class="btn-magic" onclick="useSkill('fuego')" style="font-size: 16px; padding: 12px;">🔥 Fuego (12 MP)</button>`;
+        html += `<button id="btnSkill2" class="btn-magic" onclick="useSkill('curar')" style="font-size: 16px; padding: 12px;">💚 Curar (15 MP)</button>`;
+    }
+
+    // Botón de huir siempre presente
+    html += `<button id="btnFlee" class="btn-danger" onclick="doFlee()" style="font-size: 16px; padding: 12px;">🏃 Huir</button>`;
+    
+    container.innerHTML = html;
+}
+
 function lockCombatButtons(lock) {
-    document.getElementById('btnAttack').disabled = lock;
-    document.getElementById('btnMagic1').disabled = lock;
-    document.getElementById('btnMagic2').disabled = lock;
-    document.getElementById('btnFlee').disabled = lock;
+    const btns = ['btnAttack', 'btnSkill1', 'btnSkill2', 'btnFlee'];
+    btns.forEach(id => {
+        let btn = document.getElementById(id);
+        if(btn) btn.disabled = lock;
+    });
 }
 
 function animateDamage(elementId) { 
@@ -887,6 +909,11 @@ function animateHeal(elementId) {
 }
 
 function startCombat(tile) {
+    // Resetear estados al iniciar
+    combatState.defBuffTurns = 0;
+    combatState.poisonTurns = 0;
+    
+    generateCombatButtons(); // Inyecta botones dinámicos
     lockCombatButtons(false); 
     inCombat = true; currentEnemyTile = tile; let enemy = tile.enemy;
     enemy.mag = enemy.mag || 0; enemy.maxHp = enemy.maxHp || enemy.hp;
@@ -948,6 +975,16 @@ function updateCombatUI() {
     document.getElementById('combatPlayerEpText').textContent = `${player.ep} / ${tEp}`;
 }
 
+// Lógica auxiliar para terminar turnos sin repetir código
+function checkEnemyDeathAndEndTurn(enemy) {
+    updateCombatUI(); updateHUD();
+    if (enemy.hp <= 0) {
+        setTimeout(() => { logCombat(`🏆 ¡Enemigo derrotado!`); setTimeout(resolveVictory, 500); }, 200);
+    } else {
+        setTimeout(() => processEnemyTurn(enemy), 600);
+    }
+}
+
 function doAttack() {
     lockCombatButtons(true);
     let enemy = currentEnemyTile.enemy;
@@ -957,59 +994,112 @@ function doAttack() {
     playSFX(sfx.attack); animateDamage('modalImg'); 
     logCombat(`🗡️ Atacas y haces <b style="color:#ffeb3b">${pDmg}</b> de daño.`);
     
-    updateCombatUI();
-
-    if (enemy.hp <= 0) {
-        setTimeout(() => { logCombat(`🏆 ¡Enemigo derrotado!`); setTimeout(resolveVictory, 500); }, 200);
-    } else { setTimeout(() => processEnemyTurn(enemy), 600); }
+    checkEnemyDeathAndEndTurn(enemy);
 }
 
-function castSpell(spellName) {
-    try {
-        let enemy = currentEnemyTile.enemy; const pMag = getMag();
-        if (spellName === 'fuego') {
-            if (player.mp < 12) { playSFX(sfx.error); logMsg("¡Faltan 12 MP para Fuego!"); lockCombatButtons(false); return; } 
-            lockCombatButtons(true); player.mp -= 12;
-            
-            const mDmg = Math.max(1, Math.floor(pMag * 1.8) - Math.floor(enemy.def / 2));
-            enemy.hp -= mDmg;
-            
-            playSFX(sfx.attack); animateDamage('modalImg');
-            logCombat(`🔥 Lanzaste Fuego: <b style="color:#ff9800">${mDmg}</b> daño mágico.`);
-            
-            updateCombatUI(); updateHUD();
-            if (enemy.hp <= 0) { setTimeout(() => { logCombat(`🏆 ¡Enemigo derrotado!`); setTimeout(resolveVictory, 500); }, 200); } 
-            else { setTimeout(() => processEnemyTurn(enemy), 600); }
-            
-        } else if (spellName === 'curar') {
-            if (player.mp < 15) { playSFX(sfx.error); logMsg("¡Faltan 15 MP para Curar!"); lockCombatButtons(false); return; } 
-            lockCombatButtons(true); player.mp -= 15;
-            
-            const heal = Math.floor(pMag * 2.5); player.hp = Math.min(getMaxHp(), player.hp + heal);
-            
-            playSFX(sfx.use_potion); animateHeal('combatPlayerImg'); 
-            logCombat(`💚 Te curaste <b style="color:#4caf50">${heal}</b> de Vida.`);
-            
-            updateCombatUI(); updateHUD(); 
-            setTimeout(() => processEnemyTurn(enemy), 600);
-        }
-    } catch (e) { console.error("Error al lanzar hechizo:", e); lockCombatButtons(false); }
+// NUEVO: SISTEMA DE HABILIDADES
+function useSkill(skillName) {
+    lockCombatButtons(true);
+    let enemy = currentEnemyTile.enemy;
+    const pMag = getMag();
+    const pAtk = getAtk();
+
+    if (skillName === 'golpe_brutal') {
+        if (player.ep < 10) { playSFX(sfx.error); logMsg("¡Faltan 10 EP!"); lockCombatButtons(false); return; }
+        player.ep -= 10;
+        let dmg = Math.max(1, Math.floor(pAtk * 2) - enemy.def); // Daño doble
+        enemy.hp -= dmg;
+        playSFX(sfx.attack); animateDamage('modalImg');
+        logCombat(`💥 Golpe Brutal: <b style="color:#ffeb3b">${dmg}</b> de daño físico.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
+    else if (skillName === 'grito_guerra') {
+        if (player.ep < 15) { playSFX(sfx.error); logMsg("¡Faltan 15 EP!"); lockCombatButtons(false); return; }
+        player.ep -= 15;
+        combatState.defBuffTurns = 3;
+        playSFX(sfx.equip); animateHeal('combatPlayerImg');
+        logCombat(`🛡️ Grito de Guerra: Tu defensa aumenta considerablemente por 3 turnos.`);
+        checkEnemyDeathAndEndTurn(enemy); // Pasa el turno sin atacar
+    }
+    else if (skillName === 'tiro_doble') {
+        if (player.ep < 12) { playSFX(sfx.error); logMsg("¡Faltan 12 EP!"); lockCombatButtons(false); return; }
+        player.ep -= 12;
+        let dmg1 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(enemy.def/2));
+        let dmg2 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(enemy.def/2));
+        enemy.hp -= (dmg1 + dmg2);
+        playSFX(sfx.attack); animateDamage('modalImg');
+        logCombat(`🏹 Tiro Doble: Impactas dos veces haciendo <b style="color:#ffeb3b">${dmg1}</b> y <b style="color:#ffeb3b">${dmg2}</b> de daño.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
+    else if (skillName === 'flecha_venenosa') {
+        if (player.ep < 10) { playSFX(sfx.error); logMsg("¡Faltan 10 EP!"); lockCombatButtons(false); return; }
+        player.ep -= 10;
+        let dmg = Math.max(1, pAtk - enemy.def);
+        enemy.hp -= dmg;
+        combatState.poisonTurns = 4; // Veneno por 4 turnos
+        playSFX(sfx.attack); animateDamage('modalImg');
+        logCombat(`🐍 Flecha Venenosa: Haces <b style="color:#ffeb3b">${dmg}</b> de daño e inyectas un veneno letal.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
+    else if (skillName === 'fuego') {
+        if (player.mp < 12) { playSFX(sfx.error); logMsg("¡Faltan 12 MP!"); lockCombatButtons(false); return; }
+        player.mp -= 12;
+        const mDmg = Math.max(1, Math.floor(pMag * 1.8) - Math.floor(enemy.def / 2));
+        enemy.hp -= mDmg;
+        playSFX(sfx.attack); animateDamage('modalImg');
+        logCombat(`🔥 Fuego: <b style="color:#ff9800">${mDmg}</b> de daño mágico.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
+    else if (skillName === 'curar') {
+        if (player.mp < 15) { playSFX(sfx.error); logMsg("¡Faltan 15 MP!"); lockCombatButtons(false); return; }
+        player.mp -= 15;
+        const heal = Math.floor(pMag * 2.5) + 10; // Cura base + magia
+        player.hp = Math.min(getMaxHp(), player.hp + heal);
+        playSFX(sfx.use_potion); animateHeal('combatPlayerImg');
+        logCombat(`💚 Te curaste <b style="color:#4caf50">${heal}</b> de Vida.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
 }
 
+// TURNO DEL ENEMIGO (Modificado para aplicar Veneno y Buffs)
 function processEnemyTurn(enemy) {
     try {
         if (!inCombat || !currentEnemyTile) return; 
 
+        // 1. Aplicar daño por veneno si el enemigo está envenenado
+        if (combatState.poisonTurns > 0) {
+            let poisonDmg = Math.max(2, Math.floor((enemy.maxHp || enemy.hp) * 0.05)); // 5% de su vida max o 2 min
+            enemy.hp -= poisonDmg;
+            combatState.poisonTurns--;
+            animateDamage('modalImg');
+            logCombat(`🤢 El veneno drena <b style="color:#4caf50">${poisonDmg}</b> HP al enemigo. (${combatState.poisonTurns} turnos rest.)`);
+            updateCombatUI();
+
+            if (enemy.hp <= 0) {
+                setTimeout(() => { logCombat(`🏆 ¡Enemigo sucumbió al veneno!`); setTimeout(resolveVictory, 500); }, 200);
+                return; // Si muere por veneno, se acaba su turno
+            }
+        }
+
+        // 2. Lógica normal de ataque enemigo
         let eDmg = 0; let enemyMag = enemy.mag || 0; let isMagic = (enemyMag > 0 && Math.random() < 0.4); 
         if (enemy.isBoss) playSFX(sfx.boss_attack);
 
         let minDmg = Math.max(1, Math.floor(enemy.atk * 0.15));
+        
+        // 3. Revisar Buff de Defensa del jugador (Grito de Guerra)
+        let playerCurrentDef = getDef();
+        if (combatState.defBuffTurns > 0) {
+            playerCurrentDef = Math.floor(playerCurrentDef * 1.5) + 5; // Aumenta 50% y 5 planos extras
+            combatState.defBuffTurns--;
+            logCombat(`🛡️ Tienes escudo activo. (${combatState.defBuffTurns} turnos rest.)`);
+        }
 
         if (isMagic) {
-            eDmg = Math.max(minDmg, Math.floor(Math.max(1, (enemyMag * 1.5) - Math.floor(getDef() / 2))));
+            eDmg = Math.max(minDmg, Math.floor(Math.max(1, (enemyMag * 1.5) - Math.floor(playerCurrentDef / 2))));
             logCombat(`🔮 ¡Magia oscura! Recibes <b style="color:#f44336">${eDmg}</b> de daño.`);
         } else {
-            eDmg = Math.max(minDmg, enemy.atk - getDef());
+            eDmg = Math.max(minDmg, enemy.atk - playerCurrentDef);
             if (enemy.isBoss && enemy.trait === 'crit' && Math.random() < 0.3) { 
                 eDmg = Math.floor(eDmg * 1.5); 
                 logCombat(`⚡ <b style="color:#ffeb3b">¡GOLPE CRÍTICO!</b>`); 
@@ -1023,6 +1113,7 @@ function processEnemyTurn(enemy) {
             animateDamage('combatPlayerImg'); 
         }
 
+        // Traits de Boss (Regen y Vampirismo)
         if (enemy.isBoss && enemy.trait === 'vampire' && eDmg > 0) {
             let heal = Math.floor(eDmg * 0.5); enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + heal);
             animateHeal('modalImg');
@@ -1160,9 +1251,8 @@ setupTouchControls();
    SISTEMA DE REGENERACIÓN DE ENERGÍA
    ========================================= */
 setInterval(() => {
-    // Solo regenera si tienes menos del máximo, no estás en combate y el juego está activo
     if (player.ep < getMaxEp() && !inCombat && !isMenuOpen && document.getElementById('classModal').style.display !== 'flex') {
         player.ep += 1;
-        updateHUD(); // Actualiza la barra en pantalla
+        updateHUD();
     }
-}, 1500); // 1.5 segundos por cada punto de EP
+}, 1500);

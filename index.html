@@ -36,6 +36,10 @@
             <div class="mp-fill" id="playerMpBar"></div>
             <div class="bar-text" id="playerMpText"></div>
         </div>
+        <div class="bar-container" style="margin-bottom: 8px;">
+            <div class="ep-fill" id="playerEpBar"></div>
+            <div class="bar-text" id="playerEpText"></div>
+        </div>
         <div style="font-size: 11px; color: #aaa; border-top: 1px solid #333; padding-top: 5px;">
             📍 Zona: <span id="mapName" style="font-weight: bold;">Común</span>
         </div>
@@ -69,6 +73,7 @@
                 <div style="display: flex; gap: 5px; flex-wrap: wrap;">
                     <button onclick="usePotion()" style="flex: 1;"><img src="img/items/potion.png" class="icon"> Usar HP</button>
                     <button onclick="useManaPotion()" style="flex: 1; background: #2196f3; color: white;"><img src="img/items/mana_potion.png" class="icon"> Usar MP</button>
+                    <button onclick="useEnergyPotion()" style="flex: 1; background: #9c27b0; color: white;"><img src="img/items/potion.png" class="icon"> Usar EP</button>
                 </div>
                 <button class="btn-success" onclick="openInventory()" style="margin-top:5px;">Abrir Inventario Completo</button>
             </div>
@@ -96,31 +101,46 @@
     </div>
 
     <div id="classModal" class="modal-overlay" style="z-index: 200;">
-        <div class="modal-card" style="width: 750px;">
+        <div class="modal-card" style="width: 850px;">
             <h2 style="margin: 0 0 15px 0; color: #fff; font-size: 24px;">Elige tu Camino</h2>
             <div id="classContainer" style="display: flex; gap: 20px; justify-content: center;">
+                
                 <div class="class-option class-guerrero" onclick="selectClass('Guerrero')" style="flex: 1;">
                     <img src="img/player/guerrero_select.png" alt="Guerrero" class="class-img">
                     <h3 style="color: #4caf50; margin-top: 0; font-size: 20px;">Guerrero</h3>
-                    <p style="font-size: 14px; color: #aaa; margin-bottom: 15px;">Gana por desgaste. Resiste daño, pero debe curarse a menudo.</p>
+                    <p style="font-size: 14px; color: #aaa; margin-bottom: 15px;">Resiste daño, pero debe curarse a menudo.</p>
                     <ul style="text-align: left; font-size: 13px; color: #ddd; padding-left: 20px;">
-                        <li>HP Inicial: 60</li>
-                        <li>MP Inicial: 10</li>
+                        <li>HP Inicial: 60 | MP: 10</li>
+                        <li>Energía (EP): 50</li>
                         <li>Arma: Espada Rota</li>
                     </ul>
                     <button style="background: #4caf50; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Elegir Guerrero</button>
                 </div>
+                
+                <div class="class-option class-arquero" onclick="selectClass('Arquero')" style="flex: 1;">
+                    <img src="img/player/arquero_select.png" alt="Arquero" class="class-img">
+                    <h3 style="color: #ff9800; margin-top: 0; font-size: 20px;">Arquero</h3>
+                    <p style="font-size: 14px; color: #aaa; margin-bottom: 15px;">Equilibrado. Gran aguante para la exploración.</p>
+                    <ul style="text-align: left; font-size: 13px; color: #ddd; padding-left: 20px;">
+                        <li>HP Inicial: 45 | MP: 20</li>
+                        <li>Energía (EP): 80</li>
+                        <li>Arma: Arco Corto</li>
+                    </ul>
+                    <button style="background: #ff9800; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Elegir Arquero</button>
+                </div>
+
                 <div class="class-option class-mago" onclick="selectClass('Mago')" style="flex: 1;">
                     <img src="img/player/mago_select.png" alt="Mago" class="class-img">
                     <h3 style="color: #2196f3; margin-top: 0; font-size: 20px;">Mago</h3>
                     <p style="font-size: 14px; color: #aaa; margin-bottom: 15px;">Daño explosivo, frágil y muy dependiente del Maná.</p>
                     <ul style="text-align: left; font-size: 13px; color: #ddd; padding-left: 20px;">
-                        <li>HP Inicial: 35</li>
-                        <li>MP Inicial: 40</li>
-                        <li>Arma: Varita Astillada</li>
+                        <li>HP Inicial: 30 | MP: 60</li>
+                        <li>Energía (EP): 40</li>
+                        <li>Empieza con 3 Pociones MP</li>
                     </ul>
                     <button style="background: #2196f3; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Elegir Mago</button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -154,6 +174,10 @@
                     <div class="bar-container" style="height: 20px; margin-top: 8px;">
                         <div class="mp-fill" id="combatPlayerMpBar"></div>
                         <div class="bar-text" id="combatPlayerMpText" style="line-height: 20px; font-size: 13px;"></div>
+                    </div>
+                    <div class="bar-container" style="height: 20px; margin-top: 8px;">
+                        <div class="ep-fill" id="combatPlayerEpBar"></div>
+                        <div class="bar-text" id="combatPlayerEpText" style="line-height: 20px; font-size: 13px;"></div>
                     </div>
                 </div>
 

@@ -161,8 +161,8 @@ let currentZoneIndex = 0;
 
 let player = { 
     x: 16, y: 25,
-    hp: 0, mp: 0, xp: 0, gold: 0, potions: 3, manaPotions: 1, level: 1,
-    baseMaxHp: 0, baseMaxMp: 0, baseAtk: 0, baseDef: 0, baseMag: 0, weapon: null, armor: null, playerClass: '',
+    hp: 0, mp: 0, ep: 0, xp: 0, gold: 0, potions: 3, manaPotions: 1, energyPotions: 1, level: 1,
+    baseMaxHp: 0, baseMaxMp: 0, baseMaxEp: 0, baseAtk: 0, baseDef: 0, baseMag: 0, weapon: null, armor: null, playerClass: '',
     inventory: { weapons: [], armors: [] }
 };
 
@@ -170,6 +170,7 @@ let quest = null; let inCombat = false; let currentEnemyTile = null; let lastPla
 
 function getMaxHp() { return player.baseMaxHp + (player.armor ? player.armor.hpBonus : 0); }
 function getMaxMp() { return player.baseMaxMp + (player.armor ? player.armor.mpBonus : 0); }
+function getMaxEp() { return player.baseMaxEp; }
 function getAtk() { return player.baseAtk + (player.weapon ? player.weapon.atk : 0); }
 function getDef() { return player.baseDef + (player.armor ? player.armor.def : 0); }
 function getMag() { return player.baseMag + (player.weapon ? player.weapon.mag : 0); }
@@ -213,6 +214,10 @@ function loadGameBtn() {
             
             if(!player.inventory) player.inventory = { weapons: [], armors: [] };
             if(!player.playerClass) player.playerClass = "Héroe";
+            
+            // Fix backwards compatibility
+            if(player.ep === undefined) player.ep = player.baseMaxEp || 50;
+            if(player.energyPotions === undefined) player.energyPotions = 0;
 
             document.getElementById('classModal').style.display = 'none';
             
@@ -239,17 +244,29 @@ function initGame() {
 function selectClass(className) {
     playSFX(sfx.ui_click);
     player.playerClass = className;
+    player.potions = 3; player.manaPotions = 1; player.energyPotions = 1; 
+
     if (className === 'Guerrero') {
         player.baseMaxHp = 60; player.hp = 60;
         player.baseMaxMp = 10; player.mp = 10;
+        player.baseMaxEp = 50; player.ep = 50;
         player.baseAtk = 5; player.baseDef = 4; player.baseMag = 1;
         player.weapon = { name: 'Espada Rota', atk: 2, mag: 0, price: 10, colorClass: 'color-comun', icon: 'sword.png' };
-    } else {
-        player.baseMaxHp = 35; player.hp = 35;
-        player.baseMaxMp = 40; player.mp = 40;
+    } else if (className === 'Mago') {
+        player.baseMaxHp = 30; player.hp = 30;
+        player.baseMaxMp = 60; player.mp = 60;
+        player.baseMaxEp = 40; player.ep = 40;
         player.baseAtk = 2; player.baseDef = 1; player.baseMag = 5;
+        player.manaPotions = 3; 
         player.weapon = { name: 'Varita Astillada', atk: 0, mag: 3, price: 10, colorClass: 'color-comun', icon: 'staff.png' };
+    } else if (className === 'Arquero') {
+        player.baseMaxHp = 45; player.hp = 45;
+        player.baseMaxMp = 20; player.mp = 20;
+        player.baseMaxEp = 80; player.ep = 80;
+        player.baseAtk = 4; player.baseDef = 2; player.baseMag = 2;
+        player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'sword.png' }; 
     }
+    
     document.getElementById('classModal').style.display = 'none';
     logMsg(`¡Has elegido el camino del ${className}! Buena suerte.`);
     playBGM('field');
@@ -260,13 +277,23 @@ function checkLevelUp() {
     const xpNeeded = player.level * 15;
     if (player.xp >= xpNeeded) {
         player.xp -= xpNeeded; player.level++; 
+        
         if (player.playerClass === 'Guerrero') {
             player.baseMaxHp += 8; player.baseMaxMp += 2; player.baseAtk += 2; player.baseDef += 1; player.baseMag += 0;
+            player.hp = Math.min(getMaxHp(), player.hp + 8);
+            player.mp = Math.min(getMaxMp(), player.mp + 2);
         } else if (player.playerClass === 'Mago') {
             player.baseMaxHp += 4; player.baseMaxMp += 8; player.baseAtk += 0; player.baseDef += 0; player.baseMag += 2;
+            player.hp = Math.min(getMaxHp(), player.hp + 4);
+            player.mp = Math.min(getMaxMp(), player.mp + 8);
+        } else if (player.playerClass === 'Arquero') {
+            player.baseMaxHp += 6; player.baseMaxMp += 3; player.baseAtk += 2; player.baseDef += 1; player.baseMag += 1;
+            player.hp = Math.min(getMaxHp(), player.hp + 6);
+            player.mp = Math.min(getMaxMp(), player.mp + 3);
         }
-        player.hp = Math.min(getMaxHp(), player.hp + (player.playerClass === 'Guerrero' ? 8 : 4));
-        player.mp = Math.min(getMaxMp(), player.mp + (player.playerClass === 'Guerrero' ? 2 : 8));
+        
+        player.baseMaxEp += 5;
+        player.ep = Math.min(getMaxEp(), player.ep + 5);
         
         playSFX(sfx.level_up);
         logMsg(`¡NIVEL ${player.level}! Stats mejoradas.`);
@@ -467,7 +494,8 @@ function render() {
 
 function updateHUD() {
     try {
-        const tHp = getMaxHp(); const tMp = getMaxMp(); const tAtk = getAtk(); const tDef = getDef(); const tMag = getMag();
+        const tHp = getMaxHp(); const tMp = getMaxMp(); const tEp = getMaxEp();
+        const tAtk = getAtk(); const tDef = getDef(); const tMag = getMag();
         
         const hpPercent = Math.max(0, (player.hp / tHp) * 100);
         document.getElementById('playerHpBar').style.width = `${hpPercent}%`;
@@ -477,6 +505,10 @@ function updateHUD() {
         const mpPercent = Math.max(0, (player.mp / tMp) * 100);
         document.getElementById('playerMpBar').style.width = `${mpPercent}%`;
         document.getElementById('playerMpText').textContent = `${player.mp} / ${tMp}`;
+
+        const epPercent = Math.max(0, (player.ep / tEp) * 100);
+        document.getElementById('playerEpBar').style.width = `${epPercent}%`;
+        document.getElementById('playerEpText').textContent = `${player.ep} / ${tEp}`;
 
         document.getElementById('playerClassName').textContent = player.playerClass || "Héroe";
         document.getElementById('playerLevel').textContent = `(Lv. ${player.level})`;
@@ -597,6 +629,7 @@ function openShop() {
     let htmlBuy = `
         <div class="shop-item"><span><img src="img/items/potion.png" class="icon"> Poción (+25 HP)</span><button onclick="buyPotion()">20 <img src="img/items/coin.png" class="icon"></button></div>
         <div class="shop-item"><span><img src="img/items/mana_potion.png" class="icon"> Maná (+20 MP)</span><button onclick="buyManaPotion()">25 <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><span><img src="img/items/potion.png" class="icon" style="filter: hue-rotate(280deg);"> Energía (+30 EP)</span><button onclick="buyEnergyPotion()">15 <img src="img/items/coin.png" class="icon"></button></div>
     `;
     cd.shop.weapons.forEach(w => { 
         let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
@@ -668,6 +701,7 @@ function sellArmor(idx, price) {
 
 function buyPotion() { if (player.gold >= 20) { player.gold -= 20; player.potions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Vida."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
 function buyManaPotion() { if (player.gold >= 25) { player.gold -= 25; player.manaPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Maná."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
+function buyEnergyPotion() { if (player.gold >= 15) { player.gold -= 15; player.energyPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Energía."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
 function buyWeapon(name, atk, mag, price, colorClass, icon) { 
     if (player.gold >= price) { 
         player.gold -= price; 
@@ -691,6 +725,13 @@ function buyArmor(name, def, hpBonus, mpBonus, price, colorClass, icon) {
 function move(dx, dy) {
     if (isMenuOpen || inCombat || document.getElementById('classModal').style.display === 'flex' || document.getElementById('npcModal').style.display === 'flex') return;
     
+    // VERIFICAR ENERGÍA
+    if (player.ep <= 0) {
+        playSFX(sfx.error);
+        logMsg("¡Estás exhausto! Toma una Poción de Energía (EP) o descansa.");
+        return;
+    }
+
     let nx = player.x + dx, ny = player.y + dy;
     let tile = worldMap[ny * MAP_W + nx]; 
     
@@ -705,6 +746,9 @@ function move(dx, dy) {
     playSFX(sfx.step); 
     lastPlayerPos = { x: player.x, y: player.y }; 
     player.x = nx; player.y = ny;
+    
+    // Restar energía por moverse
+    player.ep -= 1;
     
     updateFOV(); centerCamera();
     
@@ -784,7 +828,7 @@ function updateCombatUI() {
     document.getElementById('enemyAtk').textContent = enemy.atk;
     document.getElementById('enemyDef').textContent = `${enemy.def} | Mag: ${enemy.mag || 0}`;
 
-    const tHp = getMaxHp(); const tMp = getMaxMp();
+    const tHp = getMaxHp(); const tMp = getMaxMp(); const tEp = getMaxEp();
     const pOp = Math.max(0, (player.hp / tHp) * 100);
     document.getElementById('combatPlayerHpBar').style.width = `${pOp}%`;
     document.getElementById('combatPlayerHpBar').style.backgroundColor = getHpColor(pOp);
@@ -793,6 +837,10 @@ function updateCombatUI() {
     const pMp = Math.max(0, (player.mp / tMp) * 100);
     document.getElementById('combatPlayerMpBar').style.width = `${pMp}%`;
     document.getElementById('combatPlayerMpText').textContent = `${player.mp} / ${tMp}`;
+    
+    const pEp = Math.max(0, (player.ep / tEp) * 100);
+    document.getElementById('combatPlayerEpBar').style.width = `${pEp}%`;
+    document.getElementById('combatPlayerEpText').textContent = `${player.ep} / ${tEp}`;
 }
 
 function doAttack() {
@@ -885,7 +933,7 @@ function processEnemyTurn(enemy) {
         updateCombatUI(); updateHUD();
     } catch (e) { 
         console.error("Error turno enemigo:", e); 
-        logCombat("<b style='color:red'>⚠️ Error de sistema. Turno saltado.</b>"); // <--- ¡AQUÍ ESTABA EL ERROR DE COMILLAS! Corregido a comillas simples.
+        logCombat("<b style='color:red'>⚠️ Error de sistema. Turno saltado.</b>");
     } 
     finally { 
         setTimeout(() => { 
@@ -954,6 +1002,7 @@ function doFlee() { playSFX(sfx.ui_click); logMsg("¡Huiste!"); player.x = lastP
 
 function usePotion() { const max = getMaxHp(); if (player.potions > 0 && player.hp < max) { player.hp = Math.min(max, player.hp + 25); player.potions--; playSFX(sfx.use_potion); logMsg("Usaste Poción Vida (+25 HP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
 function useManaPotion() { const max = getMaxMp(); if (player.manaPotions > 0 && player.mp < max) { player.mp = Math.min(max, player.mp + 20); player.manaPotions--; playSFX(sfx.use_potion); logMsg("Usaste Poción Maná (+20 MP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
+function useEnergyPotion() { const max = getMaxEp(); if (player.energyPotions > 0 && player.ep < max) { player.ep = Math.min(max, player.ep + 30); player.energyPotions--; playSFX(sfx.use_potion); logMsg("Usaste Poción Energía (+30 EP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
 
 window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();

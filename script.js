@@ -163,6 +163,7 @@ let player = {
     x: 16, y: 25,
     hp: 0, mp: 0, ep: 0, xp: 0, gold: 0, potions: 3, manaPotions: 1, energyPotions: 1, level: 1,
     baseMaxHp: 0, baseMaxMp: 0, baseMaxEp: 0, baseAtk: 0, baseDef: 0, baseMag: 0, weapon: null, armor: null, playerClass: '',
+    mapImg: 'img/player/heroe.png', combatImg: 'img/player/heroe.png',
     inventory: { weapons: [], armors: [] }
 };
 
@@ -213,11 +214,13 @@ function loadGameBtn() {
             player = saveData.playerData; flags = saveData.flagsData; quest = saveData.questData; worldMap = saveData.mapDataState;
             
             if(!player.inventory) player.inventory = { weapons: [], armors: [] };
-            if(!player.playerClass) player.playerClass = "Héroe";
+            if(!player.playerClass) player.playerClass = "Guerrero";
             
-            // Fix backwards compatibility
+            // Compatibilidad hacia atrás
             if(player.ep === undefined) player.ep = player.baseMaxEp || 50;
             if(player.energyPotions === undefined) player.energyPotions = 0;
+            if(!player.mapImg) player.mapImg = `img/player/${player.playerClass.toLowerCase()}_mapa.png`;
+            if(!player.combatImg) player.combatImg = `img/player/${player.playerClass.toLowerCase()}_combate.png`;
 
             document.getElementById('classModal').style.display = 'none';
             
@@ -245,6 +248,13 @@ function selectClass(className) {
     playSFX(sfx.ui_click);
     player.playerClass = className;
     player.potions = 3; player.manaPotions = 1; player.energyPotions = 1; 
+    player.gold = 0; 
+    player.weapon = null; 
+    
+    // Asignación de imágenes basadas en la clase elegida
+    let classNameLower = className.toLowerCase();
+    player.mapImg = `img/player/${classNameLower}_mapa.png`;
+    player.combatImg = `img/player/${classNameLower}_combate.png`;
 
     if (className === 'Guerrero') {
         player.baseMaxHp = 60; player.hp = 60;
@@ -264,11 +274,18 @@ function selectClass(className) {
         player.baseMaxMp = 20; player.mp = 20;
         player.baseMaxEp = 80; player.ep = 80;
         player.baseAtk = 4; player.baseDef = 2; player.baseMag = 2;
-        player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'sword.png' }; 
+        player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'bow.png' }; 
+    } else if (className === 'Simple') {
+        player.baseMaxHp = 40; player.hp = 40;
+        player.baseMaxMp = 10; player.mp = 10;
+        player.baseMaxEp = 40; player.ep = 40;
+        player.baseAtk = 2; player.baseDef = 1; player.baseMag = 1;
+        player.gold = 100; // Ventaja inicial
+        // Sin arma, confía en el oro inicial para sobrevivir
     }
     
     document.getElementById('classModal').style.display = 'none';
-    logMsg(`¡Has elegido el camino del ${className}! Buena suerte.`);
+    logMsg(`¡Has elegido el camino de la clase ${className}! Buena suerte.`);
     playBGM('field');
     generateWorld(); 
 }
@@ -290,6 +307,10 @@ function checkLevelUp() {
             player.baseMaxHp += 6; player.baseMaxMp += 3; player.baseAtk += 2; player.baseDef += 1; player.baseMag += 1;
             player.hp = Math.min(getMaxHp(), player.hp + 6);
             player.mp = Math.min(getMaxMp(), player.mp + 3);
+        } else if (player.playerClass === 'Simple') {
+            player.baseMaxHp += 5; player.baseMaxMp += 2; player.baseAtk += 1; player.baseDef += 1; player.baseMag += 1;
+            player.hp = Math.min(getMaxHp(), player.hp + 5);
+            player.mp = Math.min(getMaxMp(), player.mp + 2);
         }
         
         player.baseMaxEp += 5;
@@ -468,7 +489,7 @@ function render() {
                 }
 
                 if (player.x === t.x && player.y === t.y) { 
-                    d.innerHTML = `<img src="img/player/heroe.png">`; 
+                    d.innerHTML = `<img src="${player.mapImg}">`; 
                     if (t.isCity) inCityArea = true; 
                 } 
                 else if (t.enemy) { d.innerHTML = `<img src="${t.enemy.img}">`; }
@@ -629,7 +650,7 @@ function openShop() {
     let htmlBuy = `
         <div class="shop-item"><span><img src="img/items/potion.png" class="icon"> Poción (+25 HP)</span><button onclick="buyPotion()">20 <img src="img/items/coin.png" class="icon"></button></div>
         <div class="shop-item"><span><img src="img/items/mana_potion.png" class="icon"> Maná (+20 MP)</span><button onclick="buyManaPotion()">25 <img src="img/items/coin.png" class="icon"></button></div>
-        <div class="shop-item"><span><img src="img/items/potion.png" class="icon" style="filter: hue-rotate(280deg);"> Energía (+30 EP)</span><button onclick="buyEnergyPotion()">15 <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><span><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> Energía (+30 EP)</span><button onclick="buyEnergyPotion()">15 <img src="img/items/coin.png" class="icon"></button></div>
     `;
     cd.shop.weapons.forEach(w => { 
         let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
@@ -803,7 +824,7 @@ function startCombat(tile) {
     document.getElementById('enemyTraitDisplay').textContent = traitText;
 
     document.getElementById('combatPlayerName').textContent = player.playerClass || "Héroe";
-    document.getElementById('combatPlayerImg').src = 'img/player/heroe.png';
+    document.getElementById('combatPlayerImg').src = player.combatImg; // Usar el sprite de combate de la clase actual
     logCombat(`<div>¡Un <b>${enemy.name}</b> salvaje aparece!</div>`);
     
     updateCombatUI(); render();

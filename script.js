@@ -618,27 +618,44 @@ function updateFOV() {
     }
 }
 
+// NUEVO: Función para calcular dinámicamente el tamaño de la cuadrícula para garantizar un radio visible
+function getTileSize() {
+    // Tomamos la dimensión más pequeña de la pantalla y la dividimos entre 3
+    // Así garantizamos que siempre veas un cuadro de 3x3 perfecto (el tuyo en el centro) sin importar si giras el móvil o achicas la PC
+    return Math.floor(Math.min(window.innerWidth, window.innerHeight) / 3);
+}
+
 function centerCamera() {
     const mapEl = document.getElementById('map');
     if (!mapEl) return;
-    const tileSize = 514; 
-    const targetX = (player.x * tileSize) + (512 / 2) + 6 - (mapEl.clientWidth / 2);
-    const targetY = (player.y * tileSize) + (512 / 2) + 6 - (mapEl.clientHeight / 2);
+    const TS = getTileSize();
+    const stride = TS + 2; // TS + 2px de gap
+    
+    const targetX = (player.x * stride) + (TS / 2) - (mapEl.clientWidth / 2);
+    const targetY = (player.y * stride) + (TS / 2) - (mapEl.clientHeight / 2);
     mapEl.scrollTo({ left: targetX, top: targetY, behavior: 'smooth' });
 }
 
 function render() {
+    const TS = getTileSize();
+    const stride = TS + 2;
     const m = document.getElementById('map'); 
-    m.style.gridTemplateColumns = `repeat(${MAP_W}, 512px)`;
-    m.style.gridAutoRows = `512px`;
+    
+    // Hacemos el grid del mapa totalmente dinámico y responsivo
+    m.style.gridTemplateColumns = `repeat(${MAP_W}, ${TS}px)`;
+    m.style.gridAutoRows = `${TS}px`;
     
     const existingTiles = m.querySelectorAll('.tile');
     existingTiles.forEach(t => t.remove());
     
     currentZoneIndex = getZoneIndex(player.x, player.y);
     
-    const vRadiusX = 4;
-    const vRadiusY = 3;
+    // Calculamos cuantos tiles renderizar dependiendo del tamaño real de la pantalla 
+    // (para rellenar los huecos laterales sin hacer trabajo inútil)
+    const widthTiles = Math.ceil(window.innerWidth / TS);
+    const heightTiles = Math.ceil(window.innerHeight / TS);
+    const vRadiusX = Math.ceil(widthTiles / 2) + 1;
+    const vRadiusY = Math.ceil(heightTiles / 2) + 1;
 
     for(let y = Math.max(0, player.y - vRadiusY); y <= Math.min(MAP_H - 1, player.y + vRadiusY); y++) {
         for(let x = Math.max(0, player.x - vRadiusX); x <= Math.min(MAP_W - 1, player.x + vRadiusX); x++) {
@@ -684,12 +701,14 @@ function render() {
         m.appendChild(sprite);
     }
     sprite.innerHTML = `<img src="${player.mapImg}">`;
-    sprite.style.left = (player.x * 512) + 'px';
-    sprite.style.top = (player.y * 512) + 'px';
+    // Ajuste posicional dinámico en lugar del tamaño fijo (512) de antes
+    sprite.style.width = `${TS}px`;
+    sprite.style.height = `${TS}px`;
+    sprite.style.left = (player.x * stride) + 'px';
+    sprite.style.top = (player.y * stride) + 'px';
     
     setTimeout(centerCamera, 10);
     
-    // Aquí actualizamos el indicador dinámicamente sin tocar HTML directamente
     document.getElementById('mapName').textContent = mapData[currentZoneIndex].rarity + (mapLevel > 1 ? ` (Mapa Lv.${mapLevel})` : '');
     updateHUD();
 }
@@ -1455,6 +1474,8 @@ document.documentElement.style.setProperty('--vh', `${vh}px`);
 window.addEventListener('resize', () => {
   let vh = window.innerHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
+  // Re-calcula tamaño y acomoda todo si se cambia de tamaño
+  render();
 });
 
 initGame();

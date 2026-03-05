@@ -85,7 +85,50 @@ function toggleMainMenu() {
 }
 
 /* =========================================
-   SISTEMA DE NPCs Y LORE
+   SISTEMA DE GAME FEEL 
+   ========================================= */
+function spawnFloatingText(text, color, target) {
+    const container = document.getElementById('floatingTextContainer');
+    if (!container) return;
+    
+    const el = document.createElement('div');
+    el.className = 'floating-text';
+    el.style.color = color;
+    el.innerHTML = text;
+
+    if (target === 'map') {
+        el.style.left = '50%';
+        el.style.top = '40%';
+        el.style.transform = 'translate(-50%, -50%)';
+    } else if (target === 'combat-player') {
+        el.style.left = '25%';
+        el.style.top = '35%';
+    } else if (target === 'combat-enemy') {
+        el.style.left = '75%';
+        el.style.top = '35%';
+    } else {
+        el.style.left = '50%';
+        el.style.top = '50%';
+    }
+
+    container.appendChild(el);
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 1400); 
+}
+
+function checkLowHp() {
+    const overlay = document.getElementById('damageOverlay');
+    if (!overlay) return;
+    
+    const maxHp = getMaxHp();
+    if (player.hp > 0 && player.hp < maxHp * 0.2) {
+        overlay.classList.add('low-hp-alert');
+    } else {
+        overlay.classList.remove('low-hp-alert');
+    }
+}
+
+/* =========================================
+   SISTEMA DE NPCs Y LORE (MISIONES FIJAS)
    ========================================= */
 const npcsData = [
     { name: 'Alcalde Rufus', img: 'img/npcs/alcalde.png', dialogues: ['¡Por favor, héroe! El mundo está en peligro.', 'Los caminos ya no son seguros. ¿Nos ayudarás?'] },
@@ -102,20 +145,28 @@ function openSpecificNPCModal(npcData) {
     }
     
     playSFX(sfx.ui_click);
-    const types = ['kill_enemy', 'kill_boss', 'collect_gold'];
-    const type = types[Math.floor(Math.random() * types.length)];
     
+    if (!player.zoneQuestProgress) player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+    if (!player.hasKey) player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+
+    let step = player.zoneQuestProgress[currentZoneIndex];
+    
+    if (step >= 3) {
+        playSFX(sfx.error); logMsg(`${npcData.name} te dice: 'Ya has completado todas mis tareas en esta zona. ¡Cruza la puerta y avanza!'`); return;
+    }
+
     const cd = mapData[currentZoneIndex]; 
-    const pool = cd.newEnemies; 
+    let qScale = getMapScale(); // Escalado de misiones según nivel de mapa
     
-    if (type === 'kill_enemy') {
-        const rEnemy = pool[Math.floor(Math.random() * pool.length)];
-        pendingQuest = { type: 'kill_enemy', target: rEnemy.name, goal: 3, progress: 0, rewardType: 'gold', rewardAmount: 20 * (currentZoneIndex + 1), text: `Derrota 3 ${rEnemy.name}s` };
-    } else if (type === 'kill_boss') {
-        pendingQuest = { type: 'kill_boss', target: cd.boss.name, goal: 1, progress: 0, rewardType: 'potion', rewardAmount: 1, text: `Derrota al ${cd.boss.name}` };
-    } else {
-        const gTarget = 30 * (currentZoneIndex + 1);
-        pendingQuest = { type: 'collect_gold', goal: gTarget, progress: 0, rewardType: 'xp', rewardAmount: 15 * (currentZoneIndex + 1), text: `Consigue ${gTarget} de oro` };
+    // Sistema Secuencial Fijo
+    if (step === 0) {
+        const rEnemy = cd.newEnemies[0];
+        pendingQuest = { type: 'kill_enemy', target: rEnemy.name, goal: 3, progress: 0, rewardType: 'gold', rewardAmount: Math.floor(20 * (currentZoneIndex + 1) * qScale), text: `Derrota 3 ${rEnemy.name}s`, zone: currentZoneIndex };
+    } else if (step === 1) {
+        const gTarget = Math.floor(30 * (currentZoneIndex + 1) * qScale);
+        pendingQuest = { type: 'collect_gold', goal: gTarget, progress: 0, rewardType: 'xp', rewardAmount: Math.floor(15 * (currentZoneIndex + 1) * qScale), text: `Consigue ${gTarget} de oro`, zone: currentZoneIndex };
+    } else if (step === 2) {
+        pendingQuest = { type: 'kill_boss', target: cd.boss.name, goal: 1, progress: 0, rewardType: 'potion', rewardAmount: 1, text: `Derrota al Jefe: ${cd.boss.name}`, zone: currentZoneIndex };
     }
 
     const dialog = npcData.dialogues[Math.floor(Math.random() * npcData.dialogues.length)];
@@ -125,6 +176,9 @@ function openSpecificNPCModal(npcData) {
     document.getElementById('npcDialog').textContent = `"${dialog}"`;
     
     let rewardText = pendingQuest.rewardAmount + " " + (pendingQuest.rewardType === 'gold' ? 'Oro' : pendingQuest.rewardType === 'xp' ? 'XP' : 'Poción');
+    
+    if (step === 2) rewardText += " y la Llave";
+
     document.getElementById('npcQuestDetail').innerHTML = `<b>Objetivo:</b> ${pendingQuest.text}<br><b>Recompensa:</b> ${rewardText}`;
     
     document.getElementById('npcModal').style.display = 'flex';
@@ -231,13 +285,16 @@ const MAP_H = 100;
 let worldMap = []; 
 let flags = { boss0: false, boss1: false, boss2: false, boss3: false, boss4: false, boss5: false };
 let currentZoneIndex = 0; 
+let mapLevel = 1; // Variable de Endgame
 
 let player = { 
     x: 16, y: 25,
     hp: 0, mp: 0, ep: 0, xp: 0, gold: 0, potions: 3, manaPotions: 1, energyPotions: 1, level: 1,
     baseMaxHp: 0, baseMaxMp: 0, baseMaxEp: 0, baseAtk: 0, baseDef: 0, baseMag: 0, weapon: null, armor: null, playerClass: '',
     mapImg: 'img/player/heroe.png', combatImg: 'img/player/heroe.png',
-    inventory: { weapons: [], armors: [] }
+    inventory: { weapons: [], armors: [] },
+    zoneQuestProgress: [0, 0, 0, 0, 0, 0],
+    hasKey: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false }
 };
 
 let quest = null; 
@@ -249,6 +306,11 @@ let combatState = {
     defBuffTurns: 0,
     poisonTurns: 0
 };
+
+// Utilidad para escalar estadísticas según el nivel del mapa endgame
+function getMapScale() {
+    return 1 + ((mapLevel - 1) * 0.5);
+}
 
 function getMaxHp() { return player.baseMaxHp + (player.armor ? player.armor.hpBonus : 0); }
 function getMaxMp() { return player.baseMaxMp + (player.armor ? player.armor.mpBonus : 0); }
@@ -280,7 +342,7 @@ function logCombat(t) {
 
 function saveGame() {
     try {
-        const saveData = { playerData: player, flagsData: flags, questData: quest, mapDataState: worldMap };
+        const saveData = { playerData: player, flagsData: flags, questData: quest, mapDataState: worldMap, mapLevelData: mapLevel };
         localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
         logMsg("💾 Partida guardada con éxito.");
     } catch (e) { console.warn("No se pudo guardar."); }
@@ -293,6 +355,7 @@ function loadGameBtn() {
         if (savedString) {
             const saveData = JSON.parse(savedString);
             player = saveData.playerData; flags = saveData.flagsData; quest = saveData.questData; worldMap = saveData.mapDataState;
+            mapLevel = saveData.mapLevelData || 1;
             
             if(!player.inventory) player.inventory = { weapons: [], armors: [] };
             if(!player.playerClass) player.playerClass = "Guerrero";
@@ -301,6 +364,9 @@ function loadGameBtn() {
             if(player.energyPotions === undefined) player.energyPotions = 0;
             if(!player.mapImg) player.mapImg = `img/player/${player.playerClass.toLowerCase()}_mapa.png`;
             if(!player.combatImg) player.combatImg = `img/player/${player.playerClass.toLowerCase()}_combate.png`;
+
+            if(!player.zoneQuestProgress) player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+            if(!player.hasKey) player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
 
             document.getElementById('classModal').style.display = 'none';
             
@@ -330,6 +396,9 @@ function selectClass(className) {
     player.potions = 3; player.manaPotions = 1; player.energyPotions = 1; 
     player.gold = 0; 
     player.weapon = null; 
+    player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+    player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+    mapLevel = 1; // Reset endgame lvl
     
     let classNameLower = className.toLowerCase();
     player.mapImg = `img/player/${classNameLower}_mapa.png`;
@@ -395,6 +464,7 @@ function checkLevelUp() {
         player.ep = Math.min(getMaxEp(), player.ep + 5);
         
         playSFX(sfx.level_up);
+        spawnFloatingText('¡NIVEL UP!', '#ffeb3b', inCombat ? 'combat-player' : 'map');
         logMsg(`¡NIVEL ${player.level}! Stats mejoradas.`);
         saveGame();
     }
@@ -426,16 +496,23 @@ function scaleEnemy(template, isBoss, zoneIdx) {
     let e = JSON.parse(JSON.stringify(template));
     let mapScale = 1 + (zoneIdx * 0.6); 
     let lvlScale = 1 + ((player.level - 1) * 0.25); 
-    let finalHpMulti = 1.4 * mapScale * lvlScale; 
-    let finalAtkMulti = 1.3 * mapScale * lvlScale;
-    let finalDefMulti = 1.2 * mapScale * lvlScale;
+    let globalMapLevelScale = getMapScale(); // Escalado Endgame
+    
+    let finalHpMulti = 1.4 * mapScale * lvlScale * globalMapLevelScale; 
+    let finalAtkMulti = 1.3 * mapScale * lvlScale * globalMapLevelScale;
+    let finalDefMulti = 1.2 * mapScale * lvlScale * globalMapLevelScale;
     
     if(isBoss) { finalHpMulti *= 1.6; finalAtkMulti *= 1.4; finalDefMulti *= 1.3; } 
 
     e.hp = Math.floor(e.hp * finalHpMulti); e.maxHp = e.hp;
     e.atk = Math.floor(e.atk * finalAtkMulti); e.def = Math.floor(e.def * finalDefMulti); e.mag = Math.floor(e.mag * finalAtkMulti);
-    e.gold = Math.floor(e.gold * (1 + zoneIdx * 0.3)); e.xp = Math.floor(e.xp * (1 + zoneIdx * 0.4));
+    e.gold = Math.floor(e.gold * (1 + zoneIdx * 0.3) * globalMapLevelScale); 
+    e.xp = Math.floor(e.xp * (1 + zoneIdx * 0.4) * globalMapLevelScale);
     e.isBoss = isBoss; e.zone = zoneIdx;
+    
+    // Distintivo visual en el nombre para niveles altos
+    if(mapLevel > 1) e.name += ` (Lv.${mapLevel})`;
+    
     return e;
 }
 
@@ -554,7 +631,9 @@ function render() {
     const m = document.getElementById('map'); 
     m.style.gridTemplateColumns = `repeat(${MAP_W}, 512px)`;
     m.style.gridAutoRows = `512px`;
-    m.innerHTML = ''; 
+    
+    const existingTiles = m.querySelectorAll('.tile');
+    existingTiles.forEach(t => t.remove());
     
     currentZoneIndex = getZoneIndex(player.x, player.y);
     
@@ -575,18 +654,13 @@ function render() {
                 d.className = 'tile ' + t.type;
                 if (t.isBossTile) d.classList.add(mapData[t.zone].css);
                 
-                if (t.type === 'gate' && flags['boss' + t.gateIndex]) {
+                if (t.type === 'gate' && player.hasKey && player.hasKey[t.gateIndex]) {
                     d.className = 'tile path';
                 }
 
-                if (player.x === t.x && player.y === t.y) { 
-                    d.innerHTML = `<img src="${player.mapImg}">`; 
-                } 
-                else if (t.enemy) { d.innerHTML = `<img src="${t.enemy.img}">`; }
+                if (t.enemy) { d.innerHTML = `<img src="${t.enemy.img}">`; }
                 else if (t.merchant) { d.innerHTML = `<img src="img/npcs/merchant.png" style="filter: drop-shadow(0 0 10px #4caf50);">`; }
                 else if (t.npc) { d.innerHTML = `<img src="${t.npc.img}" style="filter: drop-shadow(0 0 10px #ffeb3b);">`; }
-                
-                // === AQUI SE HACEN LOS CAMBIOS A IMÁGENES ===
                 else if (t.chest) {
                     if (!t.chest.opened) {
                         d.innerHTML = `<img src="img/tiles/chest_closed.png" class="chest-img">`;
@@ -602,8 +676,21 @@ function render() {
         }
     }
     
+    let sprite = document.getElementById('playerSprite');
+    if (!sprite) {
+        sprite = document.createElement('div');
+        sprite.id = 'playerSprite';
+        sprite.className = 'player-sprite';
+        m.appendChild(sprite);
+    }
+    sprite.innerHTML = `<img src="${player.mapImg}">`;
+    sprite.style.left = (player.x * 512) + 'px';
+    sprite.style.top = (player.y * 512) + 'px';
+    
     setTimeout(centerCamera, 10);
-    document.getElementById('mapName').textContent = mapData[currentZoneIndex].rarity;
+    
+    // Aquí actualizamos el indicador dinámicamente sin tocar HTML directamente
+    document.getElementById('mapName').textContent = mapData[currentZoneIndex].rarity + (mapLevel > 1 ? ` (Mapa Lv.${mapLevel})` : '');
     updateHUD();
 }
 
@@ -654,6 +741,8 @@ function updateHUD() {
                 questEl.innerHTML = "No tienes tareas activas. Explora el mapa para encontrar NPCs.";
             }
         }
+        
+        checkLowHp(); 
     } catch (e) {}
 }
 
@@ -738,18 +827,32 @@ function openShop() {
     const cd = mapData[currentZoneIndex];
     document.getElementById('shopTier').textContent = `(${cd.rarity})`; document.getElementById('shopTier').className = cd.colorClass;
     
+    let scaleFactor = getMapScale();
+    let pPrice = Math.floor(20 * scaleFactor);
+    let mpPrice = Math.floor(25 * scaleFactor);
+    let epPrice = Math.floor(15 * scaleFactor);
+
     let htmlBuy = `
-        <div class="shop-item"><div><img src="img/items/potion.png" class="icon"> <span>Poción (+25 HP)</span></div><button onclick="buyPotion()">20 <img src="img/items/coin.png" class="icon"></button></div>
-        <div class="shop-item"><div><img src="img/items/mana_potion.png" class="icon"> <span>Maná (+20 MP)</span></div><button onclick="buyManaPotion()">25 <img src="img/items/coin.png" class="icon"></button></div>
-        <div class="shop-item"><div><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> <span>Energía (+30 EP)</span></div><button onclick="buyEnergyPotion()">15 <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/potion.png" class="icon"> <span>Poción (+25 HP)</span></div><button onclick="buyPotion()">${pPrice} <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/mana_potion.png" class="icon"> <span>Maná (+20 MP)</span></div><button onclick="buyManaPotion()">${mpPrice} <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> <span>Energía (+30 EP)</span></div><button onclick="buyEnergyPotion()">${epPrice} <img src="img/items/coin.png" class="icon"></button></div>
     `;
     cd.shop.weapons.forEach(w => { 
-        let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
-        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${cd.colorClass}">${w.name}</span><br><small>${statText}</small></div><button onclick="buyWeapon('${w.name}', ${w.atk}, ${w.mag}, ${w.price}, '${cd.colorClass}', '${w.icon}')">${w.price} <img src="img/items/coin.png" class="icon"></button></div>`; 
+        let sAtk = Math.floor(w.atk * scaleFactor);
+        let sMag = Math.floor(w.mag * scaleFactor);
+        let sPrice = Math.floor(w.price * scaleFactor);
+        let sName = w.name + (mapLevel > 1 ? ` +${mapLevel - 1}` : '');
+        let statText = sAtk > 0 ? `ATK +${sAtk}` : `MAG +${sMag}`;
+        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${statText}</small></div><button onclick="buyWeapon('${sName}', ${sAtk}, ${sMag}, ${sPrice}, '${cd.colorClass}', '${w.icon}')">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`; 
     });
     cd.shop.armors.forEach(a => { 
-        let statText = a.mpBonus > 0 ? `DEF +${a.def} | MANÁ +${a.mpBonus}` : `DEF +${a.def} | VIDA +${a.hpBonus}`;
-        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${cd.colorClass}">${a.name}</span><br><small>${statText}</small></div><button onclick="buyArmor('${a.name}', ${a.def}, ${a.hpBonus}, ${a.mpBonus}, ${a.price}, '${cd.colorClass}', '${a.icon}')">${a.price} <img src="img/items/coin.png" class="icon"></button></div>`; 
+        let sDef = Math.floor(a.def * scaleFactor);
+        let sHpB = Math.floor(a.hpBonus * scaleFactor);
+        let sMpB = Math.floor(a.mpBonus * scaleFactor);
+        let sPrice = Math.floor(a.price * scaleFactor);
+        let sName = a.name + (mapLevel > 1 ? ` +${mapLevel - 1}` : '');
+        let statText = sMpB > 0 ? `DEF +${sDef} | MANÁ +${sMpB}` : `DEF +${sDef} | VIDA +${sHpB}`;
+        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${statText}</small></div><button onclick="buyArmor('${sName}', ${sDef}, ${sHpB}, ${sMpB}, ${sPrice}, '${cd.colorClass}', '${a.icon}')">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`; 
     });
     document.getElementById('shopContentBuy').innerHTML = htmlBuy; 
     
@@ -811,9 +914,9 @@ function sellArmor(idx, price) {
     updateHUD(); renderSellTab(); saveGame();
 }
 
-function buyPotion() { if (player.gold >= 20) { player.gold -= 20; player.potions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Vida."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
-function buyManaPotion() { if (player.gold >= 25) { player.gold -= 25; player.manaPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Maná."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
-function buyEnergyPotion() { if (player.gold >= 15) { player.gold -= 15; player.energyPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Energía."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
+function buyPotion() { let p = Math.floor(20 * getMapScale()); if (player.gold >= p) { player.gold -= p; player.potions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Vida."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
+function buyManaPotion() { let p = Math.floor(25 * getMapScale()); if (player.gold >= p) { player.gold -= p; player.manaPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Maná."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
+function buyEnergyPotion() { let p = Math.floor(15 * getMapScale()); if (player.gold >= p) { player.gold -= p; player.energyPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Energía."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
 function buyWeapon(name, atk, mag, price, colorClass, icon) { 
     if (player.gold >= price) { 
         player.gold -= price; 
@@ -838,24 +941,42 @@ function openChest(tile) {
     tile.chest.opened = true;
     playSFX(sfx.quest_complete); 
     let r = Math.random();
+    let scaleFactor = getMapScale();
     
     if (r < 0.4) {
-        let g = Math.floor(20 * (currentZoneIndex + 1) * (1 + Math.random()));
+        let g = Math.floor(20 * (currentZoneIndex + 1) * (1 + Math.random()) * scaleFactor);
         player.gold += g;
+        spawnFloatingText('+' + g + ' Oro', '#ffeb3b', 'map');
         logMsg(`📦 ¡Cofre abierto! Encontraste <b style="color:#ffeb3b">${g} Oro</b>.`);
     } else if (r < 0.65) {
         player.potions++;
+        spawnFloatingText('+1 HP Potion', '#f44336', 'map');
         logMsg(`📦 ¡Cofre abierto! Encontraste <b style="color:#f44336">1 Poción de Vida</b>.`);
     } else if (r < 0.85) {
         player.energyPotions++;
+        spawnFloatingText('+1 EP Potion', '#9c27b0', 'map');
         logMsg(`📦 ¡Cofre abierto! Encontraste <b style="color:#9c27b0">1 Poción de Energía</b>.`);
     } else {
         const currentShop = mapData[currentZoneIndex].shop;
         const isWeapon = Math.random() < 0.5;
         const pool = isWeapon ? currentShop.weapons : currentShop.armors;
         const droppedItem = JSON.parse(JSON.stringify(pool[Math.floor(Math.random() * pool.length)]));
-        if (isWeapon) player.inventory.weapons.push(droppedItem);
-        else player.inventory.armors.push(droppedItem);
+        
+        if (isWeapon) {
+            droppedItem.atk = Math.floor(droppedItem.atk * scaleFactor);
+            droppedItem.mag = Math.floor(droppedItem.mag * scaleFactor);
+            player.inventory.weapons.push(droppedItem);
+        } else {
+            droppedItem.def = Math.floor(droppedItem.def * scaleFactor);
+            droppedItem.hpBonus = Math.floor(droppedItem.hpBonus * scaleFactor);
+            droppedItem.mpBonus = Math.floor(droppedItem.mpBonus * scaleFactor);
+            player.inventory.armors.push(droppedItem);
+        }
+        
+        droppedItem.price = Math.floor((droppedItem.price || 15) * scaleFactor);
+        droppedItem.name = droppedItem.name + (mapLevel > 1 ? ` +${mapLevel - 1}` : '');
+
+        spawnFloatingText('+ ' + droppedItem.name, '#7ad7ff', 'map');
         logMsg(`📦 ¡Cofre abierto! Encontraste una recompensa rara: <b class="${droppedItem.colorClass}">${droppedItem.name}</b>.`);
     }
     
@@ -881,8 +1002,16 @@ function move(dx, dy) {
         return;
     }
 
-    if (tile.type === 'gate' && !flags['boss' + tile.gateIndex]) {
-        playSFX(sfx.error); logMsg("🚫 Una energía oscura te impide el paso. Derrota al Jefe."); return; 
+    if (tile.type === 'gate' && (!player.hasKey || !player.hasKey[tile.gateIndex])) {
+        playSFX(sfx.error); logMsg("🚫 La puerta está cerrada. Necesitas la llave (completa la misión del Jefe)."); return; 
+    }
+
+    if (tile.enemy && tile.enemy.isBoss) {
+        if (!quest || quest.type !== 'kill_boss' || quest.target !== tile.enemy.name.replace(` (Lv.${mapLevel})`, '')) {
+            playSFX(sfx.error);
+            logMsg("🚫 Aún no estás listo para este Jefe. Completa las misiones de la zona primero.");
+            return;
+        }
     }
 
     if (tile.merchant) {
@@ -897,6 +1026,7 @@ function move(dx, dy) {
     lastPlayerPos = { x: player.x, y: player.y }; 
     player.x = nx; player.y = ny;
     player.ep -= epCost;
+    spawnFloatingText('-' + epCost + ' EP', '#9c27b0', 'map');
     
     updateFOV(); centerCamera();
     
@@ -905,10 +1035,16 @@ function move(dx, dy) {
     }
 
     if (tile.type === 'fountain') {
+        let healAmount = getMaxHp() - player.hp;
+        let mpAmount = getMaxMp() - player.mp;
         player.hp = getMaxHp();
         player.mp = getMaxMp();
         playSFX(sfx.use_potion);
         logMsg("✨ Te curas completamente en las aguas mágicas de la fuente.");
+        
+        spawnFloatingText('+' + healAmount + ' HP', '#4caf50', 'map');
+        setTimeout(() => spawnFloatingText('+' + mpAmount + ' MP', '#2196f3', 'map'), 300);
+        
         updateHUD();
     }
 
@@ -1052,6 +1188,7 @@ function doAttack() {
     enemy.hp -= pDmg;
     
     playSFX(sfx.attack); animateDamage('modalImg'); 
+    spawnFloatingText('-' + pDmg + ' HP', '#fff', 'combat-enemy');
     logCombat(`🗡️ Atacas y haces <b style="color:#ffeb3b">${pDmg}</b> de daño.`);
     
     checkEnemyDeathAndEndTurn(enemy);
@@ -1069,6 +1206,7 @@ function useSkill(skillName) {
         let dmg = Math.max(1, Math.floor(pAtk * 2) - enemy.def); 
         enemy.hp -= dmg;
         playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + dmg + ' HP', '#ffeb3b', 'combat-enemy');
         logCombat(`💥 Golpe Brutal: <b style="color:#ffeb3b">${dmg}</b> de daño físico.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
@@ -1087,6 +1225,7 @@ function useSkill(skillName) {
         let dmg2 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(enemy.def/2));
         enemy.hp -= (dmg1 + dmg2);
         playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + (dmg1 + dmg2) + ' HP', '#ffeb3b', 'combat-enemy');
         logCombat(`🏹 Tiro Doble: Impactas dos veces haciendo <b style="color:#ffeb3b">${dmg1}</b> y <b style="color:#ffeb3b">${dmg2}</b> de daño.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
@@ -1097,6 +1236,7 @@ function useSkill(skillName) {
         enemy.hp -= dmg;
         combatState.poisonTurns = 4; 
         playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + dmg + ' HP', '#4caf50', 'combat-enemy');
         logCombat(`🐍 Flecha Venenosa: Haces <b style="color:#ffeb3b">${dmg}</b> de daño e inyectas un veneno letal.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
@@ -1106,6 +1246,7 @@ function useSkill(skillName) {
         const mDmg = Math.max(1, Math.floor(pMag * 1.8) - Math.floor(enemy.def / 2));
         enemy.hp -= mDmg;
         playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + mDmg + ' HP', '#ff9800', 'combat-enemy');
         logCombat(`🔥 Fuego: <b style="color:#ff9800">${mDmg}</b> de daño mágico.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
@@ -1115,6 +1256,7 @@ function useSkill(skillName) {
         const heal = Math.floor(pMag * 2.5) + 10; 
         player.hp = Math.min(getMaxHp(), player.hp + heal);
         playSFX(sfx.use_potion); animateHeal('combatPlayerImg');
+        spawnFloatingText('+' + heal + ' HP', '#4caf50', 'combat-player');
         logCombat(`💚 Te curaste <b style="color:#4caf50">${heal}</b> de Vida.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
@@ -1129,6 +1271,7 @@ function processEnemyTurn(enemy) {
             enemy.hp -= poisonDmg;
             combatState.poisonTurns--;
             animateDamage('modalImg');
+            spawnFloatingText('-' + poisonDmg + ' HP', '#4caf50', 'combat-enemy');
             logCombat(`🤢 El veneno drena <b style="color:#4caf50">${poisonDmg}</b> HP al enemigo. (${combatState.poisonTurns} turnos rest.)`);
             updateCombatUI();
 
@@ -1166,17 +1309,20 @@ function processEnemyTurn(enemy) {
         if (eDmg > 0) {
             playSFX(sfx.hurt);
             animateDamage('combatPlayerImg'); 
+            spawnFloatingText('-' + eDmg + ' HP', '#f44336', 'combat-player');
         }
 
         if (enemy.isBoss && enemy.trait === 'vampire' && eDmg > 0) {
             let heal = Math.floor(eDmg * 0.5); enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + heal);
             animateHeal('modalImg');
+            spawnFloatingText('+' + heal + ' HP', '#4caf50', 'combat-enemy');
             logCombat(`🦇 El jefe se cura <b style="color:#4caf50">${heal}</b> HP.`);
         }
         if (enemy.isBoss && enemy.trait === 'regen') {
             let heal = Math.max(1, Math.floor((enemy.maxHp || enemy.hp) * 0.05));
             enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + heal);
             animateHeal('modalImg');
+            spawnFloatingText('+' + heal + ' HP', '#4caf50', 'combat-enemy');
             logCombat(`✨ Regenera <b style="color:#4caf50">${heal}</b> HP.`);
         }
 
@@ -1200,10 +1346,30 @@ function processEnemyTurn(enemy) {
 function resolveVictory() {
     try {
         let enemy = currentEnemyTile.enemy;
+        
+        // SISTEMA DE ENDGAME MAPA INFINITO
+        if (enemy.isBoss && enemy.zone === 5) { 
+            mapLevel++;
+            alert(`¡HAS DERROTADO AL DRAGÓN DORADO!\n\nTu poder ha resonado en el mundo. Avanzas al Mapa Nivel ${mapLevel}. Los enemigos y botines serán más poderosos.`);
+            
+            // Reiniciar estado para el nuevo mapa nivel
+            quest = null;
+            player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+            player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+            player.hp = getMaxHp();
+            player.mp = getMaxMp();
+            player.ep = getMaxEp();
+            
+            endCombat();
+            generateWorld();
+            saveGame();
+            return;
+        }
+        
         if (enemy.isBoss) {
             playSFX(sfx.boss_die);
             flags['boss' + enemy.zone] = true; 
-            logMsg(`🔓 ¡Un poder oscuro se disipa! El camino a la siguiente zona está abierto.`);
+            logMsg(`¡Has derrotado al Jefe!`);
         } else {
             playSFX(sfx.enemy_die);
             logMsg(`¡${enemy.name} cayó! +${enemy.gold} Oro, +${enemy.xp} XP`);
@@ -1218,6 +1384,18 @@ function resolveVictory() {
             const pool = isWeapon ? currentShop.weapons : currentShop.armors;
             const droppedItem = JSON.parse(JSON.stringify(pool[Math.floor(Math.random() * pool.length)]));
             
+            let scaleFactor = getMapScale();
+            if(isWeapon) {
+                droppedItem.atk = Math.floor(droppedItem.atk * scaleFactor);
+                droppedItem.mag = Math.floor(droppedItem.mag * scaleFactor);
+            } else {
+                droppedItem.def = Math.floor(droppedItem.def * scaleFactor);
+                droppedItem.hpBonus = Math.floor(droppedItem.hpBonus * scaleFactor);
+                droppedItem.mpBonus = Math.floor(droppedItem.mpBonus * scaleFactor);
+            }
+            droppedItem.price = Math.floor((droppedItem.price || 15) * scaleFactor);
+            droppedItem.name = droppedItem.name + (mapLevel > 1 ? ` +${mapLevel - 1}` : '');
+
             logMsg(`🎁 ¡Encontraste: ${droppedItem.name}! Se ha guardado en tu Mochila.`);
             playSFX(sfx.quest_complete); 
             if (isWeapon) player.inventory.weapons.push(droppedItem); else player.inventory.armors.push(droppedItem);
@@ -1225,22 +1403,29 @@ function resolveVictory() {
 
         if (quest) {
             if (quest.type === 'kill_enemy' && enemy.name === quest.target && !enemy.isBoss) quest.progress++;
-            if (quest.type === 'kill_boss' && enemy.name === quest.target) quest.progress++;
+            if (quest.type === 'kill_boss' && enemy.name.replace(` (Lv.${mapLevel})`, '') === quest.target) quest.progress++;
             if (quest.type === 'collect_gold') quest.progress += enemy.gold;
             if (quest.progress >= quest.goal) { 
-                playSFX(sfx.quest_complete); logMsg(`¡Misión completada! Misión Desbloqueada.`); 
+                playSFX(sfx.quest_complete); logMsg(`¡Misión completada!`); 
                 if (quest.rewardType === 'gold') player.gold += quest.rewardAmount; 
                 if (quest.rewardType === 'xp') player.xp += quest.rewardAmount; 
                 if (quest.rewardType === 'potion') player.potions += quest.rewardAmount; 
+                
+                if (quest.type === 'kill_boss') {
+                    if (!player.hasKey) player.hasKey = {};
+                    player.hasKey[quest.zone] = true;
+                    logMsg(`🔑 ¡Has obtenido la Llave del Jefe! La puerta se ha abierto.`);
+                    spawnFloatingText('+ Llave', '#ffeb3b', 'map');
+                } else {
+                    logMsg(`Vuelve a buscar un NPC para la siguiente tarea.`);
+                }
+                
+                if (!player.zoneQuestProgress) player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+                player.zoneQuestProgress[quest.zone]++;
                 quest = null; 
             }
         }
         checkLevelUp();
-
-        if (enemy.isBoss && enemy.zone === 5) { 
-            alert("¡HAS DERROTADO AL DRAGÓN DORADO Y SALVADO EL MUNDO! JUEGO COMPLETADO."); 
-            try { localStorage.removeItem(SAVE_KEY); } catch(e){} location.reload(); 
-        } 
         
         currentEnemyTile.enemy = null; 
         endCombat(); saveGame();
@@ -1250,9 +1435,9 @@ function resolveVictory() {
 
 function doFlee() { playSFX(sfx.ui_click); logMsg("¡Huiste!"); player.x = lastPlayerPos.x; player.y = lastPlayerPos.y; endCombat(); }
 
-function usePotion() { const max = getMaxHp(); if (player.potions > 0 && player.hp < max) { player.hp = Math.min(max, player.hp + 25); player.potions--; playSFX(sfx.use_potion); logMsg("Usaste Poción Vida (+25 HP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
-function useManaPotion() { const max = getMaxMp(); if (player.manaPotions > 0 && player.mp < max) { player.mp = Math.min(max, player.mp + 20); player.manaPotions--; playSFX(sfx.use_potion); logMsg("Usaste Poción Maná (+20 MP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
-function useEnergyPotion() { const max = getMaxEp(); if (player.energyPotions > 0 && player.ep < max) { player.ep = Math.min(max, player.ep + 30); player.energyPotions--; playSFX(sfx.use_potion); logMsg("Usaste Poción Energía (+30 EP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
+function usePotion() { const max = getMaxHp(); if (player.potions > 0 && player.hp < max) { player.hp = Math.min(max, player.hp + 25); player.potions--; playSFX(sfx.use_potion); spawnFloatingText('+25 HP', '#4caf50', inCombat ? 'combat-player' : 'map'); logMsg("Usaste Poción Vida (+25 HP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
+function useManaPotion() { const max = getMaxMp(); if (player.manaPotions > 0 && player.mp < max) { player.mp = Math.min(max, player.mp + 20); player.manaPotions--; playSFX(sfx.use_potion); spawnFloatingText('+20 MP', '#2196f3', inCombat ? 'combat-player' : 'map'); logMsg("Usaste Poción Maná (+20 MP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
+function useEnergyPotion() { const max = getMaxEp(); if (player.energyPotions > 0 && player.ep < max) { player.ep = Math.min(max, player.ep + 30); player.energyPotions--; playSFX(sfx.use_potion); spawnFloatingText('+30 EP', '#9c27b0', inCombat ? 'combat-player' : 'map'); logMsg("Usaste Poción Energía (+30 EP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
 
 window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
@@ -1307,6 +1492,7 @@ setupTouchControls();
 setInterval(() => {
     if (player.ep < getMaxEp() && !inCombat && !isMenuOpen && document.getElementById('classModal').style.display !== 'flex') {
         player.ep += 1;
+        spawnFloatingText('+1 EP', '#9c27b0', 'map'); 
         updateHUD();
     }
 }, 1500);

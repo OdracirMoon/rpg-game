@@ -486,7 +486,6 @@ function generateWorld() {
         for(let i=0; i<=z; i++) enemiesPools[z].push(...mapData[i].newEnemies);
     }
 
-    // MODIFICADO: Generar cofres, pantanos y fuentes además de enemigos y paredes
     for(let i=0; i < MAP_W * MAP_H; i++) {
         let t = worldMap[i];
         if(t.type === 'grass' || t.type === 'path') {
@@ -499,12 +498,11 @@ function generateWorld() {
                 } else if (rand < 0.12 && t.type === 'grass') {
                     t.type = 'wall';
                 } else if (rand < 0.18 && t.type === 'grass') {
-                    t.type = 'swamp'; // Terreno difícil
+                    t.type = 'swamp'; 
                 } else if (rand < 0.19 && t.type === 'grass') {
-                    t.type = 'fountain'; // Fuente de recuperación
+                    t.type = 'fountain'; 
                 }
 
-                // Generar cofres independientemente de si es pasto o pantano
                 if (Math.random() < 0.02 && t.type !== 'wall' && t.type !== 'fountain' && !t.enemy) {
                     t.chest = { opened: false };
                 }
@@ -587,15 +585,17 @@ function render() {
                 else if (t.enemy) { d.innerHTML = `<img src="${t.enemy.img}">`; }
                 else if (t.merchant) { d.innerHTML = `<img src="img/npcs/merchant.png" style="filter: drop-shadow(0 0 10px #4caf50);">`; }
                 else if (t.npc) { d.innerHTML = `<img src="${t.npc.img}" style="filter: drop-shadow(0 0 10px #ffeb3b);">`; }
+                
+                // === AQUI SE HACEN LOS CAMBIOS A IMÁGENES ===
                 else if (t.chest) {
                     if (!t.chest.opened) {
-                        d.innerHTML = `<div style="font-size: 256px; line-height: 512px; text-align: center; text-shadow: 0 0 20px #ffeb3b;">📦</div>`;
+                        d.innerHTML = `<img src="img/tiles/chest_closed.png" class="chest-img">`;
                     } else {
-                        d.innerHTML = `<div style="font-size: 256px; line-height: 512px; text-align: center; opacity: 0.5;">🧰</div>`;
+                        d.innerHTML = `<img src="img/tiles/chest_opened.png" style="opacity: 0.5;">`;
                     }
                 }
                 else if (t.type === 'fountain') {
-                    d.innerHTML = `<div style="font-size: 256px; line-height: 512px; text-align: center; opacity: 0.8;">⛲</div>`;
+                    d.innerHTML = `<img src="img/tiles/fountain_obj.png" class="fountain-img">`;
                 }
             }
             m.appendChild(d);
@@ -832,7 +832,7 @@ function buyArmor(name, def, hpBonus, mpBonus, price, colorClass, icon) {
 }
 
 /* =========================================
-   SISTEMA DE COFRES (NUEVO)
+   SISTEMA DE COFRES
    ========================================= */
 function openChest(tile) {
     tile.chest.opened = true;
@@ -873,7 +873,6 @@ function move(dx, dy) {
     
     if (!tile || tile.type === 'water' || tile.type === 'wall') return;
 
-    // Calcular costo dinámico de EP según el terreno (NUEVO)
     let epCost = (tile.type === 'swamp') ? 2 : 1;
 
     if (player.ep < epCost) {
@@ -901,12 +900,10 @@ function move(dx, dy) {
     
     updateFOV(); centerCamera();
     
-    // Comprobar eventos de Cofre (NUEVO)
     if (tile.chest && !tile.chest.opened) {
         openChest(tile);
     }
 
-    // Comprobar eventos de Fuente (NUEVO)
     if (tile.type === 'fountain') {
         player.hp = getMaxHp();
         player.mp = getMaxMp();

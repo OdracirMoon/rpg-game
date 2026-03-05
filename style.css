@@ -33,6 +33,11 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, 
 
 .fog { background: #03070d !important; background-image: none !important; box-shadow: inset 0 0 8px rgba(0,0,0,0.8) !important; border: 1px solid #060a12; pointer-events: none; }
 
+/* ESTILOS PARA OBJETOS DEL MAPA (COFRES Y FUENTES) */
+.chest-img { filter: drop-shadow(0 0 15px rgba(255, 235, 59, 0.5)); transition: transform 0.2s; }
+.chest-img:hover { transform: scale(1.05); }
+.fountain-img { filter: drop-shadow(0 0 20px rgba(122, 215, 255, 0.7)); opacity: 0.9; }
+
 .color-comun { color: #aaaaaa; } .color-pococomun { color: #4caf50; } .color-raro { color: #2196f3; }
 .color-epico { color: #9c27b0; } .color-legendario { color: #ff9800; } .color-mitico { color: #ffeb3b; }
 

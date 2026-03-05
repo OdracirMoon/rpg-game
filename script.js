@@ -245,7 +245,6 @@ let inCombat = false;
 let currentEnemyTile = null; 
 let lastPlayerPos = { x: 16, y: 25 };
 
-// ESTADOS DE COMBATE (NUEVO)
 let combatState = {
     defBuffTurns: 0,
     poisonTurns: 0
@@ -450,7 +449,7 @@ function generateWorld() {
             if(x===0 || y===0 || x===MAP_W-1 || y===MAP_H-1) type = 'water';
             else if (x === 32 || x === 65 || y === 50) type = 'wall'; 
             
-            worldMap[y * MAP_W + x] = { x, y, type, enemy: null, npc: null, merchant: false, isBossTile: false, discovered: false, zone: getZoneIndex(x,y) };
+            worldMap[y * MAP_W + x] = { x, y, type, enemy: null, npc: null, merchant: false, chest: null, isBossTile: false, discovered: false, zone: getZoneIndex(x,y) };
         }
     }
 
@@ -487,16 +486,27 @@ function generateWorld() {
         for(let i=0; i<=z; i++) enemiesPools[z].push(...mapData[i].newEnemies);
     }
 
+    // MODIFICADO: Generar cofres, pantanos y fuentes además de enemigos y paredes
     for(let i=0; i < MAP_W * MAP_H; i++) {
         let t = worldMap[i];
         if(t.type === 'grass' || t.type === 'path') {
             if(!t.isBossTile && !(t.x === 16 && t.y === 25)) { 
-                if(Math.random() < 0.06) {
+                let rand = Math.random();
+                if(rand < 0.06) {
                     let pool = enemiesPools[t.zone];
                     let template = pool[Math.floor(Math.random() * pool.length)];
                     t.enemy = scaleEnemy(template, false, t.zone);
-                } else if (Math.random() < 0.12 && t.type === 'grass') {
+                } else if (rand < 0.12 && t.type === 'grass') {
                     t.type = 'wall';
+                } else if (rand < 0.18 && t.type === 'grass') {
+                    t.type = 'swamp'; // Terreno difícil
+                } else if (rand < 0.19 && t.type === 'grass') {
+                    t.type = 'fountain'; // Fuente de recuperación
+                }
+
+                // Generar cofres independientemente de si es pasto o pantano
+                if (Math.random() < 0.02 && t.type !== 'wall' && t.type !== 'fountain' && !t.enemy) {
+                    t.chest = { opened: false };
                 }
             }
         }
@@ -506,7 +516,7 @@ function generateWorld() {
         let zoneTiles = worldMap.filter(t => t.zone === z && t.type === 'path' && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
         
         if (zoneTiles.length < 2) {
-            let extraTiles = worldMap.filter(t => t.zone === z && t.type === 'grass' && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
+            let extraTiles = worldMap.filter(t => t.zone === z && (t.type === 'grass' || t.type === 'swamp') && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
             zoneTiles = zoneTiles.concat(extraTiles);
         }
 
@@ -577,6 +587,16 @@ function render() {
                 else if (t.enemy) { d.innerHTML = `<img src="${t.enemy.img}">`; }
                 else if (t.merchant) { d.innerHTML = `<img src="img/npcs/merchant.png" style="filter: drop-shadow(0 0 10px #4caf50);">`; }
                 else if (t.npc) { d.innerHTML = `<img src="${t.npc.img}" style="filter: drop-shadow(0 0 10px #ffeb3b);">`; }
+                else if (t.chest) {
+                    if (!t.chest.opened) {
+                        d.innerHTML = `<div style="font-size: 256px; line-height: 512px; text-align: center; text-shadow: 0 0 20px #ffeb3b;">📦</div>`;
+                    } else {
+                        d.innerHTML = `<div style="font-size: 256px; line-height: 512px; text-align: center; opacity: 0.5;">🧰</div>`;
+                    }
+                }
+                else if (t.type === 'fountain') {
+                    d.innerHTML = `<div style="font-size: 256px; line-height: 512px; text-align: center; opacity: 0.8;">⛲</div>`;
+                }
             }
             m.appendChild(d);
         }
@@ -812,21 +832,55 @@ function buyArmor(name, def, hpBonus, mpBonus, price, colorClass, icon) {
 }
 
 /* =========================================
-   CONTROLES Y MOVIMIENTO CON COLISIONES NPC
+   SISTEMA DE COFRES (NUEVO)
+   ========================================= */
+function openChest(tile) {
+    tile.chest.opened = true;
+    playSFX(sfx.quest_complete); 
+    let r = Math.random();
+    
+    if (r < 0.4) {
+        let g = Math.floor(20 * (currentZoneIndex + 1) * (1 + Math.random()));
+        player.gold += g;
+        logMsg(`📦 ¡Cofre abierto! Encontraste <b style="color:#ffeb3b">${g} Oro</b>.`);
+    } else if (r < 0.65) {
+        player.potions++;
+        logMsg(`📦 ¡Cofre abierto! Encontraste <b style="color:#f44336">1 Poción de Vida</b>.`);
+    } else if (r < 0.85) {
+        player.energyPotions++;
+        logMsg(`📦 ¡Cofre abierto! Encontraste <b style="color:#9c27b0">1 Poción de Energía</b>.`);
+    } else {
+        const currentShop = mapData[currentZoneIndex].shop;
+        const isWeapon = Math.random() < 0.5;
+        const pool = isWeapon ? currentShop.weapons : currentShop.armors;
+        const droppedItem = JSON.parse(JSON.stringify(pool[Math.floor(Math.random() * pool.length)]));
+        if (isWeapon) player.inventory.weapons.push(droppedItem);
+        else player.inventory.armors.push(droppedItem);
+        logMsg(`📦 ¡Cofre abierto! Encontraste una recompensa rara: <b class="${droppedItem.colorClass}">${droppedItem.name}</b>.`);
+    }
+    
+    updateHUD(); saveGame();
+}
+
+/* =========================================
+   CONTROLES Y MOVIMIENTO 
    ========================================= */
 function move(dx, dy) {
     if (isMenuOpen || inCombat || document.getElementById('classModal').style.display === 'flex' || document.getElementById('npcModal').style.display === 'flex' || document.getElementById('shopModal').style.display === 'flex') return;
     
-    if (player.ep <= 0) {
-        playSFX(sfx.error);
-        logMsg("¡Estás exhausto! Toma una Poción de Energía (EP) o descansa.");
-        return;
-    }
-
     let nx = player.x + dx, ny = player.y + dy;
     let tile = worldMap[ny * MAP_W + nx]; 
     
     if (!tile || tile.type === 'water' || tile.type === 'wall') return;
+
+    // Calcular costo dinámico de EP según el terreno (NUEVO)
+    let epCost = (tile.type === 'swamp') ? 2 : 1;
+
+    if (player.ep < epCost) {
+        playSFX(sfx.error);
+        logMsg(`¡Estás exhausto! Necesitas ${epCost} EP para moverte aquí. Usa una poción o descansa.`);
+        return;
+    }
 
     if (tile.type === 'gate' && !flags['boss' + tile.gateIndex]) {
         playSFX(sfx.error); logMsg("🚫 Una energía oscura te impide el paso. Derrota al Jefe."); return; 
@@ -843,10 +897,24 @@ function move(dx, dy) {
     playSFX(sfx.step); 
     lastPlayerPos = { x: player.x, y: player.y }; 
     player.x = nx; player.y = ny;
-    player.ep -= 1;
+    player.ep -= epCost;
     
     updateFOV(); centerCamera();
     
+    // Comprobar eventos de Cofre (NUEVO)
+    if (tile.chest && !tile.chest.opened) {
+        openChest(tile);
+    }
+
+    // Comprobar eventos de Fuente (NUEVO)
+    if (tile.type === 'fountain') {
+        player.hp = getMaxHp();
+        player.mp = getMaxMp();
+        playSFX(sfx.use_potion);
+        logMsg("✨ Te curas completamente en las aguas mágicas de la fuente.");
+        updateHUD();
+    }
+
     if (tile.enemy) {
         startCombat(tile); 
     } else {
@@ -855,16 +923,14 @@ function move(dx, dy) {
 }
 
 /* =========================================
-   NUEVO SISTEMA DE HABILIDADES Y COMBATE
+   SISTEMA DE HABILIDADES Y COMBATE
    ========================================= */
 function generateCombatButtons() {
     const container = document.getElementById('combatActions');
     container.innerHTML = ''; 
 
-    // Botón de ataque básico siempre está presente
     let html = `<button id="btnAttack" onclick="doAttack()" style="font-size: 16px; padding: 12px;"><img src="img/weapons/iron_dagger.png" class="icon"> Atacar</button>`;
 
-    // Generar botones dinámicos según clase
     if (player.playerClass === 'Guerrero') {
         html += `<button id="btnSkill1" class="btn-skill" onclick="useSkill('golpe_brutal')" style="font-size: 16px; padding: 12px;">💥 Golpe Brutal (10 EP)</button>`;
         html += `<button id="btnSkill2" class="btn-skill" onclick="useSkill('grito_guerra')" style="font-size: 16px; padding: 12px;">🛡️ Grito Guerra (15 EP)</button>`;
@@ -876,7 +942,6 @@ function generateCombatButtons() {
         html += `<button id="btnSkill2" class="btn-magic" onclick="useSkill('curar')" style="font-size: 16px; padding: 12px;">💚 Curar (15 MP)</button>`;
     }
 
-    // Botón de huir siempre presente
     html += `<button id="btnFlee" class="btn-danger" onclick="doFlee()" style="font-size: 16px; padding: 12px;">🏃 Huir</button>`;
     
     container.innerHTML = html;
@@ -909,11 +974,10 @@ function animateHeal(elementId) {
 }
 
 function startCombat(tile) {
-    // Resetear estados al iniciar
     combatState.defBuffTurns = 0;
     combatState.poisonTurns = 0;
     
-    generateCombatButtons(); // Inyecta botones dinámicos
+    generateCombatButtons(); 
     lockCombatButtons(false); 
     inCombat = true; currentEnemyTile = tile; let enemy = tile.enemy;
     enemy.mag = enemy.mag || 0; enemy.maxHp = enemy.maxHp || enemy.hp;
@@ -975,7 +1039,6 @@ function updateCombatUI() {
     document.getElementById('combatPlayerEpText').textContent = `${player.ep} / ${tEp}`;
 }
 
-// Lógica auxiliar para terminar turnos sin repetir código
 function checkEnemyDeathAndEndTurn(enemy) {
     updateCombatUI(); updateHUD();
     if (enemy.hp <= 0) {
@@ -997,7 +1060,6 @@ function doAttack() {
     checkEnemyDeathAndEndTurn(enemy);
 }
 
-// NUEVO: SISTEMA DE HABILIDADES
 function useSkill(skillName) {
     lockCombatButtons(true);
     let enemy = currentEnemyTile.enemy;
@@ -1007,7 +1069,7 @@ function useSkill(skillName) {
     if (skillName === 'golpe_brutal') {
         if (player.ep < 10) { playSFX(sfx.error); logMsg("¡Faltan 10 EP!"); lockCombatButtons(false); return; }
         player.ep -= 10;
-        let dmg = Math.max(1, Math.floor(pAtk * 2) - enemy.def); // Daño doble
+        let dmg = Math.max(1, Math.floor(pAtk * 2) - enemy.def); 
         enemy.hp -= dmg;
         playSFX(sfx.attack); animateDamage('modalImg');
         logCombat(`💥 Golpe Brutal: <b style="color:#ffeb3b">${dmg}</b> de daño físico.`);
@@ -1019,7 +1081,7 @@ function useSkill(skillName) {
         combatState.defBuffTurns = 3;
         playSFX(sfx.equip); animateHeal('combatPlayerImg');
         logCombat(`🛡️ Grito de Guerra: Tu defensa aumenta considerablemente por 3 turnos.`);
-        checkEnemyDeathAndEndTurn(enemy); // Pasa el turno sin atacar
+        checkEnemyDeathAndEndTurn(enemy); 
     }
     else if (skillName === 'tiro_doble') {
         if (player.ep < 12) { playSFX(sfx.error); logMsg("¡Faltan 12 EP!"); lockCombatButtons(false); return; }
@@ -1036,7 +1098,7 @@ function useSkill(skillName) {
         player.ep -= 10;
         let dmg = Math.max(1, pAtk - enemy.def);
         enemy.hp -= dmg;
-        combatState.poisonTurns = 4; // Veneno por 4 turnos
+        combatState.poisonTurns = 4; 
         playSFX(sfx.attack); animateDamage('modalImg');
         logCombat(`🐍 Flecha Venenosa: Haces <b style="color:#ffeb3b">${dmg}</b> de daño e inyectas un veneno letal.`);
         checkEnemyDeathAndEndTurn(enemy);
@@ -1053,7 +1115,7 @@ function useSkill(skillName) {
     else if (skillName === 'curar') {
         if (player.mp < 15) { playSFX(sfx.error); logMsg("¡Faltan 15 MP!"); lockCombatButtons(false); return; }
         player.mp -= 15;
-        const heal = Math.floor(pMag * 2.5) + 10; // Cura base + magia
+        const heal = Math.floor(pMag * 2.5) + 10; 
         player.hp = Math.min(getMaxHp(), player.hp + heal);
         playSFX(sfx.use_potion); animateHeal('combatPlayerImg');
         logCombat(`💚 Te curaste <b style="color:#4caf50">${heal}</b> de Vida.`);
@@ -1061,14 +1123,12 @@ function useSkill(skillName) {
     }
 }
 
-// TURNO DEL ENEMIGO (Modificado para aplicar Veneno y Buffs)
 function processEnemyTurn(enemy) {
     try {
         if (!inCombat || !currentEnemyTile) return; 
 
-        // 1. Aplicar daño por veneno si el enemigo está envenenado
         if (combatState.poisonTurns > 0) {
-            let poisonDmg = Math.max(2, Math.floor((enemy.maxHp || enemy.hp) * 0.05)); // 5% de su vida max o 2 min
+            let poisonDmg = Math.max(2, Math.floor((enemy.maxHp || enemy.hp) * 0.05));
             enemy.hp -= poisonDmg;
             combatState.poisonTurns--;
             animateDamage('modalImg');
@@ -1077,20 +1137,18 @@ function processEnemyTurn(enemy) {
 
             if (enemy.hp <= 0) {
                 setTimeout(() => { logCombat(`🏆 ¡Enemigo sucumbió al veneno!`); setTimeout(resolveVictory, 500); }, 200);
-                return; // Si muere por veneno, se acaba su turno
+                return; 
             }
         }
 
-        // 2. Lógica normal de ataque enemigo
         let eDmg = 0; let enemyMag = enemy.mag || 0; let isMagic = (enemyMag > 0 && Math.random() < 0.4); 
         if (enemy.isBoss) playSFX(sfx.boss_attack);
 
         let minDmg = Math.max(1, Math.floor(enemy.atk * 0.15));
         
-        // 3. Revisar Buff de Defensa del jugador (Grito de Guerra)
         let playerCurrentDef = getDef();
         if (combatState.defBuffTurns > 0) {
-            playerCurrentDef = Math.floor(playerCurrentDef * 1.5) + 5; // Aumenta 50% y 5 planos extras
+            playerCurrentDef = Math.floor(playerCurrentDef * 1.5) + 5; 
             combatState.defBuffTurns--;
             logCombat(`🛡️ Tienes escudo activo. (${combatState.defBuffTurns} turnos rest.)`);
         }
@@ -1113,7 +1171,6 @@ function processEnemyTurn(enemy) {
             animateDamage('combatPlayerImg'); 
         }
 
-        // Traits de Boss (Regen y Vampirismo)
         if (enemy.isBoss && enemy.trait === 'vampire' && eDmg > 0) {
             let heal = Math.floor(eDmg * 0.5); enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + heal);
             animateHeal('modalImg');

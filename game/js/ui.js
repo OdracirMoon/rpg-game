@@ -2,7 +2,6 @@
 // INTERFAZ DE USUARIO (HUD, Menús, Tienda, Inventario)
 // =========================================
 import { gameState } from './state.js';
-// NUEVO: Importamos skillsData para leer las habilidades
 import { mapData, skillsData } from './data.js';
 import { sfx, playSFX } from './audio.js';
 import { saveGame } from './main.js';
@@ -122,7 +121,15 @@ export function updateHUD() {
             if (gameState.player.statPoints > 0) {
                 statsEl.innerHTML += `
                     <button class="btn-success" onclick="openLevelUpModal()" style="width: 100%; margin-top: 12px; padding: 10px; font-weight: bold; font-size: 14px; box-shadow: 0 0 10px #ffeb3b;">
-                        ⭐ ¡Tienes ${gameState.player.statPoints} Puntos de Nivel! ⭐
+                        ⭐ ¡Tienes ${gameState.player.statPoints} Puntos de Atributo! ⭐
+                    </button>
+                `;
+            }
+            // NUEVO: Aviso de Puntos de Habilidad (SP) en el menú
+            if (gameState.player.skillPoints > 0) {
+                statsEl.innerHTML += `
+                    <button onclick="openSkillTree()" style="width: 100%; margin-top: 5px; padding: 10px; font-weight: bold; font-size: 14px; background: #00bcd4; color: white; border: 1px solid #009688; box-shadow: 0 0 10px #00bcd4;">
+                        🌳 ¡Tienes ${gameState.player.skillPoints} Puntos de Habilidad!
                     </button>
                 `;
             }
@@ -161,9 +168,10 @@ export function toggleMainMenu() {
     document.getElementById('invModal').style.display = 'none';
     document.getElementById('shopModal').style.display = 'none';
     document.getElementById('npcModal').style.display = 'none';
-    // Nos aseguramos de cerrar el grimorio al abrir/cerrar menú principal
     const grimoire = document.getElementById('grimoireModal');
     if(grimoire) grimoire.style.display = 'none';
+    const tree = document.getElementById('skillTreeModal');
+    if(tree) tree.style.display = 'none';
 
     document.getElementById('mainMenuModal').style.display = isMenuOpen ? 'flex' : 'none';
 }
@@ -309,12 +317,11 @@ window.useManaPotion = useManaPotion;
 window.useEnergyPotion = useEnergyPotion;
 
 // =========================================
-// SISTEMA DE GRIMORIO Y HABILIDADES (NUEVO)
+// SISTEMA DE GRIMORIO
 // =========================================
 export function openGrimoire() {
     playSFX(sfx.ui_click);
     
-    // 1. Mostrar las habilidades equipadas
     let htmlEq = '';
     const eqSp = gameState.player.equippedSkills.special;
     if (eqSp && skillsData[eqSp]) {
@@ -333,7 +340,6 @@ export function openGrimoire() {
     }
     document.getElementById('grimEquipped').innerHTML = htmlEq;
 
-    // 2. Mostrar la lista de Habilidades Aprendidas
     let htmlKnown = '';
     if (!gameState.player.knownSkills || gameState.player.knownSkills.length === 0) {
         htmlKnown = '<p style="font-size:12px; color:#aaa; text-align:center;">Aún no conoces ninguna habilidad nueva. Sube de nivel o encuentra libros mágicos.</p>';
@@ -367,7 +373,6 @@ export function openGrimoire() {
     }
     document.getElementById('grimList').innerHTML = htmlKnown; 
     
-    // Escondemos el menú principal y abrimos el grimorio
     document.getElementById('mainMenuModal').style.display = 'none';
     document.getElementById('grimoireModal').style.display = 'flex';
 }
@@ -375,7 +380,6 @@ export function openGrimoire() {
 export function closeGrimoire() { 
     playSFX(sfx.ui_click); 
     document.getElementById('grimoireModal').style.display = 'none'; 
-    // Al cerrar, volvemos al menú principal
     document.getElementById('mainMenuModal').style.display = 'flex';
 }
 
@@ -395,11 +399,95 @@ export function unequipSkill(slot) {
     openGrimoire();
 }
 
-// Exportar al HTML
 window.openGrimoire = openGrimoire;
 window.closeGrimoire = closeGrimoire;
 window.equipSkill = equipSkill;
 window.unequipSkill = unequipSkill;
+
+
+// =========================================
+// SISTEMA DE ÁRBOL DE HABILIDADES (NUEVO)
+// =========================================
+export function openSkillTree() {
+    playSFX(sfx.ui_click);
+    document.getElementById('mainMenuModal').style.display = 'none';
+    
+    document.getElementById('spDisplay').textContent = gameState.player.skillPoints || 0;
+    
+    const container = document.getElementById('skillTreeContainer');
+    const emptyMsg = document.getElementById('skillTreeEmptyMsg');
+    container.innerHTML = '';
+    
+    // Filtramos solo las habilidades de la clase actual
+    const classSkills = Object.values(skillsData).filter(s => s.class === gameState.player.playerClass);
+    
+    if (classSkills.length === 0) {
+        emptyMsg.style.display = 'block';
+    } else {
+        emptyMsg.style.display = 'none';
+        
+        // Dibujamos las habilidades
+        classSkills.forEach(skill => {
+            const isLearned = gameState.player.knownSkills.includes(skill.id);
+            const reqLearned = skill.req ? gameState.player.knownSkills.includes(skill.req) : true;
+            
+            let htmlNode = `<div style="width: 300px; padding: 15px; border-radius: 8px; background: #0b1220; display: flex; flex-direction: column; align-items: center; border: 2px solid `;
+            
+            let btnHtml = '';
+            
+            // Lógica de colores y estados del nodo
+            if (isLearned) {
+                htmlNode += `#ffeb3b; box-shadow: 0 0 15px rgba(255, 235, 59, 0.4);">`;
+                btnHtml = `<button disabled style="background:transparent; color:#ffeb3b; border: 1px solid #ffeb3b;">⭐ Ya Aprendida</button>`;
+            } else if (!reqLearned) {
+                htmlNode += `#333; opacity: 0.5;">`;
+                let reqName = skillsData[skill.req].name;
+                btnHtml = `<button disabled style="background:#333; color:#888;">Bloqueada (Requiere: ${reqName})</button>`;
+            } else {
+                htmlNode += `#00bcd4;">`;
+                if (gameState.player.skillPoints > 0) {
+                    btnHtml = `<button onclick="learnSkill('${skill.id}')" style="background:#00bcd4; color:#fff;">Aprender (1 SP)</button>`;
+                } else {
+                    btnHtml = `<button disabled style="background:#555; color:#aaa;">Falta 1 SP</button>`;
+                }
+            }
+            
+            htmlNode += `
+                <div style="font-size: 40px; margin-bottom: 5px;">${skill.icon}</div>
+                <h4 style="margin: 0 0 5px 0; color: #fff;">${skill.name}</h4>
+                <p style="font-size: 12px; color: #aaa; text-align: center; height: 35px; margin-bottom: 10px;">${skill.desc}</p>
+                <div style="font-size: 11px; color: ${skill.resource === 'mp' ? '#2196f3' : '#9c27b0'}; margin-bottom: 15px;">Costo: ${skill.cost} ${skill.resource.toUpperCase()}</div>
+                ${btnHtml}
+            </div>`;
+            
+            container.innerHTML += htmlNode;
+        });
+    }
+    
+    document.getElementById('skillTreeModal').style.display = 'flex';
+}
+
+export function closeSkillTree() {
+    playSFX(sfx.ui_click);
+    document.getElementById('skillTreeModal').style.display = 'none';
+    document.getElementById('mainMenuModal').style.display = 'flex';
+}
+
+export function learnSkill(skillId) {
+    if (gameState.player.skillPoints > 0) {
+        playSFX(sfx.quest_complete);
+        gameState.player.skillPoints--;
+        gameState.player.knownSkills.push(skillId);
+        logMsg(`¡Has aprendido ${skillsData[skillId].name}! Revísalo en tu Grimorio.`);
+        saveGame();
+        openSkillTree(); // Refresca el panel
+    }
+}
+
+window.openSkillTree = openSkillTree;
+window.closeSkillTree = closeSkillTree;
+window.learnSkill = learnSkill;
+
 
 // =========================================
 // TIENDA DEL JUEGO

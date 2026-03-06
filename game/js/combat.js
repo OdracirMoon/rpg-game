@@ -2,7 +2,6 @@
 // SISTEMA DE COMBATE Y HABILIDADES
 // =========================================
 import { gameState } from './state.js';
-// IMPORTAMOS EL DICCIONARIO DE HABILIDADES
 import { mapData, skillsData } from './data.js';
 import { sfx, playSFX, playBGM } from './audio.js';
 import { 
@@ -27,7 +26,6 @@ export function generateCombatButtons() {
     if (specialId && skillsData[specialId]) {
         const skill = skillsData[specialId];
         const resText = skill.resource.toUpperCase();
-        // Usamos la clase btn-magic si gasta MP, o btn-skill si gasta EP
         const cssClass = skill.resource === 'mp' ? 'btn-magic' : 'btn-skill';
         html += `<button id="btnSkill1" class="${cssClass}" onclick="useSkill('${skill.id}')" style="font-size: 16px; padding: 12px;">${skill.icon} ${skill.name} (${skill.cost} ${resText})</button>`;
     }
@@ -174,11 +172,11 @@ export function useSkill(skillId) {
     let enemy = gameState.currentEnemyTile.enemy;
     const pMag = getMag();
     const pAtk = getAtk();
+    const maxHp = getMaxHp();
     
     const skillInfo = skillsData[skillId];
     if (!skillInfo) { lockCombatButtons(false); return; }
 
-    // Validación de Recursos (MP o EP)
     if (skillInfo.resource === 'ep') {
         if (gameState.player.ep < skillInfo.cost) { playSFX(sfx.error); logMsg(`¡Faltan ${skillInfo.cost} EP!`); lockCombatButtons(false); return; }
         gameState.player.ep -= skillInfo.cost;
@@ -187,7 +185,7 @@ export function useSkill(skillId) {
         gameState.player.mp -= skillInfo.cost;
     }
 
-    // Lógica de daño según la Habilidad
+    // --- GUERRERO ---
     if (skillId === 'golpe_brutal') {
         let dmg = Math.max(1, Math.floor(pAtk * 2) - enemy.def); 
         enemy.hp -= dmg;
@@ -196,12 +194,32 @@ export function useSkill(skillId) {
         logCombat(`💥 Golpe Brutal: <b style="color:#ffeb3b">${dmg}</b> de daño físico.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
+    else if (skillId === 'corte_cruzado') {
+        let dmgPerHit = Math.max(1, Math.floor(pAtk * 0.9) - Math.floor(enemy.def/3));
+        let totalDmg = dmgPerHit * 3;
+        enemy.hp -= totalDmg;
+        playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + totalDmg + ' HP', '#ffeb3b', 'combat-enemy');
+        logCombat(`⚔️ Corte Cruzado: Impactas 3 veces causando <b style="color:#ffeb3b">${totalDmg}</b> de daño.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
     else if (skillId === 'grito_guerra') {
         gameState.combatState.defBuffTurns = 3;
         playSFX(sfx.equip); animateHeal('combatPlayerImg');
         logCombat(`🛡️ Grito de Guerra: Tu defensa aumenta considerablemente por 3 turnos.`);
         checkEnemyDeathAndEndTurn(enemy); 
     }
+    else if (skillId === 'piel_hierro') {
+        gameState.combatState.defBuffTurns = 5; // Más duradero
+        let heal = Math.floor(maxHp * 0.15); // Cura un 15% de tu vida máxima
+        gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
+        playSFX(sfx.equip); animateHeal('combatPlayerImg');
+        spawnFloatingText('+' + heal + ' HP', '#4caf50', 'combat-player');
+        logCombat(`🗿 Piel de Hierro: Defensa masiva por 5 turnos y te curas <b style="color:#4caf50">${heal}</b> HP.`);
+        checkEnemyDeathAndEndTurn(enemy); 
+    }
+
+    // --- ARQUERO ---
     else if (skillId === 'tiro_doble') {
         let dmg1 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(enemy.def/2));
         let dmg2 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(enemy.def/2));
@@ -211,15 +229,35 @@ export function useSkill(skillId) {
         logCombat(`🏹 Tiro Doble: Impactas dos veces haciendo <b style="color:#ffeb3b">${dmg1}</b> y <b style="color:#ffeb3b">${dmg2}</b> de daño.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
+    else if (skillId === 'lluvia_flechas') {
+        let dmgPerHit = Math.max(1, Math.floor(pAtk * 0.6) - Math.floor(enemy.def/4));
+        let totalDmg = dmgPerHit * 4;
+        enemy.hp -= totalDmg;
+        playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + totalDmg + ' HP', '#ffeb3b', 'combat-enemy');
+        logCombat(`🌧️ Lluvia de Flechas: 4 impactos perforantes para <b style="color:#ffeb3b">${totalDmg}</b> de daño.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
     else if (skillId === 'flecha_venenosa') {
         let dmg = Math.max(1, pAtk - enemy.def);
         enemy.hp -= dmg;
         gameState.combatState.poisonTurns = 4; 
         playSFX(sfx.attack); animateDamage('modalImg');
         spawnFloatingText('-' + dmg + ' HP', '#4caf50', 'combat-enemy');
-        logCombat(`🐍 Flecha Venenosa: Haces <b style="color:#ffeb3b">${dmg}</b> de daño e inyectas un veneno letal.`);
+        logCombat(`🐍 Flecha Venenosa: <b style="color:#ffeb3b">${dmg}</b> de daño y veneno por 4 turnos.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
+    else if (skillId === 'trampa_espinas') {
+        let dmg = Math.max(1, Math.floor(pAtk * 1.5) - enemy.def);
+        enemy.hp -= dmg;
+        gameState.combatState.poisonTurns = 6; // Veneno que dura mucho más
+        playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + dmg + ' HP', '#4caf50', 'combat-enemy');
+        logCombat(`🕸️ Trampa Letal: <b style="color:#ffeb3b">${dmg}</b> daño inicial y un veneno duradero (6 turnos).`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
+
+    // --- MAGO ---
     else if (skillId === 'fuego') {
         const mDmg = Math.max(1, Math.floor(pMag * 1.8) - Math.floor(enemy.def / 2));
         enemy.hp -= mDmg;
@@ -228,18 +266,36 @@ export function useSkill(skillId) {
         logCombat(`🔥 Fuego: <b style="color:#ff9800">${mDmg}</b> de daño mágico.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
+    else if (skillId === 'meteorito') {
+        const mDmg = Math.max(1, Math.floor(pMag * 3.5) - Math.floor(enemy.def / 2));
+        enemy.hp -= mDmg;
+        playSFX(sfx.attack); animateDamage('modalImg');
+        spawnFloatingText('-' + mDmg + ' HP', '#ff9800', 'combat-enemy');
+        logCombat(`☄️ ¡METEORITO!: Devastas al enemigo con <b style="color:#ff9800">${mDmg}</b> de daño mágico masivo.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
     else if (skillId === 'curar') {
         const heal = Math.floor(pMag * 2.5) + 10; 
-        gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + heal);
+        gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
         playSFX(sfx.use_potion); animateHeal('combatPlayerImg');
         spawnFloatingText('+' + heal + ' HP', '#4caf50', 'combat-player');
         logCombat(`💚 Te curaste <b style="color:#4caf50">${heal}</b> de Vida.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
+    else if (skillId === 'drenar_vida') {
+        const mDmg = Math.max(1, Math.floor(pMag * 1.5) - Math.floor(enemy.def / 2));
+        enemy.hp -= mDmg;
+        const heal = Math.floor(mDmg * 0.8); // Te curas un 80% del daño hecho
+        gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
+        playSFX(sfx.attack); animateDamage('modalImg'); animateHeal('combatPlayerImg');
+        spawnFloatingText('-' + mDmg + ' HP', '#ff9800', 'combat-enemy');
+        spawnFloatingText('+' + heal + ' HP', '#4caf50', 'combat-player');
+        logCombat(`🦇 Drenar Vida: Robas <b style="color:#ff9800">${mDmg}</b> de vida y te curas <b style="color:#4caf50">${heal}</b>.`);
+        checkEnemyDeathAndEndTurn(enemy);
+    }
 }
 
 export function doFlee() { 
-    // NUEVO: Verificación de Energía para Huir
     if (gameState.player.ep < 10) {
         playSFX(sfx.error);
         logMsg("¡Estás exhausto! Necesitas 10 EP para huir.");
@@ -407,6 +463,10 @@ export function checkLevelUp() {
         gameState.player.xp -= xpNeeded; 
         gameState.player.level++; 
         gameState.player.statPoints += 5; 
+        
+        // NUEVO: Sumamos +1 al SP
+        if(gameState.player.skillPoints === undefined) gameState.player.skillPoints = 0;
+        gameState.player.skillPoints += 1;
         
         playSFX(sfx.level_up);
         spawnFloatingText('¡NIVEL UP!', '#ffeb3b', gameState.inCombat ? 'combat-player' : 'map');

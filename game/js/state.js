@@ -1,8 +1,6 @@
 // =========================================
 // ESTADO DINÁMICO DEL JUEGO (Variables)
 // =========================================
-// Agrupamos todas las variables en un solo objeto para poder
-// modificarlas y leerlas fácilmente desde cualquier otro módulo.
 
 export const gameState = {
     worldMap: [], 
@@ -20,13 +18,10 @@ export const gameState = {
         hasKey: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false },
         
         statPoints: 0,
+        skillPoints: 0, // NUEVA VARIABLE: SP para el Árbol
         
-        // NUEVAS VARIABLES: Sistema de Habilidades Dinámicas
-        knownSkills: [], // Array de IDs de habilidades aprendidas (ej. ['golpe_brutal'])
-        equippedSkills: {
-            special: null,   // Habilidad de daño/especial equipada
-            defensive: null  // Habilidad de defensa/utilidad equipada
-        }
+        knownSkills: [], 
+        equippedSkills: { special: null, defensive: null }
     },
 
     quest: null, 

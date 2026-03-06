@@ -2,20 +2,33 @@
 // DATOS ESTÁTICOS DEL JUEGO Y CONFIGURACIÓN
 // =========================================
 
-// Leemos la ranura elegida en el menú principal.
 export const activeSlot = sessionStorage.getItem('activeSlot') || '1';
 export const SAVE_KEY = 'miniRPG_WorldSave_' + activeSlot;
 
 export const GAME_VERSION = '1.0.0';
 
-// NUEVO: Diccionario Maestro de Habilidades
+// DICCIONARIO MAESTRO DE HABILIDADES (Expandido para el Árbol)
 export const skillsData = {
-    'golpe_brutal': { id: 'golpe_brutal', name: 'Golpe Brutal', type: 'special', resource: 'ep', cost: 10, icon: '💥', desc: 'Ataca con el doble de tu fuerza física base.' },
-    'grito_guerra': { id: 'grito_guerra', name: 'Grito Guerra', type: 'defensive', resource: 'ep', cost: 15, icon: '🛡️', desc: 'Aumenta enormemente tu defensa por 3 turnos.' },
-    'tiro_doble': { id: 'tiro_doble', name: 'Tiro Doble', type: 'special', resource: 'ep', cost: 12, icon: '🏹', desc: 'Dispara dos flechas rápidas que ignoran parte de la defensa.' },
-    'flecha_venenosa': { id: 'flecha_venenosa', name: 'Veneno', type: 'defensive', resource: 'ep', cost: 10, icon: '🐍', desc: 'Inyecta un veneno que drena vida al enemigo por 4 turnos.' },
-    'fuego': { id: 'fuego', name: 'Fuego', type: 'special', resource: 'mp', cost: 12, icon: '🔥', desc: 'Lanza una bola de fuego que hace daño mágico moderado.' },
-    'curar': { id: 'curar', name: 'Curar', type: 'defensive', resource: 'mp', cost: 15, icon: '💚', desc: 'Restaura gran parte de tu salud usando magia.' }
+    // --- RAMA GUERRERO ---
+    'golpe_brutal': { id: 'golpe_brutal', name: 'Golpe Brutal', type: 'special', resource: 'ep', cost: 10, icon: '💥', desc: 'Ataca con el doble de tu fuerza física.', req: null, class: 'Guerrero' },
+    'corte_cruzado': { id: 'corte_cruzado', name: 'Corte Cruzado', type: 'special', resource: 'ep', cost: 25, icon: '⚔️', desc: 'Ataque devastador que golpea 3 veces seguidas.', req: 'golpe_brutal', class: 'Guerrero' },
+    
+    'grito_guerra': { id: 'grito_guerra', name: 'Grito Guerra', type: 'defensive', resource: 'ep', cost: 15, icon: '🛡️', desc: 'Aumenta enormemente tu defensa por 3 turnos.', req: null, class: 'Guerrero' },
+    'piel_hierro': { id: 'piel_hierro', name: 'Piel de Hierro', type: 'defensive', resource: 'ep', cost: 20, icon: '🗿', desc: 'Aumenta tu defensa y cura tus heridas levemente.', req: 'grito_guerra', class: 'Guerrero' },
+
+    // --- RAMA ARQUERO ---
+    'tiro_doble': { id: 'tiro_doble', name: 'Tiro Doble', type: 'special', resource: 'ep', cost: 12, icon: '🏹', desc: 'Dispara dos flechas rápidas.', req: null, class: 'Arquero' },
+    'lluvia_flechas': { id: 'lluvia_flechas', name: 'Lluvia de Flechas', type: 'special', resource: 'ep', cost: 25, icon: '🌧️', desc: 'Dispara una ráfaga que impacta 4 veces al enemigo.', req: 'tiro_doble', class: 'Arquero' },
+    
+    'flecha_venenosa': { id: 'flecha_venenosa', name: 'Veneno', type: 'defensive', resource: 'ep', cost: 10, icon: '🐍', desc: 'Inyecta un veneno que drena vida al enemigo por 4 turnos.', req: null, class: 'Arquero' },
+    'trampa_espinas': { id: 'trampa_espinas', name: 'Trampa Letal', type: 'defensive', resource: 'ep', cost: 18, icon: '🕸️', desc: 'Aplica un veneno doblemente fuerte e inmediato.', req: 'flecha_venenosa', class: 'Arquero' },
+
+    // --- RAMA MAGO ---
+    'fuego': { id: 'fuego', name: 'Bola de Fuego', type: 'special', resource: 'mp', cost: 12, icon: '🔥', desc: 'Lanza fuego que hace daño mágico moderado.', req: null, class: 'Mago' },
+    'meteorito': { id: 'meteorito', name: 'Meteorito', type: 'special', resource: 'mp', cost: 35, icon: '☄️', desc: 'Invoca un meteoro con daño mágico masivo.', req: 'fuego', class: 'Mago' },
+    
+    'curar': { id: 'curar', name: 'Curación', type: 'defensive', resource: 'mp', cost: 15, icon: '💚', desc: 'Restaura gran parte de tu salud usando magia.', req: null, class: 'Mago' },
+    'drenar_vida': { id: 'drenar_vida', name: 'Drenar Vida', type: 'defensive', resource: 'mp', cost: 25, icon: '🦇', desc: 'Roba vida al enemigo (daño mágico) y te cura.', req: 'curar', class: 'Mago' }
 };
 
 export const MAP_W = 100; 

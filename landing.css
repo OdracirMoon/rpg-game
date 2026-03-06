@@ -23,16 +23,21 @@
 }
 
 body {
-    background-color: var(--bg-color);
-    color: var(--text-primary);
-    font-family: var(--font-main);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: 'Courier New', Courier, monospace; /* O la fuente que ya tuvieras */
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    /* Fondo con una textura sutil o gradiente para darle profundidad */
-    background-image: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
-    overflow: hidden; /* Evita scroll en el menú principal */
+    
+    /* MAGIA DEL FONDO AQUÍ */
+    /* El linear-gradient crea una capa oscura semitransparente (0.7 de opacidad) para que los botones resalten */
+    background-image: linear-gradient(rgba(10, 10, 15, 0.7), rgba(10, 10, 15, 0.8)), url('fondo-menu.png');
+    background-size: cover; /* Hace que la imagen cubra toda la pantalla sin deformarse */
+    background-position: center; /* Centra la imagen */
+    background-repeat: no-repeat; /* Evita que la imagen se repita como mosaico */
+    background-attachment: fixed; /* Hace que el fondo se quede quieto si la pantalla es pequeña y haces scroll */
 }
 
 /* ==========================================

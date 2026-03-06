@@ -8,6 +8,48 @@ import { logMsg, updateHUD, spawnFloatingText, isMenuOpen, toggleMainMenu } from
 import { generateWorld, updateFOV, render, move } from './map.js';
 
 // =========================================
+// SISTEMA DE MIGRACIÓN DE VERSIONES
+// =========================================
+function migrateSaveData(saveData) {
+    let currentSaveVersion = saveData.version || "0.9.0"; // Si no tiene versión, asumimos que es vieja
+
+    // Si la versión del archivo es igual a la del juego, no hacemos nada
+    if (currentSaveVersion === GAME_VERSION) {
+        return saveData;
+    }
+
+    console.log(`Migrando partida de v${currentSaveVersion} a v${GAME_VERSION}...`);
+
+    // 🔄 MIGRACIÓN PREVIA a 1.0.0 (Parches de seguridad base)
+    if (currentSaveVersion < "1.0.0") {
+        if(!saveData.playerData.inventory) saveData.playerData.inventory = { weapons: [], armors: [] };
+        if(!saveData.playerData.playerClass) saveData.playerData.playerClass = "Guerrero";
+        if(saveData.playerData.ep === undefined) saveData.playerData.ep = saveData.playerData.baseMaxEp || 50;
+        if(saveData.playerData.energyPotions === undefined) saveData.playerData.energyPotions = 0;
+        if(!saveData.playerData.mapImg) saveData.playerData.mapImg = `img/player/${saveData.playerData.playerClass.toLowerCase()}_mapa.png`;
+        if(!saveData.playerData.combatImg) saveData.playerData.combatImg = `img/player/${saveData.playerData.playerClass.toLowerCase()}_combate.png`;
+        if(!saveData.playerData.zoneQuestProgress) saveData.playerData.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+        if(!saveData.playerData.hasKey) saveData.playerData.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+        if(!saveData.playerData.knownSkills) saveData.playerData.knownSkills = [];
+        if(!saveData.playerData.equippedSkills) saveData.playerData.equippedSkills = { special: null, defensive: null };
+        if(saveData.playerData.statPoints === undefined) saveData.playerData.statPoints = 0;
+        if(saveData.playerData.skillPoints === undefined) saveData.playerData.skillPoints = 0;
+        if(!saveData.checkpoints) saveData.checkpoints = { lastLevelUp: null, lastBoss: null };
+        
+        currentSaveVersion = "1.0.0";
+    }
+
+    // 🔄 AQUÍ PONDRÁS LA MIGRACIÓN 1.1.0 EN EL FUTURO
+    // if (currentSaveVersion === "1.0.0" && GAME_VERSION === "1.1.0") {
+    //     // agregar nuevas variables aquí...
+    //     currentSaveVersion = "1.1.0";
+    // }
+
+    saveData.version = GAME_VERSION; 
+    return saveData;
+}
+
+// =========================================
 // SISTEMA DE GUARDADO Y CARGA
 // =========================================
 export function saveGame() {
@@ -18,7 +60,8 @@ export function saveGame() {
             flagsData: gameState.flags, 
             questData: gameState.quest, 
             mapDataState: gameState.worldMap, 
-            mapLevelData: gameState.mapLevel 
+            mapLevelData: gameState.mapLevel,
+            checkpointsData: gameState.checkpoints
         };
         localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
         logMsg(`💾 Partida guardada con éxito (Ranura ${activeSlot}).`);
@@ -30,37 +73,27 @@ export function loadGameBtn() {
     try {
         const savedString = localStorage.getItem(SAVE_KEY);
         if (savedString) {
-            const saveData = JSON.parse(savedString);
+            let saveData = JSON.parse(savedString);
             
-            if(saveData.version) {
-                console.log("Cargando guardado versión: " + saveData.version);
-            }
+            // 1. PASAMOS LOS DATOS POR EL TÚNEL DE MIGRACIÓN
+            saveData = migrateSaveData(saveData);
 
+            // 2. ASIGNAMOS LOS DATOS ACTUALIZADOS AL JUEGO
             gameState.player = saveData.playerData; 
             gameState.flags = saveData.flagsData; 
             gameState.quest = saveData.questData; 
             gameState.worldMap = saveData.mapDataState;
             gameState.mapLevel = saveData.mapLevelData || 1;
+            gameState.checkpoints = saveData.checkpointsData || { lastLevelUp: null, lastBoss: null };
             
-            if(!gameState.player.inventory) gameState.player.inventory = { weapons: [], armors: [] };
-            if(!gameState.player.playerClass) gameState.player.playerClass = "Guerrero";
-            
-            if(gameState.player.ep === undefined) gameState.player.ep = gameState.player.baseMaxEp || 50;
-            if(gameState.player.energyPotions === undefined) gameState.player.energyPotions = 0;
-            if(!gameState.player.mapImg) gameState.player.mapImg = `img/player/${gameState.player.playerClass.toLowerCase()}_mapa.png`;
-            if(!gameState.player.combatImg) gameState.player.combatImg = `img/player/${gameState.player.playerClass.toLowerCase()}_combate.png`;
-
-            if(!gameState.player.zoneQuestProgress) gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
-            if(!gameState.player.hasKey) gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
-            
-            if(!gameState.player.knownSkills) gameState.player.knownSkills = [];
-            if(!gameState.player.equippedSkills) gameState.player.equippedSkills = { special: null, defensive: null };
+            // 3. GUARDAMOS AUTOMÁTICAMENTE EL ARCHIVO YA MIGRADO PARA LA PRÓXIMA VEZ
+            localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 
             document.getElementById('classModal').style.display = 'none';
             
-            updateFOV(); render(); logMsg(`📂 Partida cargada desde la Ranura ${activeSlot}.`); return true;
+            updateFOV(); render(); logMsg(`📂 Partida cargada desde la Ranura ${activeSlot}. (v${GAME_VERSION})`); return true;
         } 
-    } catch (e) { logMsg("⚠️ Error al cargar."); }
+    } catch (e) { logMsg("⚠️ Error al cargar."); console.error(e); }
     return false;
 }
 
@@ -87,7 +120,8 @@ export function exportGame() {
             flagsData: gameState.flags, 
             questData: gameState.quest, 
             mapDataState: gameState.worldMap, 
-            mapLevelData: gameState.mapLevel 
+            mapLevelData: gameState.mapLevel,
+            checkpointsData: gameState.checkpoints
         };
         
         const jsonString = JSON.stringify(saveData, null, 2);
@@ -117,10 +151,13 @@ export function importGame(evento) {
     const lector = new FileReader();
     lector.onload = function(e) {
         try {
-            const datos = JSON.parse(e.target.result);
+            let datos = JSON.parse(e.target.result);
             if (datos.playerData && datos.mapDataState) {
+                // Pasamos la partida importada por el túnel de migración
+                datos = migrateSaveData(datos);
+                
                 localStorage.setItem(SAVE_KEY, JSON.stringify(datos));
-                alert(`✅ Partida importada con éxito a la Ranura ${activeSlot}. El juego se recargará para aplicar los cambios.`);
+                alert(`✅ Partida importada y actualizada con éxito a la Ranura ${activeSlot}. El juego se recargará para aplicar los cambios.`);
                 window.location.reload(); 
             } else {
                 alert("❌ El archivo no parece ser un guardado válido de este juego.");
@@ -176,9 +213,10 @@ export function selectClass(className) {
     gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
     gameState.mapLevel = 1; 
     
-    // Reseteamos las habilidades
     gameState.player.knownSkills = [];
     gameState.player.equippedSkills = { special: null, defensive: null };
+    gameState.player.statPoints = 0;
+    gameState.player.skillPoints = 0;
     
     let classNameLower = className.toLowerCase();
     gameState.player.mapImg = `img/player/${classNameLower}_mapa.png`;
@@ -191,7 +229,6 @@ export function selectClass(className) {
         gameState.player.baseAtk = 5; gameState.player.baseDef = 4; gameState.player.baseMag = 1;
         gameState.player.weapon = { name: 'Espada Rota', atk: 2, mag: 0, price: 10, colorClass: 'color-comun', icon: 'iron_dagger.png' };
         
-        // Habilidades iniciales Guerrero
         gameState.player.knownSkills = ['golpe_brutal', 'grito_guerra'];
         gameState.player.equippedSkills = { special: 'golpe_brutal', defensive: 'grito_guerra' };
         
@@ -203,7 +240,6 @@ export function selectClass(className) {
         gameState.player.manaPotions = 3; 
         gameState.player.weapon = { name: 'Varita Astillada', atk: 0, mag: 3, price: 10, colorClass: 'color-comun', icon: 'wood_staff.png' };
         
-        // Habilidades iniciales Mago
         gameState.player.knownSkills = ['fuego', 'curar'];
         gameState.player.equippedSkills = { special: 'fuego', defensive: 'curar' };
         
@@ -214,7 +250,6 @@ export function selectClass(className) {
         gameState.player.baseAtk = 4; gameState.player.baseDef = 2; gameState.player.baseMag = 2;
         gameState.player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'wood_bow.png' }; 
         
-        // Habilidades iniciales Arquero
         gameState.player.knownSkills = ['tiro_doble', 'flecha_venenosa'];
         gameState.player.equippedSkills = { special: 'tiro_doble', defensive: 'flecha_venenosa' };
         
@@ -224,7 +259,6 @@ export function selectClass(className) {
         gameState.player.baseMaxEp = 40; gameState.player.ep = 40;
         gameState.player.baseAtk = 2; gameState.player.baseDef = 1; gameState.player.baseMag = 1;
         gameState.player.gold = 100; 
-        // Simple no aprende nada inicialmente, su knownSkills y equippedSkills se quedan vacíos.
     }
     
     document.getElementById('classModal').style.display = 'none';

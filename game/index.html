@@ -15,6 +15,7 @@
     
     <div id="mobileControls" class="mobile-only">
         <button id="btnMobileMenu" onclick="toggleMainMenu()">☰ Menú</button>
+        <button id="btnMobileStats" onclick="openStatsModal()" style="background: #2196f3; color: white; border: 1px solid #0b1220; padding: 5px 10px; border-radius: 5px; font-weight: bold; margin-left: 5px;">📊 Stats</button>
         <div id="dpad">
             <button class="dpad-btn" id="btnUp">⬆️</button>
             <div class="dpad-mid">
@@ -47,7 +48,7 @@
             📍 Zona: <span id="mapName" style="font-weight: bold;">Común</span>
         </div>
         <div style="font-size: 10px; color: #888; margin-top: 3px;" class="desktop-only">
-            Presiona <b>[ESC]</b> para Menú
+            [ESC] Menú | [E] Estadísticas
         </div>
     </div>
 
@@ -56,9 +57,10 @@
             <h2 style="margin: 0 0 15px 0; color: #fff;">⏸️ Menú Principal</h2>
             
             <div class="menu-section">
-                <h3>📊 Estadísticas</h3>
-                <div id="menuStats" style="font-size: 14px; line-height: 1.5;"></div>
-                <div id="menuEquipment" style="margin-top: 8px; font-size: 13px; border-top: 1px dashed #4a5a80; padding-top: 8px;"></div>
+                <h3>📊 Resumen de Estadísticas</h3>
+                <div id="menuStats" style="font-size: 14px; line-height: 1.5; margin-bottom: 10px;"></div>
+                <button class="btn-sys-alt" onclick="openStatsModal()" style="width: 100%; border-color: #2196f3; color: #2196f3;">🔍 Ver Estadísticas Avanzadas (E)</button>
+                <div id="menuEquipment" style="margin-top: 10px; font-size: 13px; border-top: 1px dashed #4a5a80; padding-top: 8px;"></div>
             </div>
 
             <div class="menu-section">
@@ -103,6 +105,17 @@
 
             <button class="btn-sys-alt" onclick="returnToMainMenu()" style="margin-top: 15px; background: #d35400; color: white;">🏠 Volver al Menú Principal</button>
             <button class="btn-danger" onclick="toggleMainMenu()" style="margin-top: 5px;">❌ Cerrar Menú</button>
+        </div>
+    </div>
+
+    <div id="statsModal" class="modal-overlay" style="z-index: 1030; display: none;">
+        <div class="modal-card" style="width: 800px; max-width: 95vw;">
+            <h2 style="margin: 0 0 15px 0; color: #fff;">📊 Perfil de Atributos</h2>
+            
+            <div id="fullStatsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; text-align: left;">
+                </div>
+
+            <button class="btn-danger" onclick="closeStatsModal()" style="margin-top: 20px; width: 100%;">Cerrar Estadísticas</button>
         </div>
     </div>
 
@@ -193,7 +206,7 @@
         <div class="modal-card" style="width: 800px; max-width: 95vw;">
             <h2 id="charModalTitle" style="margin: 0 0 10px 0; color: #fff; font-size: 24px;">Selecciona tu Personaje</h2>
             <div id="characterContainer" style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px;">
-                </div>
+            </div>
             <button class="btn-danger" onclick="backToRoles()">Volver a Roles</button>
         </div>
     </div>
@@ -239,15 +252,4 @@
 
     <div id="shopModal" class="modal-overlay" style="z-index: 1010;">
         <div class="modal-card" style="width: 700px; max-width: 95vw;">
-            <h2 style="margin: 0 0 15px 0; color: #fff;">🏪 Mercader <span id="shopTier"></span></h2>
-            <div class="shop-tabs"><button id="tabBuy" onclick="switchShopTab('buy')" class="active-tab">Comprar</button><button id="tabSell" onclick="switchShopTab('sell')">Vender Botín</button></div>
-            <div id="shopContentBuy" class="large-item-grid" style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; padding-right: 5px;"></div>
-            <div id="shopContentSell" class="large-item-grid" style="max-height: 50vh; overflow-y: auto; margin-bottom: 15px; display: none; padding-right: 5px;"></div>
-            <button class="btn-danger" onclick="closeShop()">Salir de la tienda</button>
-        </div>
-    </div>
-
-    <div id="invModal" class="modal-overlay" style="z-index: 1020;">
-        <div class="modal-card" style="width: 700px; max-width: 95vw;">
-            <h2 style="margin: 0 0 15px 0; color: #fff;">🎒 Inventario</h2>
-            <div id="invContainer" style="display: flex; gap: 15px; text-align: left; flex-direction: col
+            <h2 style="margin: 0 0 15px

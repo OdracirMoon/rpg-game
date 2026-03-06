@@ -9,27 +9,59 @@ export const GAME_VERSION = '1.0.0';
 
 // DICCIONARIO MAESTRO DE HABILIDADES (Expandido para el Árbol)
 export const skillsData = {
-    // --- RAMA GUERRERO ---
-    'golpe_brutal': { id: 'golpe_brutal', name: 'Golpe Brutal', type: 'special', resource: 'ep', cost: 10, icon: '💥', desc: 'Ataca con el doble de tu fuerza física.', req: null, class: 'Guerrero' },
-    'corte_cruzado': { id: 'corte_cruzado', name: 'Corte Cruzado', type: 'special', resource: 'ep', cost: 25, icon: '⚔️', desc: 'Ataque devastador que golpea 3 veces seguidas.', req: 'golpe_brutal', class: 'Guerrero' },
-    
-    'grito_guerra': { id: 'grito_guerra', name: 'Grito Guerra', type: 'defensive', resource: 'ep', cost: 15, icon: '🛡️', desc: 'Aumenta enormemente tu defensa por 3 turnos.', req: null, class: 'Guerrero' },
-    'piel_hierro': { id: 'piel_hierro', name: 'Piel de Hierro', type: 'defensive', resource: 'ep', cost: 20, icon: '🗿', desc: 'Aumenta tu defensa y cura tus heridas levemente.', req: 'grito_guerra', class: 'Guerrero' },
+    // DICCIONARIO MAESTRO DE PERSONAJES JUGABLES
+export const charactersData = {
+    // --- GUERREROS (Enfocados en HP, Armor y AD) ---
+    'caballero': {
+        id: 'caballero', name: 'Caballero Vanguardia', role: 'Guerrero',
+        desc: 'Tanque duro de matar. Excelente armadura y regeneración.',
+        stats: { hp: 120, hpReg: 5, mp: 0, ep: 100, ad: 15, ap: 0, armor: 25, mr: 15, ms: 300, crit: 0, lifesteal: 0 },
+        imgs: { map: 'img/player/guerrero_mapa.png', combat: 'img/player/guerrero_combate.png' }
+    },
+    'berserker': {
+        id: 'berserker', name: 'Berserker Sediento', role: 'Guerrero',
+        desc: 'Guerrero ofensivo con Robo de Vida base y mucho Daño Físico (AD).',
+        stats: { hp: 90, hpReg: 2, mp: 0, ep: 80, ad: 22, ap: 0, armor: 10, mr: 10, ms: 315, crit: 0.1, lifesteal: 0.05 },
+        imgs: { map: 'img/player/guerrero_mapa.png', combat: 'img/player/guerrero_combate.png' } // Podrás cambiar las imgs después
+    },
 
-    // --- RAMA ARQUERO ---
-    'tiro_doble': { id: 'tiro_doble', name: 'Tiro Doble', type: 'special', resource: 'ep', cost: 12, icon: '🏹', desc: 'Dispara dos flechas rápidas.', req: null, class: 'Arquero' },
-    'lluvia_flechas': { id: 'lluvia_flechas', name: 'Lluvia de Flechas', type: 'special', resource: 'ep', cost: 25, icon: '🌧️', desc: 'Dispara una ráfaga que impacta 4 veces al enemigo.', req: 'tiro_doble', class: 'Arquero' },
-    
-    'flecha_venenosa': { id: 'flecha_venenosa', name: 'Veneno', type: 'defensive', resource: 'ep', cost: 10, icon: '🐍', desc: 'Inyecta un veneno que drena vida al enemigo por 4 turnos.', req: null, class: 'Arquero' },
-    'trampa_espinas': { id: 'trampa_espinas', name: 'Trampa Letal', type: 'defensive', resource: 'ep', cost: 18, icon: '🕸️', desc: 'Aplica un veneno doblemente fuerte e inmediato.', req: 'flecha_venenosa', class: 'Arquero' },
+    // --- ARQUEROS (Enfocados en Attack Speed, Crit y Letalidad) ---
+    'cazador': {
+        id: 'cazador', name: 'Cazador Ágil', role: 'Arquero',
+        desc: 'Alta velocidad de ataque y movimiento. Ideal para pegar rápido.',
+        stats: { hp: 70, hpReg: 2, mp: 40, ep: 80, ad: 18, ap: 0, armor: 8, mr: 8, ms: 330, crit: 0.15, lifesteal: 0 },
+        imgs: { map: 'img/player/arquero_mapa.png', combat: 'img/player/arquero_combate.png' }
+    },
+    'francotirador': {
+        id: 'francotirador', name: 'Tirador Letal', role: 'Arquero',
+        desc: 'Lento pero letal. Inicia con Letalidad para perforar armaduras.',
+        stats: { hp: 65, hpReg: 1, mp: 60, ep: 50, ad: 25, ap: 0, armor: 5, mr: 5, ms: 290, crit: 0.05, lifesteal: 0 },
+        imgs: { map: 'img/player/arquero_mapa.png', combat: 'img/player/arquero_combate.png' }
+    },
 
-    // --- RAMA MAGO ---
-    'fuego': { id: 'fuego', name: 'Bola de Fuego', type: 'special', resource: 'mp', cost: 12, icon: '🔥', desc: 'Lanza fuego que hace daño mágico moderado.', req: null, class: 'Mago' },
-    'meteorito': { id: 'meteorito', name: 'Meteorito', type: 'special', resource: 'mp', cost: 35, icon: '☄️', desc: 'Invoca un meteoro con daño mágico masivo.', req: 'fuego', class: 'Mago' },
-    
-    'curar': { id: 'curar', name: 'Curación', type: 'defensive', resource: 'mp', cost: 15, icon: '💚', desc: 'Restaura gran parte de tu salud usando magia.', req: null, class: 'Mago' },
-    'drenar_vida': { id: 'drenar_vida', name: 'Drenar Vida', type: 'defensive', resource: 'mp', cost: 25, icon: '🦇', desc: 'Roba vida al enemigo (daño mágico) y te cura.', req: 'curar', class: 'Mago' }
+    // --- MAGOS (Enfocados en AP, Maná y Penetración Mágica) ---
+    'hechicero': {
+        id: 'hechicero', name: 'Hechicero Arcano', role: 'Mago',
+        desc: 'Maestro del daño mágico explosivo (Mucho AP y Maná).',
+        stats: { hp: 55, hpReg: 1, mp: 150, ep: 0, ad: 5, ap: 30, armor: 4, mr: 12, ms: 300, crit: 0, lifesteal: 0 },
+        imgs: { map: 'img/player/mago_mapa.png', combat: 'img/player/mago_combate.png' }
+    },
+    'brujo': {
+        id: 'brujo', name: 'Brujo de Sangre', role: 'Mago',
+        desc: 'Mago oscuro que recupera vida al hacer daño (Omnivamp).',
+        stats: { hp: 75, hpReg: 3, mp: 100, ep: 0, ad: 8, ap: 20, armor: 8, mr: 15, ms: 295, crit: 0, lifesteal: 0 },
+        imgs: { map: 'img/player/mago_mapa.png', combat: 'img/player/mago_combate.png' }
+    },
+
+    // --- SIMPLE (Equilibrado) ---
+    'aldeano': {
+        id: 'aldeano', name: 'Aldeano Ahorrador', role: 'Simple',
+        desc: 'Estadísticas mediocres, pero empieza con 200 de Oro en los bolsillos.',
+        stats: { hp: 60, hpReg: 1, mp: 20, ep: 40, ad: 8, ap: 8, armor: 5, mr: 5, ms: 300, crit: 0, lifesteal: 0 },
+        imgs: { map: 'img/player/simple_mapa.png', combat: 'img/player/simple_combate.png' }
+    }
 };
+
 
 export const MAP_W = 100; 
 export const MAP_H = 100;

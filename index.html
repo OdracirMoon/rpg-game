@@ -13,7 +13,18 @@
         </header>
 
         <nav class="menu-buttons">
-            <button id="btn-jugar" class="btn primary-btn">JUGAR</button>
+            
+            <button id="btn-jugar" class="btn primary-btn" style="border-color: #4caf50; color: #4caf50;">
+                🟢 MODO LOCAL
+            </button>
+            
+            <button id="btn-online" class="btn" disabled style="cursor: not-allowed; opacity: 0.6; border-color: #2196f3; color: #2196f3; position: relative;">
+                🔵 MODO ONLINE
+                <span style="position: absolute; top: -10px; right: -15px; background: #e55353; color: white; font-size: 0.7rem; padding: 4px 8px; border-radius: 10px; font-weight: bold; letter-spacing: 1px; box-shadow: 0 2px 5px rgba(0,0,0,0.8); text-shadow: none;">
+                    EN DESARROLLO
+                </span>
+            </button>
+
             <button id="btn-nueva-partida" class="btn">NUEVA PARTIDA</button>
             <button id="btn-cargar-partida" class="btn">CARGAR PARTIDA</button>
             <button id="btn-tienda" class="btn">TIENDA</button>

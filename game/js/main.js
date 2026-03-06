@@ -178,23 +178,34 @@ export function toggleFullscreen() {
 }
 window.toggleFullscreen = toggleFullscreen;
 
-// =========================================
+// // =========================================
 // INICIALIZACIÓN, ROLES Y PERSONAJES
 // =========================================
 export function initGame() {
-    let hasLoaded = false;
-    try { 
-        if (localStorage.getItem(SAVE_KEY)) { 
+    // Leemos la orden enviada por el Menú Principal
+    const action = sessionStorage.getItem('gameAction');
+    
+    if (action === 'load') {
+        // Intentamos cargar
+        let hasLoaded = false;
+        try { 
             hasLoaded = loadGameBtn(); 
             if(hasLoaded) {
-                let pName = gameState.player.characterName || gameState.player.playerClass;
+                let pName = gameState.player.characterName || gameState.player.playerClass || "Héroe";
                 logMsg(`Bienvenido de nuevo, ${pName}. Jugando en Ranura ${activeSlot}.`); 
             }
-        } 
-    } catch(e) {}
-    
-    if (!hasLoaded) { 
-        // Cambiamos classModal por roleModal
+        } catch(e) {
+            alert("Error al cargar la partida. Archivo corrupto.");
+            window.location.href = '../index.html';
+        }
+        
+        if (!hasLoaded) { // Si falló al cargar, lo mandamos de vuelta
+            alert("No se pudo cargar la partida.");
+            window.location.href = '../index.html';
+        }
+        
+    } else {
+        // Si la orden es 'new' (o si entra directo), forzamos Menú de Roles
         document.getElementById('roleModal').style.display = 'flex'; 
     }
 }

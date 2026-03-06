@@ -2,7 +2,7 @@
 // ARCHIVO PRINCIPAL (Inicialización y Eventos)
 // =========================================
 import { gameState } from './state.js';
-import { SAVE_KEY, GAME_VERSION, activeSlot } from './data.js';
+import { SAVE_KEY, GAME_VERSION, activeSlot, charactersData } from './data.js'; // AÑADIDO charactersData
 import { sfx, playSFX, playBGM, toggleAudio } from './audio.js';
 import { logMsg, updateHUD, spawnFloatingText, isMenuOpen, toggleMainMenu } from './ui.js';
 import { generateWorld, updateFOV, render, move } from './map.js';
@@ -11,16 +11,14 @@ import { generateWorld, updateFOV, render, move } from './map.js';
 // SISTEMA DE MIGRACIÓN DE VERSIONES
 // =========================================
 function migrateSaveData(saveData) {
-    let currentSaveVersion = saveData.version || "0.9.0"; // Si no tiene versión, asumimos que es vieja
+    let currentSaveVersion = saveData.version || "0.9.0"; 
 
-    // Si la versión del archivo es igual a la del juego, no hacemos nada
     if (currentSaveVersion === GAME_VERSION) {
         return saveData;
     }
 
     console.log(`Migrando partida de v${currentSaveVersion} a v${GAME_VERSION}...`);
 
-    // 🔄 MIGRACIÓN PREVIA a 1.0.0 (Parches de seguridad base)
     if (currentSaveVersion < "1.0.0") {
         if(!saveData.playerData.inventory) saveData.playerData.inventory = { weapons: [], armors: [] };
         if(!saveData.playerData.playerClass) saveData.playerData.playerClass = "Guerrero";
@@ -38,12 +36,6 @@ function migrateSaveData(saveData) {
         
         currentSaveVersion = "1.0.0";
     }
-
-    // 🔄 AQUÍ PONDRÁS LA MIGRACIÓN 1.1.0 EN EL FUTURO
-    // if (currentSaveVersion === "1.0.0" && GAME_VERSION === "1.1.0") {
-    //     // agregar nuevas variables aquí...
-    //     currentSaveVersion = "1.1.0";
-    // }
 
     saveData.version = GAME_VERSION; 
     return saveData;
@@ -74,11 +66,8 @@ export function loadGameBtn() {
         const savedString = localStorage.getItem(SAVE_KEY);
         if (savedString) {
             let saveData = JSON.parse(savedString);
-            
-            // 1. PASAMOS LOS DATOS POR EL TÚNEL DE MIGRACIÓN
             saveData = migrateSaveData(saveData);
 
-            // 2. ASIGNAMOS LOS DATOS ACTUALIZADOS AL JUEGO
             gameState.player = saveData.playerData; 
             gameState.flags = saveData.flagsData; 
             gameState.quest = saveData.questData; 
@@ -86,12 +75,17 @@ export function loadGameBtn() {
             gameState.mapLevel = saveData.mapLevelData || 1;
             gameState.checkpoints = saveData.checkpointsData || { lastLevelUp: null, lastBoss: null };
             
-            // 3. GUARDAMOS AUTOMÁTICAMENTE EL ARCHIVO YA MIGRADO PARA LA PRÓXIMA VEZ
             localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
 
-            document.getElementById('classModal').style.display = 'none';
+            // Ocultamos los modales nuevos de inicio
+            document.getElementById('roleModal').style.display = 'none';
+            document.getElementById('characterModal').style.display = 'none';
             
-            updateFOV(); render(); logMsg(`📂 Partida cargada desde la Ranura ${activeSlot}. (v${GAME_VERSION})`); return true;
+            updateFOV(); render(); 
+            // Fallback por si la partida guardada aún usaba "playerClass" viejo
+            let pName = gameState.player.characterName || gameState.player.playerClass;
+            logMsg(`📂 Partida cargada desde la Ranura ${activeSlot}. (v${GAME_VERSION})`); 
+            return true;
         } 
     } catch (e) { logMsg("⚠️ Error al cargar."); console.error(e); }
     return false;
@@ -153,9 +147,7 @@ export function importGame(evento) {
         try {
             let datos = JSON.parse(e.target.result);
             if (datos.playerData && datos.mapDataState) {
-                // Pasamos la partida importada por el túnel de migración
                 datos = migrateSaveData(datos);
-                
                 localStorage.setItem(SAVE_KEY, JSON.stringify(datos));
                 alert(`✅ Partida importada y actualizada con éxito a la Ranura ${activeSlot}. El juego se recargará para aplicar los cambios.`);
                 window.location.reload(); 
@@ -187,86 +179,142 @@ export function toggleFullscreen() {
 window.toggleFullscreen = toggleFullscreen;
 
 // =========================================
-// INICIALIZACIÓN Y CLASES
+// INICIALIZACIÓN, ROLES Y PERSONAJES
 // =========================================
 export function initGame() {
     let hasLoaded = false;
     try { 
         if (localStorage.getItem(SAVE_KEY)) { 
             hasLoaded = loadGameBtn(); 
-            if(hasLoaded) logMsg(`Bienvenido de nuevo, ${gameState.player.playerClass}. Jugando en Ranura ${activeSlot}.`); 
+            if(hasLoaded) {
+                let pName = gameState.player.characterName || gameState.player.playerClass;
+                logMsg(`Bienvenido de nuevo, ${pName}. Jugando en Ranura ${activeSlot}.`); 
+            }
         } 
     } catch(e) {}
     
     if (!hasLoaded) { 
-        document.getElementById('classModal').style.display = 'flex'; 
+        // Cambiamos classModal por roleModal
+        document.getElementById('roleModal').style.display = 'flex'; 
     }
 }
 
-export function selectClass(className) {
+export function selectRole(roleName) {
     playSFX(sfx.ui_click);
-    gameState.player.playerClass = className;
+    document.getElementById('roleModal').style.display = 'none';
+    document.getElementById('charModalTitle').textContent = `Selecciona tu Personaje: ${roleName}`;
+    
+    const container = document.getElementById('characterContainer');
+    container.innerHTML = '';
+
+    // Filtrar los personajes que coinciden con el rol elegido
+    Object.values(charactersData).forEach(char => {
+        if (char.role === roleName) {
+            let html = `
+                <div class="shop-item" style="flex: 1; min-width: 250px; flex-direction: column; align-items: center; border-color: var(--accent);">
+                    <h3 style="margin-top:0; color:#fff;">${char.name}</h3>
+                    <p style="font-size:12px; color:#aaa; text-align:center; margin-bottom:10px;">${char.desc}</p>
+                    <div style="font-size:12px; color:#ffeb3b; text-align:left; width: 100%; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px; margin-bottom:10px;">
+                        ❤️ HP: ${char.stats.hp} | 💧 MP: ${char.stats.mp} | ⚡ EP: ${char.stats.ep}<br>
+                        🗡️ AD: ${char.stats.ad} | 🔮 AP: ${char.stats.ap} | 🛡️ Armadura: ${char.stats.armor}
+                    </div>
+                    <button onclick="selectCharacter('${char.id}')" style="background:var(--accent); color:#000; width:100%;">Elegir a ${char.name}</button>
+                </div>
+            `;
+            container.innerHTML += html;
+        }
+    });
+
+    document.getElementById('characterModal').style.display = 'flex';
+}
+
+export function backToRoles() {
+    playSFX(sfx.ui_click);
+    document.getElementById('characterModal').style.display = 'none';
+    document.getElementById('roleModal').style.display = 'flex';
+}
+
+export function selectCharacter(charId) {
+    playSFX(sfx.ui_click);
+    const char = charactersData[charId];
+    
+    // Limpieza inicial
     gameState.player.potions = 3; gameState.player.manaPotions = 1; gameState.player.energyPotions = 1; 
     gameState.player.gold = 0; 
-    gameState.player.weapon = null; 
+    gameState.player.weapon = null; gameState.player.armor = null;
     gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
     gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
     gameState.mapLevel = 1; 
-    
     gameState.player.knownSkills = [];
     gameState.player.equippedSkills = { special: null, defensive: null };
     gameState.player.statPoints = 0;
     gameState.player.skillPoints = 0;
-    
-    let classNameLower = className.toLowerCase();
-    gameState.player.mapImg = `img/player/${classNameLower}_mapa.png`;
-    gameState.player.combatImg = `img/player/${classNameLower}_combate.png`;
 
-    if (className === 'Guerrero') {
-        gameState.player.baseMaxHp = 60; gameState.player.hp = 60;
-        gameState.player.baseMaxMp = 10; gameState.player.mp = 10;
-        gameState.player.baseMaxEp = 50; gameState.player.ep = 50;
-        gameState.player.baseAtk = 5; gameState.player.baseDef = 4; gameState.player.baseMag = 1;
-        gameState.player.weapon = { name: 'Espada Rota', atk: 2, mag: 0, price: 10, colorClass: 'color-comun', icon: 'iron_dagger.png' };
-        
+    // Asignar Identidad
+    gameState.player.role = char.role;
+    gameState.player.characterId = char.id;
+    gameState.player.characterName = char.name;
+    gameState.player.mapImg = char.imgs.map;
+    gameState.player.combatImg = char.imgs.combat;
+
+    // ASIGNAR NUEVAS ESTADÍSTICAS MOBA
+    gameState.player.baseMaxHp = char.stats.hp; gameState.player.hp = char.stats.hp;
+    gameState.player.baseHpRegen = char.stats.hpReg;
+    
+    gameState.player.baseMaxMp = char.stats.mp; gameState.player.mp = char.stats.mp;
+    gameState.player.baseMpRegen = 1; 
+    
+    gameState.player.baseMaxEp = char.stats.ep; gameState.player.ep = char.stats.ep;
+    gameState.player.baseEpRegen = 1;
+
+    gameState.player.baseAd = char.stats.ad;
+    gameState.player.baseAp = char.stats.ap;
+    gameState.player.baseArmor = char.stats.armor;
+    gameState.player.baseMagicResist = char.stats.mr;
+    
+    gameState.player.baseCritChance = char.stats.crit || 0;
+    gameState.player.baseCritDamage = 1.75;
+    
+    gameState.player.baseAttackSpeed = 1.0;
+    gameState.player.baseAbilityHaste = 0;
+    gameState.player.baseMoveSpeed = char.stats.ms;
+    
+    gameState.player.baseLifeSteal = char.stats.lifesteal || 0;
+    gameState.player.baseOmnivamp = 0;
+    gameState.player.baseArmorPen = 0;
+    gameState.player.baseLethality = 0;
+    gameState.player.baseMagicPen = 0;
+    gameState.player.baseTenacity = 0;
+    gameState.player.baseRange = 1;
+
+    // Configuración específica por Rol (Habilidades y armas iniciales)
+    if (char.role === 'Guerrero') {
+        gameState.player.weapon = { name: 'Espada de Hierro', atk: 5, mag: 0, price: 10, colorClass: 'color-comun', icon: 'iron_dagger.png' };
         gameState.player.knownSkills = ['golpe_brutal', 'grito_guerra'];
         gameState.player.equippedSkills = { special: 'golpe_brutal', defensive: 'grito_guerra' };
-        
-    } else if (className === 'Mago') {
-        gameState.player.baseMaxHp = 30; gameState.player.hp = 30;
-        gameState.player.baseMaxMp = 60; gameState.player.mp = 60;
-        gameState.player.baseMaxEp = 40; gameState.player.ep = 40;
-        gameState.player.baseAtk = 2; gameState.player.baseDef = 1; gameState.player.baseMag = 5;
-        gameState.player.manaPotions = 3; 
-        gameState.player.weapon = { name: 'Varita Astillada', atk: 0, mag: 3, price: 10, colorClass: 'color-comun', icon: 'wood_staff.png' };
-        
+    } else if (char.role === 'Mago') {
+        gameState.player.manaPotions = 3;
+        gameState.player.weapon = { name: 'Libro de Aprendiz', atk: 0, mag: 10, price: 10, colorClass: 'color-comun', icon: 'wood_staff.png' };
         gameState.player.knownSkills = ['fuego', 'curar'];
         gameState.player.equippedSkills = { special: 'fuego', defensive: 'curar' };
-        
-    } else if (className === 'Arquero') {
-        gameState.player.baseMaxHp = 45; gameState.player.hp = 45;
-        gameState.player.baseMaxMp = 20; gameState.player.mp = 20;
-        gameState.player.baseMaxEp = 80; gameState.player.ep = 80;
-        gameState.player.baseAtk = 4; gameState.player.baseDef = 2; gameState.player.baseMag = 2;
-        gameState.player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'wood_bow.png' }; 
-        
+    } else if (char.role === 'Arquero') {
+        gameState.player.weapon = { name: 'Arco de Caza', atk: 8, mag: 0, price: 10, colorClass: 'color-comun', icon: 'wood_bow.png' }; 
         gameState.player.knownSkills = ['tiro_doble', 'flecha_venenosa'];
         gameState.player.equippedSkills = { special: 'tiro_doble', defensive: 'flecha_venenosa' };
-        
-    } else if (className === 'Simple') {
-        gameState.player.baseMaxHp = 40; gameState.player.hp = 40;
-        gameState.player.baseMaxMp = 10; gameState.player.mp = 10;
-        gameState.player.baseMaxEp = 40; gameState.player.ep = 40;
-        gameState.player.baseAtk = 2; gameState.player.baseDef = 1; gameState.player.baseMag = 1;
-        gameState.player.gold = 100; 
+        gameState.player.baseRange = 3;
+    } else if (char.role === 'Simple') {
+        gameState.player.gold = 200; 
     }
-    
-    document.getElementById('classModal').style.display = 'none';
-    logMsg(`¡Has elegido el camino de la clase ${className}! Buena suerte.`);
+
+    document.getElementById('characterModal').style.display = 'none';
+    logMsg(`¡Has iniciado aventura como ${char.name} (${char.role})!`);
     playBGM('field');
     generateWorld(); 
 }
-window.selectClass = selectClass;
+
+window.selectRole = selectRole;
+window.backToRoles = backToRoles;
+window.selectCharacter = selectCharacter;
 
 // =========================================
 // EVENTOS DE TECLADO Y PANTALLA
@@ -318,7 +366,11 @@ function setupTouchControls() {
 // =========================================
 setInterval(() => {
     let maxEp = gameState.player.baseMaxEp || 0;
-    if (gameState.player.ep < maxEp && !gameState.inCombat && !isMenuOpen && document.getElementById('classModal').style.display !== 'flex') {
+    // Evitamos regenerar EP si los modales de inicio están abiertos
+    let isRoleModalOpen = document.getElementById('roleModal').style.display === 'flex';
+    let isCharModalOpen = document.getElementById('characterModal').style.display === 'flex';
+
+    if (gameState.player.ep < maxEp && !gameState.inCombat && !isMenuOpen && !isRoleModalOpen && !isCharModalOpen) {
         gameState.player.ep += 1;
         spawnFloatingText('+1 EP', '#9c27b0', 'map'); 
         updateHUD();
@@ -327,3 +379,4 @@ setInterval(() => {
 
 setupTouchControls();
 initGame();
+        

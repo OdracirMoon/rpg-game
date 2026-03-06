@@ -120,7 +120,6 @@ window.toggleFullscreen = toggleFullscreen;
 // INICIALIZACIÓN, ROLES Y PERSONAJES
 // =========================================
 export function initGame() {
-    // Leemos si el menú principal ordenó "new" o "load"
     const action = sessionStorage.getItem('gameAction');
     
     if (action === 'load') {
@@ -139,13 +138,8 @@ export function initGame() {
             alert("No se encontró partida en esta ranura."); window.location.href = '../index.html'; 
         }
     } else {
-        // MODO NUEVA PARTIDA
         const rModal = document.getElementById('roleModal');
-        if (rModal) {
-            rModal.style.display = 'flex'; 
-        } else {
-            alert("⚠️ Error: No se detectó la interfaz de Roles. Por favor borra el caché de tu navegador y recarga.");
-        }
+        if (rModal) { rModal.style.display = 'flex'; } else { alert("Error de carga."); }
     }
 }
 
@@ -177,14 +171,12 @@ export function backToRoles() { playSFX(sfx.ui_click); document.getElementById('
 export function selectCharacter(charId) {
     playSFX(sfx.ui_click); const char = charactersData[charId];
     
-    // Limpieza inicial
     gameState.player.potions = 3; gameState.player.manaPotions = 1; gameState.player.energyPotions = 1; 
     gameState.player.gold = 0; gameState.player.weapon = null; gameState.player.armor = null;
     gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0]; gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
     gameState.mapLevel = 1; gameState.player.knownSkills = []; gameState.player.equippedSkills = { special: null, defensive: null };
     gameState.player.statPoints = 0; gameState.player.skillPoints = 0;
 
-    // Asignar Identidad y Stats MOBA
     gameState.player.role = char.role; gameState.player.characterId = char.id; gameState.player.characterName = char.name;
     gameState.player.mapImg = char.imgs.map; gameState.player.combatImg = char.imgs.combat;
 
@@ -218,8 +210,14 @@ export function selectCharacter(charId) {
 window.selectRole = selectRole; window.backToRoles = backToRoles; window.selectCharacter = selectCharacter;
 
 // =========================================
-// CONTROLES Y BUCLE
+// CONTROLES Y BUCLE (REPARADOS PARA MÓVIL)
 // =========================================
+
+// Esta función maestra comunica el HTML con el archivo map.js
+window.movePlayer = function(dx, dy) {
+    move(dx, dy);
+};
+
 window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
     if (e.key === 'Escape') { toggleMainMenu(); return; }
@@ -232,31 +230,6 @@ window.addEventListener('keydown', e => {
 let vh = window.innerHeight * 0.01; document.documentElement.style.setProperty('--vh', `${vh}px`);
 window.addEventListener('resize', () => { let vh = window.innerHeight * 0.01; document.documentElement.style.setProperty('--vh', `${vh}px`); if(gameState.worldMap && gameState.worldMap.length > 0) render(); });
 
-function setupTouchControls() {
-    const bindTouch = (id, dx, dy) => {
-        const btn = document.getElementById(id); 
-        if(!btn) return;
-        
-        // El evento táctil más moderno y confiable para móviles
-        btn.onpointerdown = (e) => { 
-            e.preventDefault(); // Evita que la pantalla haga zoom o scroll
-            move(dx, dy); 
-        };
-        
-        // Respaldo de seguridad por si falla el toque
-        btn.onclick = (e) => { 
-            e.preventDefault();
-            move(dx, dy); 
-        };
-    };
-    
-    bindTouch('btnUp', 0, -1); 
-    bindTouch('btnDown', 0, 1); 
-    bindTouch('btnLeft', -1, 0); 
-    bindTouch('btnRight', 1, 0);
-}
-
-
 setInterval(() => {
     let maxEp = gameState.player.baseMaxEp || 0;
     let isRoleModalOpen = document.getElementById('roleModal') && document.getElementById('roleModal').style.display === 'flex';
@@ -267,5 +240,5 @@ setInterval(() => {
     }
 }, 1500);
 
-setupTouchControls();
 initGame();
+            

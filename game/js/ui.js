@@ -141,8 +141,7 @@ export function updateHUD() {
         checkLowHp(); 
     } catch (e) { console.error("Error HUD:", e); }
 }
-
-// =========================================
+    // =========================================
 // SISTEMA DE ESTADÍSTICAS AVANZADAS
 // =========================================
 export function openStatsModal() {
@@ -227,7 +226,6 @@ window.addEventListener('keydown', e => {
 // =========================================
 // GENERACIÓN DINÁMICA DE TEXTO DE ITEMS
 // =========================================
-// Función auxiliar para crear el texto de estadísticas de un arma
 function buildWeaponStatsText(w) {
     let stats = [];
     if(w.ad > 0) stats.push(`AD +${w.ad}`);
@@ -289,4 +287,294 @@ export function openInventory() {
 export function closeInventory() { playSFX(sfx.ui_click); document.getElementById('invModal').style.display = 'none'; }
 
 export function unequipItem(type) {
-   
+    playSFX(sfx.equip);
+    if (type === 'weapon' && gameState.player.weapon) {
+        gameState.player.inventory.weapons.push(gameState.player.weapon);
+        gameState.player.weapon = null; logMsg("Desequipaste tu arma.");
+    } else if (type === 'armor' && gameState.player.armor) {
+        gameState.player.inventory.armors.push(gameState.player.armor);
+        gameState.player.armor = null;
+        gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp);
+        logMsg("Desequipaste tu armadura.");
+    }
+    updateHUD(); openInventory(); saveGame();
+}
+
+export function equipFromInv(type, idx) {
+    playSFX(sfx.equip);
+    if (type === 'weapon') {
+        const item = gameState.player.inventory.weapons.splice(idx, 1)[0];
+        if(gameState.player.weapon) { gameState.player.inventory.weapons.push(gameState.player.weapon); }
+        gameState.player.weapon = item;
+    } else {
+        const item = gameState.player.inventory.armors.splice(idx, 1)[0];
+        if(gameState.player.armor) { gameState.player.inventory.armors.push(gameState.player.armor); }
+        gameState.player.armor = item; 
+        gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + (item.hpBonus || 0));
+    }
+    updateHUD(); openInventory(); saveGame();
+}
+
+window.openInventory = openInventory; window.closeInventory = closeInventory;
+window.unequipItem = unequipItem; window.equipFromInv = equipFromInv;
+            // =========================================
+// SISTEMA DE GRIMORIO
+// =========================================
+export function openGrimoire() {
+    playSFX(sfx.ui_click);
+    
+    let htmlEq = '';
+    const eqSp = gameState.player.equippedSkills.special;
+    if (eqSp && skillsData[eqSp]) {
+        let s = skillsData[eqSp];
+        htmlEq += `<div class="shop-item" style="border-color: #f44336;"><div><span style="font-size:24px">${s.icon}</span> <span>${s.name}</span><br><small>Ofensiva | ${s.cost} ${s.resource.toUpperCase()}</small></div><button onclick="unequipSkill('special')" class="btn-danger">Quitar</button></div>`;
+    } else {
+        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px; border: 1px dashed #f44336;">Espacio Ofensivo: Vacío</p>`;
+    }
+    
+    const eqDef = gameState.player.equippedSkills.defensive;
+    if (eqDef && skillsData[eqDef]) {
+        let s = skillsData[eqDef];
+        htmlEq += `<div class="shop-item" style="border-color: #4caf50;"><div><span style="font-size:24px">${s.icon}</span> <span>${s.name}</span><br><small>Defensiva | ${s.cost} ${s.resource.toUpperCase()}</small></div><button onclick="unequipSkill('defensive')" class="btn-danger">Quitar</button></div>`;
+    } else {
+        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px; border: 1px dashed #4caf50;">Espacio Defensivo: Vacío</p>`;
+    }
+    document.getElementById('grimEquipped').innerHTML = htmlEq;
+
+    let htmlKnown = '';
+    if (!gameState.player.knownSkills || gameState.player.knownSkills.length === 0) {
+        htmlKnown = '<p style="font-size:12px; color:#aaa; text-align:center;">Aún no conoces ninguna habilidad nueva.</p>';
+    } else {
+        gameState.player.knownSkills.forEach(skillId => {
+            let s = skillsData[skillId];
+            let isEquipped = (eqSp === skillId || eqDef === skillId);
+            let btnHtml = '';
+            
+            if (isEquipped) {
+                btnHtml = `<button disabled style="background:#555; color:#888;">En uso</button>`;
+            } else if (s.type === 'special') {
+                btnHtml = `<button onclick="equipSkill('${skillId}', 'special')" style="background:#f44336; color:#fff;">Usar Ofensiva</button>`;
+            } else {
+                btnHtml = `<button onclick="equipSkill('${skillId}', 'defensive')" style="background:#4caf50; color:#fff;">Usar Defensiva</button>`;
+            }
+            
+            htmlKnown += `
+                <div class="shop-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; width:100%; align-items: center;">
+                        <div><span style="font-size:20px">${s.icon}</span> <span style="font-weight:bold; color:#fff;">${s.name}</span> <small style="color:${s.resource === 'mp' ? '#2196f3' : '#9c27b0'};">(${s.cost} ${s.resource.toUpperCase()})</small></div>
+                        ${btnHtml}
+                    </div>
+                    <div style="font-size:12px; color:#ccc; line-height: 1.4;">${s.desc}</div>
+                </div>`;
+        });
+    }
+    document.getElementById('grimList').innerHTML = htmlKnown; 
+    document.getElementById('mainMenuModal').style.display = 'none';
+    document.getElementById('grimoireModal').style.display = 'flex';
+}
+export function closeGrimoire() { playSFX(sfx.ui_click); document.getElementById('grimoireModal').style.display = 'none'; document.getElementById('mainMenuModal').style.display = 'flex'; }
+export function equipSkill(skillId, slot) { playSFX(sfx.equip); gameState.player.equippedSkills[slot] = skillId; logMsg(`Has equipado: ${skillsData[skillId].name}.`); saveGame(); openGrimoire(); }
+export function unequipSkill(slot) { playSFX(sfx.equip); gameState.player.equippedSkills[slot] = null; saveGame(); openGrimoire(); }
+window.openGrimoire = openGrimoire; window.closeGrimoire = closeGrimoire; window.equipSkill = equipSkill; window.unequipSkill = unequipSkill;
+
+// =========================================
+// SISTEMA DE ÁRBOL DE HABILIDADES
+// =========================================
+export function openSkillTree() {
+    playSFX(sfx.ui_click);
+    document.getElementById('mainMenuModal').style.display = 'none';
+    document.getElementById('spDisplay').textContent = gameState.player.skillPoints || 0;
+    
+    const container = document.getElementById('skillTreeContainer');
+    const emptyMsg = document.getElementById('skillTreeEmptyMsg');
+    container.innerHTML = '';
+    
+    const classSkills = Object.values(skillsData).filter(s => s.class === gameState.player.role);
+    
+    if (classSkills.length === 0) {
+        emptyMsg.style.display = 'block';
+    } else {
+        emptyMsg.style.display = 'none';
+        classSkills.forEach(skill => {
+            const isLearned = gameState.player.knownSkills.includes(skill.id);
+            const reqLearned = skill.req ? gameState.player.knownSkills.includes(skill.req) : true;
+            
+            let htmlNode = `<div style="width: 300px; padding: 15px; border-radius: 8px; background: #0b1220; display: flex; flex-direction: column; align-items: center; border: 2px solid `;
+            let btnHtml = '';
+            
+            if (isLearned) {
+                htmlNode += `#ffeb3b; box-shadow: 0 0 15px rgba(255, 235, 59, 0.4);">`;
+                btnHtml = `<button disabled style="background:transparent; color:#ffeb3b; border: 1px solid #ffeb3b;">⭐ Ya Aprendida</button>`;
+            } else if (!reqLearned) {
+                htmlNode += `#333; opacity: 0.5;">`;
+                let reqName = skillsData[skill.req].name;
+                btnHtml = `<button disabled style="background:#333; color:#888;">Bloqueada (Req: ${reqName})</button>`;
+            } else {
+                htmlNode += `#00bcd4;">`;
+                if (gameState.player.skillPoints > 0) { btnHtml = `<button onclick="learnSkill('${skill.id}')" style="background:#00bcd4; color:#fff;">Aprender (1 SP)</button>`; } 
+                else { btnHtml = `<button disabled style="background:#555; color:#aaa;">Falta 1 SP</button>`; }
+            }
+            
+            htmlNode += `
+                <div style="font-size: 40px; margin-bottom: 5px;">${skill.icon}</div>
+                <h4 style="margin: 0 0 5px 0; color: #fff;">${skill.name}</h4>
+                <p style="font-size: 12px; color: #aaa; text-align: center; height: 35px; margin-bottom: 10px;">${skill.desc}</p>
+                <div style="font-size: 11px; color: ${skill.resource === 'mp' ? '#2196f3' : '#9c27b0'}; margin-bottom: 15px;">Costo: ${skill.cost} ${skill.resource.toUpperCase()}</div>
+                ${btnHtml}
+            </div>`;
+            container.innerHTML += htmlNode;
+        });
+    }
+    document.getElementById('skillTreeModal').style.display = 'flex';
+}
+export function closeSkillTree() { playSFX(sfx.ui_click); document.getElementById('skillTreeModal').style.display = 'none'; document.getElementById('mainMenuModal').style.display = 'flex'; }
+export function learnSkill(skillId) { if (gameState.player.skillPoints > 0) { playSFX(sfx.quest_complete); gameState.player.skillPoints--; gameState.player.knownSkills.push(skillId); logMsg(`¡Has aprendido ${skillsData[skillId].name}!`); saveGame(); openSkillTree(); } }
+window.openSkillTree = openSkillTree; window.closeSkillTree = closeSkillTree; window.learnSkill = learnSkill;
+
+
+// =========================================
+// TIENDA DEL JUEGO (REDISEÑADA PARA MOBA)
+// =========================================
+export function openShop() {
+    playSFX(sfx.shop_open); 
+    const cd = mapData[gameState.currentZoneIndex];
+    document.getElementById('shopTier').textContent = `(${cd.rarity})`; document.getElementById('shopTier').className = cd.colorClass;
+    
+    let scaleFactor = getMapScale();
+    let pPrice = Math.floor(20 * scaleFactor);
+    let mpPrice = Math.floor(25 * scaleFactor);
+    let epPrice = Math.floor(15 * scaleFactor);
+
+    let htmlBuy = `
+        <div class="shop-item"><div><img src="img/items/potion.png" class="icon"> <span>Poción (+25 HP)</span></div><button onclick="buyPotion()">${pPrice} <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/mana_potion.png" class="icon"> <span>Maná (+20 MP)</span></div><button onclick="buyManaPotion()">${mpPrice} <img src="img/items/coin.png" class="icon"></button></div>
+        <div class="shop-item"><div><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> <span>Energía (+30 EP)</span></div><button onclick="buyEnergyPotion()">${epPrice} <img src="img/items/coin.png" class="icon"></button></div>
+    `;
+    
+    cd.shop.weapons.forEach((w, idx) => { 
+        let sPrice = Math.floor(w.price * scaleFactor);
+        let sName = w.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
+        let viewW = JSON.parse(JSON.stringify(w));
+        if(viewW.ad) viewW.ad = Math.floor(viewW.ad * scaleFactor);
+        if(viewW.ap) viewW.ap = Math.floor(viewW.ap * scaleFactor);
+        if(viewW.lethality) viewW.lethality = Math.floor(viewW.lethality * scaleFactor);
+        if(viewW.magicPen) viewW.magicPen = Math.floor(viewW.magicPen * scaleFactor);
+
+        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${buildWeaponStatsText(viewW)}</small></div><button onclick="buyWeapon(${idx})">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`; 
+    });
+    
+    cd.shop.armors.forEach((a, idx) => { 
+        let sPrice = Math.floor(a.price * scaleFactor);
+        let sName = a.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
+        let viewA = JSON.parse(JSON.stringify(a));
+        if(viewA.armor) viewA.armor = Math.floor(viewA.armor * scaleFactor);
+        if(viewA.mr) viewA.mr = Math.floor(viewA.mr * scaleFactor);
+        if(viewA.hpBonus) viewA.hpBonus = Math.floor(viewA.hpBonus * scaleFactor);
+        if(viewA.mpBonus) viewA.mpBonus = Math.floor(viewA.mpBonus * scaleFactor);
+
+        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${buildArmorStatsText(viewA)}</small></div><button onclick="buyArmor(${idx})">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`; 
+    });
+    
+    document.getElementById('shopContentBuy').innerHTML = htmlBuy; 
+    renderSellTab(); switchShopTab('buy'); 
+    document.getElementById('shopModal').style.display = 'flex';
+}
+
+export function renderSellTab() {
+    let htmlSell = '<h4>Tus Armas</h4>';
+    if(gameState.player.inventory.weapons.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa; text-align:center;">Mochila vacía.</p>';
+    gameState.player.inventory.weapons.forEach((w, idx) => {
+        let sellPrice = Math.floor((w.price || 15) / 2); 
+        htmlSell += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${w.colorClass}">${w.name}</span><br><small>${buildWeaponStatsText(w)}</small></div><button class="btn-success" onclick="sellWeapon(${idx}, ${sellPrice})">+${sellPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
+    });
+    
+    htmlSell += '<h4>Tus Armaduras</h4>';
+    if(gameState.player.inventory.armors.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa; text-align:center;">Mochila vacía.</p>';
+    gameState.player.inventory.armors.forEach((a, idx) => {
+        let sellPrice = Math.floor((a.price || 20) / 2);
+        htmlSell += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${a.colorClass}">${a.name}</span><br><small>${buildArmorStatsText(a)}</small></div><button class="btn-success" onclick="sellArmor(${idx}, ${sellPrice})">+${sellPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
+    });
+    document.getElementById('shopContentSell').innerHTML = htmlSell;
+}
+
+export function buyWeapon(idx) { 
+    const cd = mapData[gameState.currentZoneIndex];
+    const baseItem = cd.shop.weapons[idx];
+    let scaleFactor = getMapScale();
+    let price = Math.floor(baseItem.price * scaleFactor);
+
+    if (gameState.player.gold >= price) { 
+        gameState.player.gold -= price; 
+        
+        let item = JSON.parse(JSON.stringify(baseItem));
+        item.name = item.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
+        if(item.ad) item.ad = Math.floor(item.ad * scaleFactor);
+        if(item.ap) item.ap = Math.floor(item.ap * scaleFactor);
+        if(item.lethality) item.lethality = Math.floor(item.lethality * scaleFactor);
+        if(item.magicPen) item.magicPen = Math.floor(item.magicPen * scaleFactor);
+        item.price = price;
+        item.colorClass = cd.colorClass;
+
+        gameState.player.inventory.weapons.push(item); 
+        playSFX(sfx.buy_item); logMsg(`Compraste: ${item.name}. Revisa tu mochila.`); 
+        updateHUD(); renderSellTab(); saveGame(); 
+    } else { playSFX(sfx.error); alert("Oro insuficiente."); } 
+}
+
+export function buyArmor(idx) { 
+    const cd = mapData[gameState.currentZoneIndex];
+    const baseItem = cd.shop.armors[idx];
+    let scaleFactor = getMapScale();
+    let price = Math.floor(baseItem.price * scaleFactor);
+
+    if (gameState.player.gold >= price) { 
+        gameState.player.gold -= price; 
+        
+        let item = JSON.parse(JSON.stringify(baseItem));
+        item.name = item.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
+        if(item.armor) item.armor = Math.floor(item.armor * scaleFactor);
+        if(item.mr) item.mr = Math.floor(item.mr * scaleFactor);
+        if(item.hpBonus) item.hpBonus = Math.floor(item.hpBonus * scaleFactor);
+        if(item.mpBonus) item.mpBonus = Math.floor(item.mpBonus * scaleFactor);
+        item.price = price;
+        item.colorClass = cd.colorClass;
+
+        gameState.player.inventory.armors.push(item); 
+        playSFX(sfx.buy_item); logMsg(`Compraste: ${item.name}. Revisa tu mochila.`); 
+        updateHUD(); renderSellTab(); saveGame(); 
+    } else { playSFX(sfx.error); alert("Oro insuficiente."); } 
+}
+
+export function switchShopTab(tab) { playSFX(sfx.ui_click); if(tab === 'buy') { document.getElementById('tabBuy').classList.add('active-tab'); document.getElementById('tabSell').classList.remove('active-tab'); document.getElementById('shopContentBuy').style.display = 'grid'; document.getElementById('shopContentSell').style.display = 'none'; } else { document.getElementById('tabSell').classList.add('active-tab'); document.getElementById('tabBuy').classList.remove('active-tab'); document.getElementById('shopContentSell').style.display = 'grid'; document.getElementById('shopContentBuy').style.display = 'none'; } }
+export function closeShop() { playSFX(sfx.shop_close); document.getElementById('shopModal').style.display = 'none'; }
+export function sellWeapon(idx, price) { playSFX(sfx.sell_item); gameState.player.inventory.weapons.splice(idx, 1); gameState.player.gold += price; logMsg(`Vendiste un arma por ${price} oro.`); updateHUD(); renderSellTab(); saveGame(); }
+export function sellArmor(idx, price) { playSFX(sfx.sell_item); gameState.player.inventory.armors.splice(idx, 1); gameState.player.gold += price; logMsg(`Vendiste una armadura por ${price} oro.`); updateHUD(); renderSellTab(); saveGame(); }
+export function buyPotion() { let p = Math.floor(20 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.potions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Vida."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
+export function buyManaPotion() { let p = Math.floor(25 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.manaPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Maná."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
+export function buyEnergyPotion() { let p = Math.floor(15 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.energyPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Energía."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
+
+window.switchShopTab = switchShopTab; window.closeShop = closeShop; window.sellWeapon = sellWeapon; window.sellArmor = sellArmor; window.buyPotion = buyPotion; window.buyManaPotion = buyManaPotion; window.buyEnergyPotion = buyEnergyPotion; window.buyWeapon = buyWeapon; window.buyArmor = buyArmor;
+// =========================================
+// SISTEMA DE NPCs
+// =========================================
+export function openSpecificNPCModal(npcData) {
+    if (gameState.quest) { playSFX(sfx.error); logMsg(`${npcData.name} te dice: '¡Termina la misión que tienes primero!'`); return; }
+    playSFX(sfx.ui_click);
+    if (!gameState.player.zoneQuestProgress) gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+    if (!gameState.player.hasKey) gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+    let step = gameState.player.zoneQuestProgress[gameState.currentZoneIndex];
+    if (step >= 3) { playSFX(sfx.error); logMsg(`${npcData.name} te dice: 'Ya has completado todas mis tareas en esta zona. ¡Cruza la puerta y avanza!'`); return; }
+    const cd = mapData[gameState.currentZoneIndex]; let qScale = getMapScale(); 
+    if (step === 0) { pendingQuest = { type: 'kill_enemy', target: cd.newEnemies[0].name, goal: 3, progress: 0, rewardType: 'gold', rewardAmount: Math.floor(20 * (gameState.currentZoneIndex + 1) * qScale), text: `Derrota 3 ${cd.newEnemies[0].name}s`, zone: gameState.currentZoneIndex }; } 
+    else if (step === 1) { const gTarget = Math.floor(30 * (gameState.currentZoneIndex + 1) * qScale); pendingQuest = { type: 'collect_gold', goal: gTarget, progress: 0, rewardType: 'xp', rewardAmount: Math.floor(15 * (gameState.currentZoneIndex + 1) * qScale), text: `Consigue ${gTarget} de oro`, zone: gameState.currentZoneIndex }; } 
+    else if (step === 2) { pendingQuest = { type: 'kill_boss', target: cd.boss.name, goal: 1, progress: 0, rewardType: 'potion', rewardAmount: 1, text: `Derrota al Jefe: ${cd.boss.name}`, zone: gameState.currentZoneIndex }; }
+    const dialog = npcData.dialogues[Math.floor(Math.random() * npcData.dialogues.length)];
+    document.getElementById('npcIcon').innerHTML = `<img src="${npcData.img}">`; document.getElementById('npcName').textContent = npcData.name; document.getElementById('npcDialog').textContent = `"${dialog}"`;
+    let rewardText = pendingQuest.rewardAmount + " " + (pendingQuest.rewardType === 'gold' ? 'Oro' : pendingQuest.rewardType === 'xp' ? 'XP' : 'Poción'); if (step === 2) rewardText += " y la Llave";
+    document.getElementById('npcQuestDetail').innerHTML = `<b>Objetivo:</b> ${pendingQuest.text}<br><b>Recompensa:</b> ${rewardText}`;
+    document.getElementById('npcModal').style.display = 'flex';
+}
+export function closeNPCModal() { playSFX(sfx.ui_click); pendingQuest = null; document.getElementById('npcModal').style.display = 'none'; }
+export function acceptNPCQuest() { gameState.quest = pendingQuest; pendingQuest = null; playSFX(sfx.quest_accept); logMsg("¡Misión aceptada!"); updateHUD(); saveGame(); document.getElementById('npcModal').style.display = 'none'; }
+window.closeNPCModal = closeNPCModal; window.acceptNPCQuest = acceptNPCQuest;
+                                     

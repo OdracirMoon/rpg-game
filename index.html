@@ -13,85 +13,58 @@
         </header>
 
         <nav class="menu-buttons">
-            
             <button id="btn-jugar" class="btn primary-btn" style="border-color: #4caf50; color: #4caf50;">
                 🟢 MODO LOCAL
             </button>
-            
             <button id="btn-online" class="btn" disabled style="cursor: not-allowed; opacity: 0.6; border-color: #2196f3; color: #2196f3; position: relative;">
                 🔵 MODO ONLINE
                 <span style="position: absolute; top: -10px; right: -15px; background: #e55353; color: white; font-size: 0.7rem; padding: 4px 8px; border-radius: 10px; font-weight: bold; letter-spacing: 1px; box-shadow: 0 2px 5px rgba(0,0,0,0.8); text-shadow: none;">
                     EN DESARROLLO
                 </span>
             </button>
-
-            <button id="btn-cargar-partida" class="btn">IMPORTAR JSON</button>
+            <button id="btn-cargar-json" class="btn">IMPORTAR JSON</button>
             <button id="btn-tienda" class="btn">TIENDA</button>
-            
             <a href="https://link.mercadopago.com.mx/theinfinitemap" target="_blank" class="btn link-btn">DONACIÓN / APOYO</a>
         </nav>
     </main>
 
+    <div id="modal-modo-local" class="modal hidden">
+        <div class="modal-content">
+            <h2>Modo Local</h2>
+            <p>¿Qué aventura deseas emprender?</p>
+            <div class="menu-buttons" style="margin-top: 20px; gap: 15px;">
+                <button id="btn-nueva-partida" class="btn primary-btn" style="border-color: #4caf50; color: #4caf50;">Empezar Nueva Partida</button>
+                <button id="btn-cargar-partida" class="btn" style="border-color: #ff9800; color: #ff9800;">Cargar Partida Guardada</button>
+            </div>
+            <div class="modal-actions" style="margin-top: 25px;">
+                <button id="btn-cerrar-modo-local" class="btn close-btn">Volver</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-ranuras" class="modal hidden">
         <div class="modal-content">
-            <h2>Elige tu Partida</h2>
-            <p>Selecciona una ranura para continuar o empezar una nueva aventura.</p>
+            <h2 id="titulo-ranuras">Elige tu Partida</h2>
+            <p>Selecciona una ranura de guardado.</p>
             
             <div class="menu-buttons" style="margin-top: 20px; gap: 15px;">
                 <button class="btn slot-btn" data-slot="1" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>Ranura 1</span>
-                    <span id="slot-1-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
+                    <span>Ranura 1</span><span id="slot-1-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
                 </button>
                 <button class="btn slot-btn" data-slot="2" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>Ranura 2</span>
-                    <span id="slot-2-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
+                    <span>Ranura 2</span><span id="slot-2-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
                 </button>
                 <button class="btn slot-btn" data-slot="3" style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>Ranura 3</span>
-                    <span id="slot-3-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
+                    <span>Ranura 3</span><span id="slot-3-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
                 </button>
             </div>
-
             <div class="modal-actions" style="margin-top: 25px;">
                 <button id="btn-cerrar-ranuras" class="btn close-btn">Volver</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-cargar" class="modal hidden">
-        <div class="modal-content">
-            <h2>Importar JSON</h2>
-            <p>Sube tu archivo JSON de guardado para continuar tu aventura. Se guardará en la Ranura 1 por defecto.</p>
-            
-            <div class="upload-container">
-                <input type="file" id="input-archivo-partida" accept=".json">
-            </div>
-
-            <div class="modal-actions">
-                <button id="btn-procesar-carga" class="btn modal-btn">Importar e Iniciar</button>
-                <button id="btn-cerrar-cargar" class="btn close-btn">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-tienda" class="modal hidden">
-        <div class="modal-content shop-content">
-            <h2>Tienda del Juego</h2>
-            
-            <div class="shop-categories-grid">
-                <div class="shop-item"><h3>Skins de personaje</h3><button class="btn buy-btn">Próximamente</button></div>
-                <div class="shop-item"><h3>Armas</h3><button class="btn buy-btn">Próximamente</button></div>
-                <div class="shop-item"><h3>Equipo</h3><button class="btn buy-btn">Próximamente</button></div>
-                <div class="shop-item"><h3>Oro</h3><button class="btn buy-btn">Próximamente</button></div>
-                <div class="shop-item"><h3>Experiencia</h3><button class="btn buy-btn">Próximamente</button></div>
-                <div class="shop-item"><h3>Skins de mapa</h3><button class="btn buy-btn">Próximamente</button></div>
-            </div>
-
-            <div class="modal-actions">
-                <button id="btn-cerrar-tienda" class="btn close-btn">Volver al menú principal</button>
-            </div>
-        </div>
-    </div>
+    <div class="version-tag">v1.0.0</div>
 
     <script src="landing.js"></script>
 </body>

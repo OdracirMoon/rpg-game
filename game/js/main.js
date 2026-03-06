@@ -234,12 +234,28 @@ window.addEventListener('resize', () => { let vh = window.innerHeight * 0.01; do
 
 function setupTouchControls() {
     const bindTouch = (id, dx, dy) => {
-        const btn = document.getElementById(id); if(!btn) return;
-        btn.addEventListener('touchstart', (e) => { if (e.cancelable) e.preventDefault(); move(dx, dy); }, { passive: false });
-        btn.addEventListener('mousedown', (e) => { if (e.cancelable) e.preventDefault(); move(dx, dy); });
+        const btn = document.getElementById(id); 
+        if(!btn) return;
+        
+        // El evento táctil más moderno y confiable para móviles
+        btn.onpointerdown = (e) => { 
+            e.preventDefault(); // Evita que la pantalla haga zoom o scroll
+            move(dx, dy); 
+        };
+        
+        // Respaldo de seguridad por si falla el toque
+        btn.onclick = (e) => { 
+            e.preventDefault();
+            move(dx, dy); 
+        };
     };
-    bindTouch('btnUp', 0, -1); bindTouch('btnDown', 0, 1); bindTouch('btnLeft', -1, 0); bindTouch('btnRight', 1, 0);
+    
+    bindTouch('btnUp', 0, -1); 
+    bindTouch('btnDown', 0, 1); 
+    bindTouch('btnLeft', -1, 0); 
+    bindTouch('btnRight', 1, 0);
 }
+
 
 setInterval(() => {
     let maxEp = gameState.player.baseMaxEp || 0;

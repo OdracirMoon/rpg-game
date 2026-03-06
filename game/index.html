@@ -80,8 +80,15 @@
             <div class="menu-section">
                 <h3>⚙️ Sistema</h3>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px; flex-wrap: wrap;">
-                    <button class="btn-sys" onclick="saveGame()" style="flex: 1;">💾 Guardar</button>
-                    <button class="btn-sys" onclick="loadGameBtn()" style="flex: 1;">📂 Cargar</button>
+                    <button class="btn-sys" onclick="saveGame()" style="flex: 1;">💾 Guardar Rápido</button>
+                    <button class="btn-sys" onclick="loadGameBtn()" style="flex: 1;">📂 Cargar Rápido</button>
+                </div>
+                <div style="display: flex; gap: 5px; margin-bottom: 5px; flex-wrap: wrap;">
+                    <button class="btn-sys-alt" onclick="exportGame()" style="flex: 1; font-size: 13px;">⬇️ Exportar Partida</button>
+                    <label class="btn-sys-alt" style="flex: 1; font-size: 13px; margin-bottom: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                        ⬆️ Importar Partida
+                        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importGame(event)">
+                    </label>
                 </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px; flex-wrap: wrap;">
                     <button class="btn-sys-alt" onclick="toggleAudio()" id="btnAudio" style="flex: 1;">🔊 Sonido: ON</button>
@@ -95,7 +102,9 @@
                 <div class="log" id="menuLog" style="height: 60px;">Bienvenido. Un mundo inmenso te aguarda.</div>
             </div>
 
-            <button class="btn-danger" onclick="toggleMainMenu()" style="margin-top: 10px;">❌ Cerrar Menú</button>
+            <button class="btn-sys-alt" onclick="returnToMainMenu()" style="margin-top: 15px; background: #d35400; color: white;">🏠 Volver al Menú Principal</button>
+            
+            <button class="btn-danger" onclick="toggleMainMenu()" style="margin-top: 5px;">❌ Cerrar Menú</button>
         </div>
     </div>
 

@@ -3,7 +3,7 @@
 // ==========================================
 // Esta es la clave que usaremos para guardar y buscar la partida en el navegador (localStorage).
 // Si tu juego ya usa una clave diferente, puedes cambiar el nombre aquí.
-const SAVE_KEY = 'rpg_save_data';
+const SAVE_KEY = 'miniRPG_WorldSave';
 
 // ==========================================
 // REFERENCIAS A ELEMENTOS DEL DOM (HTML)

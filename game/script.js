@@ -156,9 +156,8 @@ function openSpecificNPCModal(npcData) {
     }
 
     const cd = mapData[currentZoneIndex]; 
-    let qScale = getMapScale(); // Escalado de misiones según nivel de mapa
+    let qScale = getMapScale(); 
     
-    // Sistema Secuencial Fijo
     if (step === 0) {
         const rEnemy = cd.newEnemies[0];
         pendingQuest = { type: 'kill_enemy', target: rEnemy.name, goal: 3, progress: 0, rewardType: 'gold', rewardAmount: Math.floor(20 * (currentZoneIndex + 1) * qScale), text: `Derrota 3 ${rEnemy.name}s`, zone: currentZoneIndex };
@@ -191,6 +190,7 @@ function acceptNPCQuest() { quest = pendingQuest; pendingQuest = null; playSFX(s
    SISTEMA BASE DEL JUEGO Y BALANCE
    ========================================= */
 const SAVE_KEY = 'miniRPG_WorldSave';
+const GAME_VERSION = '1.0.0'; // AÑADIDO: Propiedad de versión del guardado
 
 const mapData = [
     { rarity: 'Común', css: 'rarity-comun', colorClass: 'color-comun', colorHex: '#888', recLevel: '1-3', newEnemies: [{ name: 'Slime', hp: 15, atk: 7, def: 1, mag: 2, gold: 3, xp: 4, img: 'img/enemies/green_slime.png' }, { name: 'Rata', hp: 12, atk: 9, def: 0, mag: 0, gold: 3, xp: 4, img: 'img/enemies/rat.png' }], boss: { name: 'Slime Gigante', hp: 50, atk: 12, def: 3, mag: 4, trait: 'regen', gold: 25, xp: 25, img: 'img/bosses/giant_slime.png' }, 
@@ -285,7 +285,7 @@ const MAP_H = 100;
 let worldMap = []; 
 let flags = { boss0: false, boss1: false, boss2: false, boss3: false, boss4: false, boss5: false };
 let currentZoneIndex = 0; 
-let mapLevel = 1; // Variable de Endgame
+let mapLevel = 1; 
 
 let player = { 
     x: 16, y: 25,
@@ -307,7 +307,6 @@ let combatState = {
     poisonTurns: 0
 };
 
-// Utilidad para escalar estadísticas según el nivel del mapa endgame
 function getMapScale() {
     return 1 + ((mapLevel - 1) * 0.5);
 }
@@ -340,9 +339,20 @@ function logCombat(t) {
     }
 }
 
+/* =========================================
+   SISTEMA DE GUARDADO ACTUALIZADO
+   ========================================= */
+
 function saveGame() {
     try {
-        const saveData = { playerData: player, flagsData: flags, questData: quest, mapDataState: worldMap, mapLevelData: mapLevel };
+        const saveData = { 
+            version: GAME_VERSION, // Agregado para validación
+            playerData: player, 
+            flagsData: flags, 
+            questData: quest, 
+            mapDataState: worldMap, 
+            mapLevelData: mapLevel 
+        };
         localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
         logMsg("💾 Partida guardada con éxito.");
     } catch (e) { console.warn("No se pudo guardar."); }
@@ -354,6 +364,12 @@ function loadGameBtn() {
         const savedString = localStorage.getItem(SAVE_KEY);
         if (savedString) {
             const saveData = JSON.parse(savedString);
+            
+            // Opcional: registrar la versión en consola
+            if(saveData.version) {
+                console.log("Cargando guardado versión: " + saveData.version);
+            }
+
             player = saveData.playerData; flags = saveData.flagsData; quest = saveData.questData; worldMap = saveData.mapDataState;
             mapLevel = saveData.mapLevelData || 1;
             
@@ -384,6 +400,76 @@ function resetGame() {
     }
 }
 
+// AÑADIDO: Función para volver a la Landing Page
+function returnToMainMenu() {
+    playSFX(sfx.ui_click);
+    saveGame(); // Guardamos el progreso por seguridad antes de salir
+    window.location.href = '../index.html'; // Sube un nivel en las carpetas para encontrar el menú inicial
+}
+
+// AÑADIDO: Función para exportar la partida a JSON
+function exportGame() {
+    playSFX(sfx.ui_click);
+    try {
+        // Aseguramos que los datos más recientes estén listos
+        const saveData = { 
+            version: GAME_VERSION,
+            playerData: player, 
+            flagsData: flags, 
+            questData: quest, 
+            mapDataState: worldMap, 
+            mapLevelData: mapLevel 
+        };
+        
+        const jsonString = JSON.stringify(saveData, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        
+        const enlaceDescarga = document.createElement('a');
+        enlaceDescarga.href = url;
+        enlaceDescarga.download = "savegame.json";
+        
+        document.body.appendChild(enlaceDescarga);
+        enlaceDescarga.click();
+        
+        document.body.removeChild(enlaceDescarga);
+        URL.revokeObjectURL(url);
+        logMsg("⬇️ Partida exportada exitosamente.");
+    } catch (error) {
+        console.error("Error al exportar:", error);
+        alert("Hubo un error al exportar la partida.");
+    }
+}
+
+// AÑADIDO: Función para importar la partida desde JSON
+function importGame(evento) {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+
+    const lector = new FileReader();
+    lector.onload = function(e) {
+        try {
+            const datos = JSON.parse(e.target.result);
+            
+            // Verificamos si tiene la estructura de nuestro juego
+            if (datos.playerData && datos.mapDataState) {
+                // Guardamos directamente en el almacenamiento local y recargamos
+                localStorage.setItem(SAVE_KEY, JSON.stringify(datos));
+                alert("✅ Partida importada con éxito. El juego se recargará para aplicar los cambios.");
+                window.location.reload(); 
+            } else {
+                alert("❌ El archivo no parece ser un guardado válido de este juego.");
+            }
+        } catch (error) {
+            alert("❌ Error al leer el archivo JSON. Puede estar corrupto o tener un formato incorrecto.");
+        }
+    };
+    lector.readAsText(archivo);
+    
+    // Limpiamos el input por si el jugador quiere subir el mismo archivo después
+    evento.target.value = '';
+}
+
 function initGame() {
     let hasLoaded = false;
     try { if (localStorage.getItem(SAVE_KEY)) { hasLoaded = loadGameBtn(); if(hasLoaded) logMsg("Bienvenido de nuevo, " + player.playerClass + "."); } } catch(e) {}
@@ -398,7 +484,7 @@ function selectClass(className) {
     player.weapon = null; 
     player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
     player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
-    mapLevel = 1; // Reset endgame lvl
+    mapLevel = 1; 
     
     let classNameLower = className.toLowerCase();
     player.mapImg = `img/player/${classNameLower}_mapa.png`;
@@ -496,7 +582,7 @@ function scaleEnemy(template, isBoss, zoneIdx) {
     let e = JSON.parse(JSON.stringify(template));
     let mapScale = 1 + (zoneIdx * 0.6); 
     let lvlScale = 1 + ((player.level - 1) * 0.25); 
-    let globalMapLevelScale = getMapScale(); // Escalado Endgame
+    let globalMapLevelScale = getMapScale(); 
     
     let finalHpMulti = 1.4 * mapScale * lvlScale * globalMapLevelScale; 
     let finalAtkMulti = 1.3 * mapScale * lvlScale * globalMapLevelScale;
@@ -510,7 +596,6 @@ function scaleEnemy(template, isBoss, zoneIdx) {
     e.xp = Math.floor(e.xp * (1 + zoneIdx * 0.4) * globalMapLevelScale);
     e.isBoss = isBoss; e.zone = zoneIdx;
     
-    // Distintivo visual en el nombre para niveles altos
     if(mapLevel > 1) e.name += ` (Lv.${mapLevel})`;
     
     return e;
@@ -618,10 +703,7 @@ function updateFOV() {
     }
 }
 
-// NUEVO: Función para calcular dinámicamente el tamaño de la cuadrícula para garantizar un radio visible
 function getTileSize() {
-    // Tomamos la dimensión más pequeña de la pantalla y la dividimos entre 3
-    // Así garantizamos que siempre veas un cuadro de 3x3 perfecto (el tuyo en el centro) sin importar si giras el móvil o achicas la PC
     return Math.floor(Math.min(window.innerWidth, window.innerHeight) / 3);
 }
 
@@ -629,7 +711,7 @@ function centerCamera() {
     const mapEl = document.getElementById('map');
     if (!mapEl) return;
     const TS = getTileSize();
-    const stride = TS + 2; // TS + 2px de gap
+    const stride = TS + 2; 
     
     const targetX = (player.x * stride) + (TS / 2) - (mapEl.clientWidth / 2);
     const targetY = (player.y * stride) + (TS / 2) - (mapEl.clientHeight / 2);
@@ -641,7 +723,6 @@ function render() {
     const stride = TS + 2;
     const m = document.getElementById('map'); 
     
-    // Hacemos el grid del mapa totalmente dinámico y responsivo
     m.style.gridTemplateColumns = `repeat(${MAP_W}, ${TS}px)`;
     m.style.gridAutoRows = `${TS}px`;
     
@@ -650,8 +731,6 @@ function render() {
     
     currentZoneIndex = getZoneIndex(player.x, player.y);
     
-    // Calculamos cuantos tiles renderizar dependiendo del tamaño real de la pantalla 
-    // (para rellenar los huecos laterales sin hacer trabajo inútil)
     const widthTiles = Math.ceil(window.innerWidth / TS);
     const heightTiles = Math.ceil(window.innerHeight / TS);
     const vRadiusX = Math.ceil(widthTiles / 2) + 1;
@@ -701,7 +780,6 @@ function render() {
         m.appendChild(sprite);
     }
     sprite.innerHTML = `<img src="${player.mapImg}">`;
-    // Ajuste posicional dinámico en lugar del tamaño fijo (512) de antes
     sprite.style.width = `${TS}px`;
     sprite.style.height = `${TS}px`;
     sprite.style.left = (player.x * stride) + 'px';
@@ -1366,12 +1444,10 @@ function resolveVictory() {
     try {
         let enemy = currentEnemyTile.enemy;
         
-        // SISTEMA DE ENDGAME MAPA INFINITO
         if (enemy.isBoss && enemy.zone === 5) { 
             mapLevel++;
             alert(`¡HAS DERROTADO AL DRAGÓN DORADO!\n\nTu poder ha resonado en el mundo. Avanzas al Mapa Nivel ${mapLevel}. Los enemigos y botines serán más poderosos.`);
             
-            // Reiniciar estado para el nuevo mapa nivel
             quest = null;
             player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
             player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
@@ -1474,7 +1550,6 @@ document.documentElement.style.setProperty('--vh', `${vh}px`);
 window.addEventListener('resize', () => {
   let vh = window.innerHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
-  // Re-calcula tamaño y acomoda todo si se cambia de tamaño
   render();
 });
 

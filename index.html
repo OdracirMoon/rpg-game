@@ -25,18 +25,43 @@
                 </span>
             </button>
 
-            <button id="btn-nueva-partida" class="btn">NUEVA PARTIDA</button>
-            <button id="btn-cargar-partida" class="btn">CARGAR PARTIDA</button>
+            <button id="btn-cargar-partida" class="btn">IMPORTAR JSON</button>
             <button id="btn-tienda" class="btn">TIENDA</button>
             
             <a href="https://link.mercadopago.com.mx/theinfinitemap" target="_blank" class="btn link-btn">DONACIÓN / APOYO</a>
         </nav>
     </main>
 
+    <div id="modal-ranuras" class="modal hidden">
+        <div class="modal-content">
+            <h2>Elige tu Partida</h2>
+            <p>Selecciona una ranura para continuar o empezar una nueva aventura.</p>
+            
+            <div class="menu-buttons" style="margin-top: 20px; gap: 15px;">
+                <button class="btn slot-btn" data-slot="1" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Ranura 1</span>
+                    <span id="slot-1-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
+                </button>
+                <button class="btn slot-btn" data-slot="2" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Ranura 2</span>
+                    <span id="slot-2-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
+                </button>
+                <button class="btn slot-btn" data-slot="3" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Ranura 3</span>
+                    <span id="slot-3-status" style="font-size: 0.8rem; color: #aaa;">Buscando...</span>
+                </button>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 25px;">
+                <button id="btn-cerrar-ranuras" class="btn close-btn">Volver</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modal-cargar" class="modal hidden">
         <div class="modal-content">
-            <h2>Cargar Partida</h2>
-            <p>Sube tu archivo JSON de guardado para continuar tu aventura.</p>
+            <h2>Importar JSON</h2>
+            <p>Sube tu archivo JSON de guardado para continuar tu aventura. Se guardará en la Ranura 1 por defecto.</p>
             
             <div class="upload-container">
                 <input type="file" id="input-archivo-partida" accept=".json">
@@ -54,30 +79,12 @@
             <h2>Tienda del Juego</h2>
             
             <div class="shop-categories-grid">
-                <div class="shop-item">
-                    <h3>Skins de personaje</h3>
-                    <button class="btn buy-btn">Próximamente</button>
-                </div>
-                <div class="shop-item">
-                    <h3>Armas</h3>
-                    <button class="btn buy-btn">Próximamente</button>
-                </div>
-                <div class="shop-item">
-                    <h3>Equipo</h3>
-                    <button class="btn buy-btn">Próximamente</button>
-                </div>
-                <div class="shop-item">
-                    <h3>Oro</h3>
-                    <button class="btn buy-btn">Próximamente</button>
-                </div>
-                <div class="shop-item">
-                    <h3>Experiencia</h3>
-                    <button class="btn buy-btn">Próximamente</button>
-                </div>
-                <div class="shop-item">
-                    <h3>Skins de mapa</h3>
-                    <button class="btn buy-btn">Próximamente</button>
-                </div>
+                <div class="shop-item"><h3>Skins de personaje</h3><button class="btn buy-btn">Próximamente</button></div>
+                <div class="shop-item"><h3>Armas</h3><button class="btn buy-btn">Próximamente</button></div>
+                <div class="shop-item"><h3>Equipo</h3><button class="btn buy-btn">Próximamente</button></div>
+                <div class="shop-item"><h3>Oro</h3><button class="btn buy-btn">Próximamente</button></div>
+                <div class="shop-item"><h3>Experiencia</h3><button class="btn buy-btn">Próximamente</button></div>
+                <div class="shop-item"><h3>Skins de mapa</h3><button class="btn buy-btn">Próximamente</button></div>
             </div>
 
             <div class="modal-actions">

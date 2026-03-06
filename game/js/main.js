@@ -2,7 +2,7 @@
 // ARCHIVO PRINCIPAL (Inicialización y Eventos)
 // =========================================
 import { gameState } from './state.js';
-import { SAVE_KEY, GAME_VERSION } from './data.js';
+import { SAVE_KEY, GAME_VERSION, activeSlot } from './data.js';
 import { sfx, playSFX, playBGM, toggleAudio } from './audio.js';
 import { logMsg, updateHUD, spawnFloatingText, isMenuOpen, toggleMainMenu } from './ui.js';
 import { generateWorld, updateFOV, render, move } from './map.js';
@@ -21,7 +21,7 @@ export function saveGame() {
             mapLevelData: gameState.mapLevel 
         };
         localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
-        logMsg("💾 Partida guardada con éxito.");
+        logMsg(`💾 Partida guardada con éxito (Ranura ${activeSlot}).`);
     } catch (e) { console.warn("No se pudo guardar."); }
 }
 
@@ -52,10 +52,13 @@ export function loadGameBtn() {
 
             if(!gameState.player.zoneQuestProgress) gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
             if(!gameState.player.hasKey) gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+            
+            if(!gameState.player.knownSkills) gameState.player.knownSkills = [];
+            if(!gameState.player.equippedSkills) gameState.player.equippedSkills = { special: null, defensive: null };
 
             document.getElementById('classModal').style.display = 'none';
             
-            updateFOV(); render(); logMsg("📂 Partida cargada."); return true;
+            updateFOV(); render(); logMsg(`📂 Partida cargada desde la Ranura ${activeSlot}.`); return true;
         } 
     } catch (e) { logMsg("⚠️ Error al cargar."); }
     return false;
@@ -63,7 +66,7 @@ export function loadGameBtn() {
 
 export function resetGame() {
     playSFX(sfx.ui_click);
-    if (confirm("¿Estás seguro de borrar tu partida?")) {
+    if (confirm(`¿Estás seguro de borrar tu partida de la Ranura ${activeSlot}?`)) {
         try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
         location.reload(); 
     }
@@ -93,7 +96,7 @@ export function exportGame() {
         
         const enlaceDescarga = document.createElement('a');
         enlaceDescarga.href = url;
-        enlaceDescarga.download = "savegame.json";
+        enlaceDescarga.download = `savegame_ranura${activeSlot}.json`;
         
         document.body.appendChild(enlaceDescarga);
         enlaceDescarga.click();
@@ -117,7 +120,7 @@ export function importGame(evento) {
             const datos = JSON.parse(e.target.result);
             if (datos.playerData && datos.mapDataState) {
                 localStorage.setItem(SAVE_KEY, JSON.stringify(datos));
-                alert("✅ Partida importada con éxito. El juego se recargará para aplicar los cambios.");
+                alert(`✅ Partida importada con éxito a la Ranura ${activeSlot}. El juego se recargará para aplicar los cambios.`);
                 window.location.reload(); 
             } else {
                 alert("❌ El archivo no parece ser un guardado válido de este juego.");
@@ -154,7 +157,7 @@ export function initGame() {
     try { 
         if (localStorage.getItem(SAVE_KEY)) { 
             hasLoaded = loadGameBtn(); 
-            if(hasLoaded) logMsg("Bienvenido de nuevo, " + gameState.player.playerClass + "."); 
+            if(hasLoaded) logMsg(`Bienvenido de nuevo, ${gameState.player.playerClass}. Jugando en Ranura ${activeSlot}.`); 
         } 
     } catch(e) {}
     
@@ -173,6 +176,10 @@ export function selectClass(className) {
     gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
     gameState.mapLevel = 1; 
     
+    // Reseteamos las habilidades
+    gameState.player.knownSkills = [];
+    gameState.player.equippedSkills = { special: null, defensive: null };
+    
     let classNameLower = className.toLowerCase();
     gameState.player.mapImg = `img/player/${classNameLower}_mapa.png`;
     gameState.player.combatImg = `img/player/${classNameLower}_combate.png`;
@@ -183,6 +190,11 @@ export function selectClass(className) {
         gameState.player.baseMaxEp = 50; gameState.player.ep = 50;
         gameState.player.baseAtk = 5; gameState.player.baseDef = 4; gameState.player.baseMag = 1;
         gameState.player.weapon = { name: 'Espada Rota', atk: 2, mag: 0, price: 10, colorClass: 'color-comun', icon: 'iron_dagger.png' };
+        
+        // Habilidades iniciales Guerrero
+        gameState.player.knownSkills = ['golpe_brutal', 'grito_guerra'];
+        gameState.player.equippedSkills = { special: 'golpe_brutal', defensive: 'grito_guerra' };
+        
     } else if (className === 'Mago') {
         gameState.player.baseMaxHp = 30; gameState.player.hp = 30;
         gameState.player.baseMaxMp = 60; gameState.player.mp = 60;
@@ -190,18 +202,29 @@ export function selectClass(className) {
         gameState.player.baseAtk = 2; gameState.player.baseDef = 1; gameState.player.baseMag = 5;
         gameState.player.manaPotions = 3; 
         gameState.player.weapon = { name: 'Varita Astillada', atk: 0, mag: 3, price: 10, colorClass: 'color-comun', icon: 'wood_staff.png' };
+        
+        // Habilidades iniciales Mago
+        gameState.player.knownSkills = ['fuego', 'curar'];
+        gameState.player.equippedSkills = { special: 'fuego', defensive: 'curar' };
+        
     } else if (className === 'Arquero') {
         gameState.player.baseMaxHp = 45; gameState.player.hp = 45;
         gameState.player.baseMaxMp = 20; gameState.player.mp = 20;
         gameState.player.baseMaxEp = 80; gameState.player.ep = 80;
         gameState.player.baseAtk = 4; gameState.player.baseDef = 2; gameState.player.baseMag = 2;
         gameState.player.weapon = { name: 'Arco Corto', atk: 3, mag: 1, price: 10, colorClass: 'color-comun', icon: 'wood_bow.png' }; 
+        
+        // Habilidades iniciales Arquero
+        gameState.player.knownSkills = ['tiro_doble', 'flecha_venenosa'];
+        gameState.player.equippedSkills = { special: 'tiro_doble', defensive: 'flecha_venenosa' };
+        
     } else if (className === 'Simple') {
         gameState.player.baseMaxHp = 40; gameState.player.hp = 40;
         gameState.player.baseMaxMp = 10; gameState.player.mp = 10;
         gameState.player.baseMaxEp = 40; gameState.player.ep = 40;
         gameState.player.baseAtk = 2; gameState.player.baseDef = 1; gameState.player.baseMag = 1;
         gameState.player.gold = 100; 
+        // Simple no aprende nada inicialmente, su knownSkills y equippedSkills se quedan vacíos.
     }
     
     document.getElementById('classModal').style.display = 'none';
@@ -216,9 +239,7 @@ window.selectClass = selectClass;
 // =========================================
 window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
-    
     if (e.key === 'Escape') { toggleMainMenu(); return; }
-    
     if (k === 'w' || k === 'arrowup') move(0, -1);
     if (k === 's' || k === 'arrowdown') move(0, 1);
     if (k === 'a' || k === 'arrowleft') move(-1, 0);
@@ -270,8 +291,5 @@ setInterval(() => {
     }
 }, 1500);
 
-// =========================================
-// ARRANQUE DEL JUEGO
-// =========================================
 setupTouchControls();
 initGame();

@@ -17,7 +17,16 @@ export const gameState = {
         mapImg: 'img/player/heroe.png', combatImg: 'img/player/heroe.png',
         inventory: { weapons: [], armors: [] },
         zoneQuestProgress: [0, 0, 0, 0, 0, 0],
-        hasKey: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false }
+        hasKey: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false },
+        
+        statPoints: 0,
+        
+        // NUEVAS VARIABLES: Sistema de Habilidades Dinámicas
+        knownSkills: [], // Array de IDs de habilidades aprendidas (ej. ['golpe_brutal'])
+        equippedSkills: {
+            special: null,   // Habilidad de daño/especial equipada
+            defensive: null  // Habilidad de defensa/utilidad equipada
+        }
     },
 
     quest: null, 
@@ -28,5 +37,10 @@ export const gameState = {
     combatState: {
         defBuffTurns: 0,
         poisonTurns: 0
+    },
+
+    checkpoints: {
+        lastLevelUp: null,
+        lastBoss: null
     }
 };

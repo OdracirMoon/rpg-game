@@ -2,7 +2,8 @@
 // SISTEMA DE COMBATE Y HABILIDADES
 // =========================================
 import { gameState } from './state.js';
-import { mapData } from './data.js';
+// IMPORTAMOS EL DICCIONARIO DE HABILIDADES
+import { mapData, skillsData } from './data.js';
 import { sfx, playSFX, playBGM } from './audio.js';
 import { 
     getAtk, getDef, getMag, getMaxHp, getMaxMp, getMaxEp, 
@@ -16,22 +17,32 @@ import { saveGame } from './main.js';
 // =========================================
 export function generateCombatButtons() {
     const container = document.getElementById('combatActions');
-    container.innerHTML = ''; 
+    let html = ''; 
 
-    let html = `<button id="btnAttack" onclick="doAttack()" style="font-size: 16px; padding: 12px;"><img src="img/weapons/iron_dagger.png" class="icon"> Atacar</button>`;
+    // Botón 1: Ataque Fijo
+    html += `<button id="btnAttack" onclick="doAttack()" style="font-size: 16px; padding: 12px;"><img src="img/weapons/iron_dagger.png" class="icon"> Atacar</button>`;
 
-    if (gameState.player.playerClass === 'Guerrero') {
-        html += `<button id="btnSkill1" class="btn-skill" onclick="useSkill('golpe_brutal')" style="font-size: 16px; padding: 12px;">💥 Golpe Brutal (10 EP)</button>`;
-        html += `<button id="btnSkill2" class="btn-skill" onclick="useSkill('grito_guerra')" style="font-size: 16px; padding: 12px;">🛡️ Grito Guerra (15 EP)</button>`;
-    } else if (gameState.player.playerClass === 'Arquero') {
-        html += `<button id="btnSkill1" class="btn-skill" onclick="useSkill('tiro_doble')" style="font-size: 16px; padding: 12px;">🏹 Tiro Doble (12 EP)</button>`;
-        html += `<button id="btnSkill2" class="btn-skill" onclick="useSkill('flecha_venenosa')" style="font-size: 16px; padding: 12px;">🐍 Veneno (10 EP)</button>`;
-    } else if (gameState.player.playerClass === 'Mago') {
-        html += `<button id="btnSkill1" class="btn-magic" onclick="useSkill('fuego')" style="font-size: 16px; padding: 12px;">🔥 Fuego (12 MP)</button>`;
-        html += `<button id="btnSkill2" class="btn-magic" onclick="useSkill('curar')" style="font-size: 16px; padding: 12px;">💚 Curar (15 MP)</button>`;
+    // Botón 2: Habilidad Especial (Dinámica)
+    const specialId = gameState.player.equippedSkills.special;
+    if (specialId && skillsData[specialId]) {
+        const skill = skillsData[specialId];
+        const resText = skill.resource.toUpperCase();
+        // Usamos la clase btn-magic si gasta MP, o btn-skill si gasta EP
+        const cssClass = skill.resource === 'mp' ? 'btn-magic' : 'btn-skill';
+        html += `<button id="btnSkill1" class="${cssClass}" onclick="useSkill('${skill.id}')" style="font-size: 16px; padding: 12px;">${skill.icon} ${skill.name} (${skill.cost} ${resText})</button>`;
     }
 
-    html += `<button id="btnFlee" class="btn-danger" onclick="doFlee()" style="font-size: 16px; padding: 12px;">🏃 Huir</button>`;
+    // Botón 3: Habilidad Defensiva (Dinámica)
+    const defId = gameState.player.equippedSkills.defensive;
+    if (defId && skillsData[defId]) {
+        const skill = skillsData[defId];
+        const resText = skill.resource.toUpperCase();
+        const cssClass = skill.resource === 'mp' ? 'btn-magic' : 'btn-skill';
+        html += `<button id="btnSkill2" class="${cssClass}" onclick="useSkill('${skill.id}')" style="font-size: 16px; padding: 12px;">${skill.icon} ${skill.name} (${skill.cost} ${resText})</button>`;
+    }
+
+    // Botón 4: Huir Fijo (Cuesta 10 EP)
+    html += `<button id="btnFlee" class="btn-danger" onclick="doFlee()" style="font-size: 16px; padding: 12px;">🏃 Huir (10 EP)</button>`;
     
     container.innerHTML = html;
 }
@@ -158,15 +169,26 @@ export function doAttack() {
     checkEnemyDeathAndEndTurn(enemy);
 }
 
-export function useSkill(skillName) {
+export function useSkill(skillId) {
     lockCombatButtons(true);
     let enemy = gameState.currentEnemyTile.enemy;
     const pMag = getMag();
     const pAtk = getAtk();
+    
+    const skillInfo = skillsData[skillId];
+    if (!skillInfo) { lockCombatButtons(false); return; }
 
-    if (skillName === 'golpe_brutal') {
-        if (gameState.player.ep < 10) { playSFX(sfx.error); logMsg("¡Faltan 10 EP!"); lockCombatButtons(false); return; }
-        gameState.player.ep -= 10;
+    // Validación de Recursos (MP o EP)
+    if (skillInfo.resource === 'ep') {
+        if (gameState.player.ep < skillInfo.cost) { playSFX(sfx.error); logMsg(`¡Faltan ${skillInfo.cost} EP!`); lockCombatButtons(false); return; }
+        gameState.player.ep -= skillInfo.cost;
+    } else if (skillInfo.resource === 'mp') {
+        if (gameState.player.mp < skillInfo.cost) { playSFX(sfx.error); logMsg(`¡Faltan ${skillInfo.cost} MP!`); lockCombatButtons(false); return; }
+        gameState.player.mp -= skillInfo.cost;
+    }
+
+    // Lógica de daño según la Habilidad
+    if (skillId === 'golpe_brutal') {
         let dmg = Math.max(1, Math.floor(pAtk * 2) - enemy.def); 
         enemy.hp -= dmg;
         playSFX(sfx.attack); animateDamage('modalImg');
@@ -174,17 +196,13 @@ export function useSkill(skillName) {
         logCombat(`💥 Golpe Brutal: <b style="color:#ffeb3b">${dmg}</b> de daño físico.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
-    else if (skillName === 'grito_guerra') {
-        if (gameState.player.ep < 15) { playSFX(sfx.error); logMsg("¡Faltan 15 EP!"); lockCombatButtons(false); return; }
-        gameState.player.ep -= 15;
+    else if (skillId === 'grito_guerra') {
         gameState.combatState.defBuffTurns = 3;
         playSFX(sfx.equip); animateHeal('combatPlayerImg');
         logCombat(`🛡️ Grito de Guerra: Tu defensa aumenta considerablemente por 3 turnos.`);
         checkEnemyDeathAndEndTurn(enemy); 
     }
-    else if (skillName === 'tiro_doble') {
-        if (gameState.player.ep < 12) { playSFX(sfx.error); logMsg("¡Faltan 12 EP!"); lockCombatButtons(false); return; }
-        gameState.player.ep -= 12;
+    else if (skillId === 'tiro_doble') {
         let dmg1 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(enemy.def/2));
         let dmg2 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(enemy.def/2));
         enemy.hp -= (dmg1 + dmg2);
@@ -193,9 +211,7 @@ export function useSkill(skillName) {
         logCombat(`🏹 Tiro Doble: Impactas dos veces haciendo <b style="color:#ffeb3b">${dmg1}</b> y <b style="color:#ffeb3b">${dmg2}</b> de daño.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
-    else if (skillName === 'flecha_venenosa') {
-        if (gameState.player.ep < 10) { playSFX(sfx.error); logMsg("¡Faltan 10 EP!"); lockCombatButtons(false); return; }
-        gameState.player.ep -= 10;
+    else if (skillId === 'flecha_venenosa') {
         let dmg = Math.max(1, pAtk - enemy.def);
         enemy.hp -= dmg;
         gameState.combatState.poisonTurns = 4; 
@@ -204,9 +220,7 @@ export function useSkill(skillName) {
         logCombat(`🐍 Flecha Venenosa: Haces <b style="color:#ffeb3b">${dmg}</b> de daño e inyectas un veneno letal.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
-    else if (skillName === 'fuego') {
-        if (gameState.player.mp < 12) { playSFX(sfx.error); logMsg("¡Faltan 12 MP!"); lockCombatButtons(false); return; }
-        gameState.player.mp -= 12;
+    else if (skillId === 'fuego') {
         const mDmg = Math.max(1, Math.floor(pMag * 1.8) - Math.floor(enemy.def / 2));
         enemy.hp -= mDmg;
         playSFX(sfx.attack); animateDamage('modalImg');
@@ -214,9 +228,7 @@ export function useSkill(skillName) {
         logCombat(`🔥 Fuego: <b style="color:#ff9800">${mDmg}</b> de daño mágico.`);
         checkEnemyDeathAndEndTurn(enemy);
     }
-    else if (skillName === 'curar') {
-        if (gameState.player.mp < 15) { playSFX(sfx.error); logMsg("¡Faltan 15 MP!"); lockCombatButtons(false); return; }
-        gameState.player.mp -= 15;
+    else if (skillId === 'curar') {
         const heal = Math.floor(pMag * 2.5) + 10; 
         gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + heal);
         playSFX(sfx.use_potion); animateHeal('combatPlayerImg');
@@ -227,15 +239,25 @@ export function useSkill(skillName) {
 }
 
 export function doFlee() { 
+    // NUEVO: Verificación de Energía para Huir
+    if (gameState.player.ep < 10) {
+        playSFX(sfx.error);
+        logMsg("¡Estás exhausto! Necesitas 10 EP para huir.");
+        return;
+    }
+    gameState.player.ep -= 10;
+    
     playSFX(sfx.ui_click); 
-    logMsg("¡Huiste!"); 
+    logMsg("¡Huiste usando 10 EP!"); 
+    spawnFloatingText('-10 EP', '#9c27b0', 'combat-player');
+    
     gameState.player.x = gameState.lastPlayerPos.x; 
     gameState.player.y = gameState.lastPlayerPos.y; 
     endCombat(); 
 }
 
 // =========================================
-// TURNO DEL ENEMIGO
+// TURNO DEL ENEMIGO Y MUERTE
 // =========================================
 export function processEnemyTurn(enemy) {
     try {
@@ -310,50 +332,159 @@ export function processEnemyTurn(enemy) {
         setTimeout(() => { 
             lockCombatButtons(false); 
             if (gameState.player.hp <= 0) { 
-                alert("¡Has caído en batalla!"); 
-                try { localStorage.removeItem('miniRPG_WorldSave'); } catch(ex){} 
-                location.reload(); 
+                showDeathScreen(); 
             } 
         }, 350); 
     }
 }
 
 // =========================================
-// RESULTADOS Y RECOMPENSAS
+// SISTEMA DE CHECKPOINTS
 // =========================================
-export function checkLevelUp() {
-    const xpNeeded = gameState.player.level * 15;
-    if (gameState.player.xp >= xpNeeded) {
-        gameState.player.xp -= xpNeeded; gameState.player.level++; 
-        
-        if (gameState.player.playerClass === 'Guerrero') {
-            gameState.player.baseMaxHp += 8; gameState.player.baseMaxMp += 2; gameState.player.baseAtk += 2; gameState.player.baseDef += 1; gameState.player.baseMag += 0;
-            gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + 8);
-            gameState.player.mp = Math.min(getMaxMp(), gameState.player.mp + 2);
-        } else if (gameState.player.playerClass === 'Mago') {
-            gameState.player.baseMaxHp += 4; gameState.player.baseMaxMp += 8; gameState.player.baseAtk += 0; gameState.player.baseDef += 0; gameState.player.baseMag += 2;
-            gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + 4);
-            gameState.player.mp = Math.min(getMaxMp(), gameState.player.mp + 8);
-        } else if (gameState.player.playerClass === 'Arquero') {
-            gameState.player.baseMaxHp += 6; gameState.player.baseMaxMp += 3; gameState.player.baseAtk += 2; gameState.player.baseDef += 1; gameState.player.baseMag += 1;
-            gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + 6);
-            gameState.player.mp = Math.min(getMaxMp(), gameState.player.mp + 3);
-        } else if (gameState.player.playerClass === 'Simple') {
-            gameState.player.baseMaxHp += 5; gameState.player.baseMaxMp += 2; gameState.player.baseAtk += 1; gameState.player.baseDef += 1; gameState.player.baseMag += 1;
-            gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + 5);
-            gameState.player.mp = Math.min(getMaxMp(), gameState.player.mp + 2);
-        }
-        
-        gameState.player.baseMaxEp += 5;
-        gameState.player.ep = Math.min(getMaxEp(), gameState.player.ep + 5);
-        
-        playSFX(sfx.level_up);
-        spawnFloatingText('¡NIVEL UP!', '#ffeb3b', gameState.inCombat ? 'combat-player' : 'map');
-        logMsg(`¡NIVEL ${gameState.player.level}! Stats mejoradas.`);
-        saveGame();
+export function saveCheckpoint(type) {
+    const snapshot = {
+        player: JSON.parse(JSON.stringify(gameState.player)),
+        worldMap: JSON.parse(JSON.stringify(gameState.worldMap)),
+        flags: JSON.parse(JSON.stringify(gameState.flags)),
+        quest: JSON.parse(JSON.stringify(gameState.quest)),
+        mapLevel: gameState.mapLevel
+    };
+    
+    if (type === 'level') gameState.checkpoints.lastLevelUp = snapshot;
+    if (type === 'boss') gameState.checkpoints.lastBoss = snapshot;
+}
+
+export function showDeathScreen() {
+    document.getElementById('deathModal').style.display = 'flex';
+    
+    const btnLevel = document.getElementById('btnReviveLevel');
+    const btnBoss = document.getElementById('btnReviveBoss');
+    
+    if (gameState.checkpoints && gameState.checkpoints.lastLevelUp) {
+        btnLevel.style.display = 'block';
+    } else {
+        btnLevel.style.display = 'none';
+    }
+    
+    if (gameState.checkpoints && gameState.checkpoints.lastBoss) {
+        btnBoss.style.display = 'block';
+    } else {
+        btnBoss.style.display = 'none';
     }
 }
 
+export function reviveAt(type) {
+    playSFX(sfx.ui_click);
+    let snap = type === 'level' ? gameState.checkpoints.lastLevelUp : gameState.checkpoints.lastBoss;
+    if (!snap) return; 
+    
+    gameState.player = JSON.parse(JSON.stringify(snap.player));
+    gameState.worldMap = JSON.parse(JSON.stringify(snap.worldMap));
+    gameState.flags = JSON.parse(JSON.stringify(snap.flags));
+    gameState.quest = JSON.parse(JSON.stringify(snap.quest));
+    gameState.mapLevel = snap.mapLevel;
+    
+    gameState.player.hp = getMaxHp();
+    gameState.player.mp = getMaxMp();
+    gameState.player.ep = getMaxEp();
+    
+    document.getElementById('deathModal').style.display = 'none';
+    endCombat();
+    
+    logMsg(`✨ Una fuerza misteriosa te ha devuelto en el tiempo.`);
+    saveGame();
+}
+
+// =========================================
+// SISTEMA DE NIVEL Y ESTADÍSTICAS
+// =========================================
+let tempStats = { hp: 0, mp: 0, ep: 0, atk: 0, mag: 0, def: 0 };
+let pointsToSpend = 0;
+
+export function checkLevelUp() {
+    const xpNeeded = gameState.player.level * 15;
+    if (gameState.player.xp >= xpNeeded) {
+        gameState.player.xp -= xpNeeded; 
+        gameState.player.level++; 
+        gameState.player.statPoints += 5; 
+        
+        playSFX(sfx.level_up);
+        spawnFloatingText('¡NIVEL UP!', '#ffeb3b', gameState.inCombat ? 'combat-player' : 'map');
+        logMsg(`¡NIVEL ${gameState.player.level}! Tienes puntos para repartir.`);
+        
+        checkLevelUp(); 
+    } else if (gameState.player.statPoints > 0 && !gameState.inCombat) {
+        openLevelUpModal();
+    }
+}
+
+export function openLevelUpModal() {
+    tempStats = { hp: 0, mp: 0, ep: 0, atk: 0, mag: 0, def: 0 };
+    pointsToSpend = gameState.player.statPoints;
+    updateLevelUpUI();
+    document.getElementById('levelUpModal').style.display = 'flex';
+}
+
+export function updateLevelUpUI() {
+    document.getElementById('statPointsDisplay').textContent = pointsToSpend;
+    document.getElementById('lvlHpVal').textContent = tempStats.hp;
+    document.getElementById('lvlMpVal').textContent = tempStats.mp;
+    document.getElementById('lvlEpVal').textContent = tempStats.ep;
+    document.getElementById('lvlAtkVal').textContent = tempStats.atk;
+    document.getElementById('lvlMagVal').textContent = tempStats.mag;
+    document.getElementById('lvlDefVal').textContent = tempStats.def;
+
+    const btnConfirm = document.getElementById('btnConfirmStats');
+    if (pointsToSpend === 0) {
+        btnConfirm.style.opacity = '1';
+        btnConfirm.style.pointerEvents = 'auto';
+    } else {
+        btnConfirm.style.opacity = '0.5';
+        btnConfirm.style.pointerEvents = 'none';
+    }
+}
+
+export function allocateStat(stat) {
+    if (pointsToSpend > 0) {
+        playSFX(sfx.ui_click);
+        tempStats[stat]++;
+        pointsToSpend--;
+        updateLevelUpUI();
+    } else {
+        playSFX(sfx.error); 
+    }
+}
+
+export function confirmLevelUp() {
+    playSFX(sfx.quest_complete);
+    
+    gameState.player.baseMaxHp += tempStats.hp * 5;
+    gameState.player.hp += tempStats.hp * 5; 
+    
+    gameState.player.baseMaxMp += tempStats.mp * 5;
+    gameState.player.mp += tempStats.mp * 5;
+
+    gameState.player.baseMaxEp += tempStats.ep * 5;
+    gameState.player.ep += tempStats.ep * 5;
+
+    gameState.player.baseAtk += tempStats.atk;
+    gameState.player.baseMag += tempStats.mag;
+    gameState.player.baseDef += tempStats.def;
+
+    gameState.player.statPoints = 0; 
+    
+    document.getElementById('levelUpModal').style.display = 'none';
+    logMsg(`Estadísticas aumentadas exitosamente. ¡Eres más fuerte!`);
+    
+    saveCheckpoint('level');
+    
+    updateHUD();
+    saveGame();
+}
+
+// =========================================
+// RESULTADOS Y RECOMPENSAS
+// =========================================
 export function resolveVictory() {
     try {
         let enemy = gameState.currentEnemyTile.enemy;
@@ -371,6 +502,10 @@ export function resolveVictory() {
             
             endCombat();
             generateWorld();
+            
+            saveCheckpoint('boss');
+            
+            checkLevelUp(); 
             saveGame();
             return;
         }
@@ -379,6 +514,8 @@ export function resolveVictory() {
             playSFX(sfx.boss_die);
             gameState.flags['boss' + enemy.zone] = true; 
             logMsg(`¡Has derrotado al Jefe!`);
+            
+            saveCheckpoint('boss');
         } else {
             playSFX(sfx.enemy_die);
             logMsg(`¡${enemy.name} cayó! +${enemy.gold} Oro, +${enemy.xp} XP`);
@@ -435,10 +572,11 @@ export function resolveVictory() {
                 gameState.quest = null; 
             }
         }
-        checkLevelUp();
         
         gameState.currentEnemyTile.enemy = null; 
-        endCombat(); saveGame();
+        endCombat(); 
+        checkLevelUp();
+        saveGame();
         
     } catch (error) { console.error("Falló la victoria.", error); endCombat(); }
 }
@@ -447,3 +585,6 @@ export function resolveVictory() {
 window.doAttack = doAttack;
 window.useSkill = useSkill;
 window.doFlee = doFlee;
+window.allocateStat = allocateStat;
+window.confirmLevelUp = confirmLevelUp;
+window.reviveAt = reviveAt;

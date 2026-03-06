@@ -2,10 +2,11 @@
 // INTERFAZ DE USUARIO (HUD, Menús, Tienda, Inventario)
 // =========================================
 import { gameState } from './state.js';
-import { mapData } from './data.js';
+// NUEVO: Importamos skillsData para leer las habilidades
+import { mapData, skillsData } from './data.js';
 import { sfx, playSFX } from './audio.js';
-// Importamos saveGame desde main.js (lo crearemos al final) para guardar tras acciones
 import { saveGame } from './main.js';
+import { openLevelUpModal } from './combat.js';
 
 export let isMenuOpen = false;
 export let pendingQuest = null;
@@ -117,6 +118,14 @@ export function updateHUD() {
                 <b>Defensa:</b> ${tDef} <span class="stat-bonus">${gameState.player.armor && gameState.player.armor.def > 0 ? '(+'+gameState.player.armor.def+')' : ''}</span><br>
                 <b>XP:</b> ⭐${gameState.player.xp}/${gameState.player.level * 15} | <b>Oro:</b> <img src="img/items/coin.png" class="icon"> ${gameState.player.gold}
             `;
+            
+            if (gameState.player.statPoints > 0) {
+                statsEl.innerHTML += `
+                    <button class="btn-success" onclick="openLevelUpModal()" style="width: 100%; margin-top: 12px; padding: 10px; font-weight: bold; font-size: 14px; box-shadow: 0 0 10px #ffeb3b;">
+                        ⭐ ¡Tienes ${gameState.player.statPoints} Puntos de Nivel! ⭐
+                    </button>
+                `;
+            }
         }
 
         let eqEl = document.getElementById('menuEquipment');
@@ -152,10 +161,14 @@ export function toggleMainMenu() {
     document.getElementById('invModal').style.display = 'none';
     document.getElementById('shopModal').style.display = 'none';
     document.getElementById('npcModal').style.display = 'none';
+    // Nos aseguramos de cerrar el grimorio al abrir/cerrar menú principal
+    const grimoire = document.getElementById('grimoireModal');
+    if(grimoire) grimoire.style.display = 'none';
 
     document.getElementById('mainMenuModal').style.display = isMenuOpen ? 'flex' : 'none';
 }
 window.toggleMainMenu = toggleMainMenu;
+window.openLevelUpModal = openLevelUpModal;
 
 // =========================================
 // SISTEMA DE NPCs
@@ -294,6 +307,99 @@ window.equipFromInv = equipFromInv;
 window.usePotion = usePotion;
 window.useManaPotion = useManaPotion;
 window.useEnergyPotion = useEnergyPotion;
+
+// =========================================
+// SISTEMA DE GRIMORIO Y HABILIDADES (NUEVO)
+// =========================================
+export function openGrimoire() {
+    playSFX(sfx.ui_click);
+    
+    // 1. Mostrar las habilidades equipadas
+    let htmlEq = '';
+    const eqSp = gameState.player.equippedSkills.special;
+    if (eqSp && skillsData[eqSp]) {
+        let s = skillsData[eqSp];
+        htmlEq += `<div class="shop-item" style="border-color: #f44336;"><div><span style="font-size:24px">${s.icon}</span> <span>${s.name}</span><br><small>Ofensiva | ${s.cost} ${s.resource.toUpperCase()}</small></div><button onclick="unequipSkill('special')" class="btn-danger">Quitar</button></div>`;
+    } else {
+        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px; border: 1px dashed #f44336;">Espacio Ofensivo: Vacío</p>`;
+    }
+    
+    const eqDef = gameState.player.equippedSkills.defensive;
+    if (eqDef && skillsData[eqDef]) {
+        let s = skillsData[eqDef];
+        htmlEq += `<div class="shop-item" style="border-color: #4caf50;"><div><span style="font-size:24px">${s.icon}</span> <span>${s.name}</span><br><small>Defensiva | ${s.cost} ${s.resource.toUpperCase()}</small></div><button onclick="unequipSkill('defensive')" class="btn-danger">Quitar</button></div>`;
+    } else {
+        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px; border: 1px dashed #4caf50;">Espacio Defensivo: Vacío</p>`;
+    }
+    document.getElementById('grimEquipped').innerHTML = htmlEq;
+
+    // 2. Mostrar la lista de Habilidades Aprendidas
+    let htmlKnown = '';
+    if (!gameState.player.knownSkills || gameState.player.knownSkills.length === 0) {
+        htmlKnown = '<p style="font-size:12px; color:#aaa; text-align:center;">Aún no conoces ninguna habilidad nueva. Sube de nivel o encuentra libros mágicos.</p>';
+    } else {
+        gameState.player.knownSkills.forEach(skillId => {
+            let s = skillsData[skillId];
+            let isEquipped = (eqSp === skillId || eqDef === skillId);
+            let btnHtml = '';
+            
+            if (isEquipped) {
+                btnHtml = `<button disabled style="background:#555; color:#888;">En uso</button>`;
+            } else if (s.type === 'special') {
+                btnHtml = `<button onclick="equipSkill('${skillId}', 'special')" style="background:#f44336; color:#fff;">Usar Ofensiva</button>`;
+            } else {
+                btnHtml = `<button onclick="equipSkill('${skillId}', 'defensive')" style="background:#4caf50; color:#fff;">Usar Defensiva</button>`;
+            }
+            
+            htmlKnown += `
+                <div class="shop-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
+                    <div style="display:flex; justify-content:space-between; width:100%; align-items: center;">
+                        <div>
+                            <span style="font-size:20px">${s.icon}</span> 
+                            <span style="font-weight:bold; color:#fff;">${s.name}</span> 
+                            <small style="color:${s.resource === 'mp' ? '#2196f3' : '#9c27b0'};">(${s.cost} ${s.resource.toUpperCase()})</small>
+                        </div>
+                        ${btnHtml}
+                    </div>
+                    <div style="font-size:12px; color:#ccc; line-height: 1.4;">${s.desc}</div>
+                </div>`;
+        });
+    }
+    document.getElementById('grimList').innerHTML = htmlKnown; 
+    
+    // Escondemos el menú principal y abrimos el grimorio
+    document.getElementById('mainMenuModal').style.display = 'none';
+    document.getElementById('grimoireModal').style.display = 'flex';
+}
+
+export function closeGrimoire() { 
+    playSFX(sfx.ui_click); 
+    document.getElementById('grimoireModal').style.display = 'none'; 
+    // Al cerrar, volvemos al menú principal
+    document.getElementById('mainMenuModal').style.display = 'flex';
+}
+
+export function equipSkill(skillId, slot) {
+    playSFX(sfx.equip);
+    gameState.player.equippedSkills[slot] = skillId;
+    logMsg(`Has equipado la habilidad: ${skillsData[skillId].name}.`);
+    saveGame();
+    openGrimoire();
+}
+
+export function unequipSkill(slot) {
+    playSFX(sfx.equip);
+    gameState.player.equippedSkills[slot] = null;
+    logMsg(`Has desequipado una habilidad.`);
+    saveGame();
+    openGrimoire();
+}
+
+// Exportar al HTML
+window.openGrimoire = openGrimoire;
+window.closeGrimoire = closeGrimoire;
+window.equipSkill = equipSkill;
+window.unequipSkill = unequipSkill;
 
 // =========================================
 // TIENDA DEL JUEGO

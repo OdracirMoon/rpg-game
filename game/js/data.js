@@ -2,8 +2,21 @@
 // DATOS ESTÁTICOS DEL JUEGO Y CONFIGURACIÓN
 // =========================================
 
-export const SAVE_KEY = 'miniRPG_WorldSave';
+// Leemos la ranura elegida en el menú principal.
+export const activeSlot = sessionStorage.getItem('activeSlot') || '1';
+export const SAVE_KEY = 'miniRPG_WorldSave_' + activeSlot;
+
 export const GAME_VERSION = '1.0.0';
+
+// NUEVO: Diccionario Maestro de Habilidades
+export const skillsData = {
+    'golpe_brutal': { id: 'golpe_brutal', name: 'Golpe Brutal', type: 'special', resource: 'ep', cost: 10, icon: '💥', desc: 'Ataca con el doble de tu fuerza física base.' },
+    'grito_guerra': { id: 'grito_guerra', name: 'Grito Guerra', type: 'defensive', resource: 'ep', cost: 15, icon: '🛡️', desc: 'Aumenta enormemente tu defensa por 3 turnos.' },
+    'tiro_doble': { id: 'tiro_doble', name: 'Tiro Doble', type: 'special', resource: 'ep', cost: 12, icon: '🏹', desc: 'Dispara dos flechas rápidas que ignoran parte de la defensa.' },
+    'flecha_venenosa': { id: 'flecha_venenosa', name: 'Veneno', type: 'defensive', resource: 'ep', cost: 10, icon: '🐍', desc: 'Inyecta un veneno que drena vida al enemigo por 4 turnos.' },
+    'fuego': { id: 'fuego', name: 'Fuego', type: 'special', resource: 'mp', cost: 12, icon: '🔥', desc: 'Lanza una bola de fuego que hace daño mágico moderado.' },
+    'curar': { id: 'curar', name: 'Curar', type: 'defensive', resource: 'mp', cost: 15, icon: '💚', desc: 'Restaura gran parte de tu salud usando magia.' }
+};
 
 export const MAP_W = 100; 
 export const MAP_H = 100;

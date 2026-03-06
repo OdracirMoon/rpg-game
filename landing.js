@@ -1,56 +1,91 @@
 // ==========================================
 // CONFIGURACIÓN PRINCIPAL
 // ==========================================
-// Esta es la clave que usaremos para guardar y buscar la partida en el navegador (localStorage).
-// Si tu juego ya usa una clave diferente, puedes cambiar el nombre aquí.
-const SAVE_KEY = 'miniRPG_WorldSave';
+// Base para las claves de guardado. Las ranuras serán 1, 2 y 3.
+const BASE_SAVE_KEY = 'miniRPG_WorldSave_';
 
 // ==========================================
-// REFERENCIAS A ELEMENTOS DEL DOM (HTML)
+// REFERENCIAS A ELEMENTOS DEL DOM
 // ==========================================
 // Botones del menú principal
-const btnJugar = document.getElementById('btn-jugar');
-const btnNuevaPartida = document.getElementById('btn-nueva-partida');
-const btnCargarPartida = document.getElementById('btn-cargar-partida');
+const btnJugar = document.getElementById('btn-jugar'); // MODO LOCAL
+const btnCargarPartida = document.getElementById('btn-cargar-partida'); // IMPORTAR JSON
 const btnTienda = document.getElementById('btn-tienda');
 
 // Modales (Ventanas ocultas)
+const modalRanuras = document.getElementById('modal-ranuras');
 const modalCargar = document.getElementById('modal-cargar');
 const modalTienda = document.getElementById('modal-tienda');
 
 // Elementos dentro de los modales
+const btnCerrarRanuras = document.getElementById('btn-cerrar-ranuras');
 const btnCerrarCargar = document.getElementById('btn-cerrar-cargar');
 const btnCerrarTienda = document.getElementById('btn-cerrar-tienda');
+
 const inputArchivoPartida = document.getElementById('input-archivo-partida');
 const btnProcesarCarga = document.getElementById('btn-procesar-carga');
 
+const slotBtns = document.querySelectorAll('.slot-btn');
+
 // ==========================================
-// LÓGICA DE LOS BOTONES DEL MENÚ
+// LÓGICA DE RANURAS DE GUARDADO
 // ==========================================
 
-// 1. BOTÓN JUGAR (Continuar o Empezar)
+// Función para leer qué hay en cada ranura y actualizar los textos
+function actualizarTextosRanuras() {
+    slotBtns.forEach(btn => {
+        const slot = btn.getAttribute('data-slot');
+        const statusSpan = document.getElementById(`slot-${slot}-status`);
+        
+        // Buscamos si existe la clave ej: 'miniRPG_WorldSave_1'
+        const savedData = localStorage.getItem(BASE_SAVE_KEY + slot);
+        
+        if (savedData) {
+            try {
+                const parsed = JSON.parse(savedData);
+                const p = parsed.playerData;
+                // Si la partida existe, mostramos el nivel y la clase
+                statusSpan.textContent = `Nivel ${p.level} - ${p.playerClass}`;
+                statusSpan.style.color = "#4caf50"; // Verde brillante
+            } catch (error) {
+                statusSpan.textContent = "Datos corruptos";
+                statusSpan.style.color = "#e55353"; // Rojo
+            }
+        } else {
+            statusSpan.textContent = "Vacía";
+            statusSpan.style.color = "#aaa"; // Gris
+        }
+    });
+}
+
+// Abrir el menú de ranuras
 btnJugar.addEventListener('click', () => {
-    // Si la partida existe, el juego la leerá automáticamente al abrirse.
-    // Si no existe, el juego iniciará una nueva. 
-    // Por lo tanto, solo necesitamos redirigir a la carpeta /game
-    window.location.href = 'game/index.html';
+    actualizarTextosRanuras();
+    modalRanuras.classList.remove('hidden');
 });
 
-// 2. BOTÓN NUEVA PARTIDA
-btnNuevaPartida.addEventListener('click', () => {
-    // Pedimos confirmación por si el jugador hace clic por accidente
-    const confirmar = confirm("¿Estás seguro de iniciar una nueva partida? Cualquier progreso no exportado se perderá.");
-    
-    if (confirmar) {
-        // Borramos la partida del localStorage
-        localStorage.removeItem(SAVE_KEY);
-        // Redirigimos al juego (que al no encontrar partida, empezará de cero)
-        window.location.href = 'game/index.html';
-    }
+// Cerrar el menú de ranuras
+btnCerrarRanuras.addEventListener('click', () => {
+    modalRanuras.classList.add('hidden');
 });
+
+// Acción al hacer clic en una ranura específica
+slotBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const slot = btn.getAttribute('data-slot');
+        
+        // Guardamos en la memoria de la sesión qué ranura elegimos
+        // para que el juego sepa de dónde cargar y dónde guardar.
+        sessionStorage.setItem('activeSlot', slot);
+        
+        // Redirigimos al juego
+        window.location.href = 'game/index.html';
+    });
+});
+
 
 // ==========================================
-// LÓGICA DE MODALES (ABRIR Y CERRAR)
+// LÓGICA DE OTROS MODALES (IMPORTAR Y TIENDA)
 // ==========================================
 
 // Abrir Modal Cargar
@@ -61,7 +96,7 @@ btnCargarPartida.addEventListener('click', () => {
 // Cerrar Modal Cargar
 btnCerrarCargar.addEventListener('click', () => {
     modalCargar.classList.add('hidden');
-    inputArchivoPartida.value = ''; // Limpiamos el input por si había seleccionado algo
+    inputArchivoPartida.value = ''; 
 });
 
 // Abrir Modal Tienda
@@ -74,54 +109,41 @@ btnCerrarTienda.addEventListener('click', () => {
     modalTienda.classList.add('hidden');
 });
 
+
 // ==========================================
 // LÓGICA PARA IMPORTAR ARCHIVO JSON
 // ==========================================
 btnProcesarCarga.addEventListener('click', () => {
     const archivo = inputArchivoPartida.files[0];
 
-    // Verificamos si el usuario realmente seleccionó un archivo
     if (!archivo) {
         alert("Por favor, selecciona un archivo .json primero.");
         return;
     }
 
-    // Usamos FileReader para leer el contenido del archivo en el navegador
     const lector = new FileReader();
 
     lector.onload = function(evento) {
         try {
-            // Obtenemos el texto del archivo
             const contenido = evento.target.result;
-            
-            // Verificamos que sea un JSON válido parseándolo
             const datosPartida = JSON.parse(contenido);
 
-            // Verificamos de forma muy básica que parezca un archivo de nuestro juego
-            // (En el futuro, aquí comprobaremos la versión del guardado)
-            if (datosPartida) {
-                // Guardamos el JSON convertido a string en el localStorage
-                localStorage.setItem(SAVE_KEY, JSON.stringify(datosPartida));
+            if (datosPartida && datosPartida.playerData) {
+                // Forzamos guardar en la Ranura 1 como indica la interfaz
+                localStorage.setItem(BASE_SAVE_KEY + '1', JSON.stringify(datosPartida));
+                // Forzamos a que el juego abra la Ranura 1
+                sessionStorage.setItem('activeSlot', '1');
                 
-                alert("¡Partida cargada con éxito! Entrando al juego...");
-                
-                // Redirigimos al juego
+                alert("¡Partida importada con éxito en la Ranura 1! Entrando al juego...");
                 window.location.href = 'game/index.html';
             } else {
-                throw new Error("El archivo no tiene el formato correcto.");
+                throw new Error("Formato incorrecto.");
             }
-
         } catch (error) {
-            console.error("Error al leer el archivo:", error);
+            console.error("Error al leer:", error);
             alert("Error: El archivo no es un JSON válido o está corrupto.");
         }
     };
 
-    // Si ocurre un error de lectura de hardware/navegador
-    lector.onerror = function() {
-        alert("Hubo un error al intentar leer el archivo desde tu dispositivo.");
-    };
-
-    // Iniciamos la lectura del archivo como texto
     lector.readAsText(archivo);
 });

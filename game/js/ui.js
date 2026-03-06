@@ -218,5 +218,128 @@ export function openStatsModal() {
             <div style="background: #160f1a; padding: 12px; border-radius: 8px; border: 1px solid #9c27b0; box-shadow: inset 0 0 10px rgba(156,39,176,0.1);">
                 <h3 style="color:#9c27b0; margin-top:0; font-size: 16px; border-bottom: 1px dashed #9c27b0; padding-bottom: 5px;">🧨 Penetración</h3>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Letalidad:</span> <b style="color:#fff;">${p.baseLethality || 0}</b></p>
-                <p style="margin: 5px 0; font-size: 13px; display:flex
-                
+                <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Pen. Armadura:</span> <b style="color:#fff;">${Math.floor((p.baseArmorPen || 0) * 100)}%</b></p>
+                <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Pen. Mágica:</span> <b style="color:#fff;">${p.baseMagicPen || 0}</b></p>
+            </div>
+        `;
+
+        document.getElementById('fullStatsContainer').innerHTML = html;
+        document.getElementById('statsModal').style.display = 'flex';
+    } catch (e) {
+        console.error("Error al abrir el panel de estadísticas:", e);
+        // Si hay un error, al menos devolvemos al jugador al menú principal para no dejarlo atrapado
+        document.getElementById('statsModal').style.display = 'none';
+        document.getElementById('mainMenuModal').style.display = 'flex';
+    }
+}
+
+export function closeStatsModal() {
+    playSFX(sfx.ui_click);
+    document.getElementById('statsModal').style.display = 'none';
+    document.getElementById('mainMenuModal').style.display = 'flex';
+}
+window.openStatsModal = openStatsModal;
+window.closeStatsModal = closeStatsModal;
+
+// =========================================
+// PANELES Y VENTANAS
+// =========================================
+export function toggleMainMenu() {
+    if (gameState.inCombat || document.getElementById('roleModal').style.display === 'flex' || document.getElementById('characterModal').style.display === 'flex') return;
+    
+    isMenuOpen = !isMenuOpen;
+    playSFX(sfx.ui_click);
+    
+    // Al abrir el menú, forzamos la actualización de datos
+    if (isMenuOpen) { updateHUD(); }
+
+    document.getElementById('invModal').style.display = 'none';
+    document.getElementById('shopModal').style.display = 'none';
+    document.getElementById('npcModal').style.display = 'none';
+    document.getElementById('statsModal').style.display = 'none';
+    
+    const grimoire = document.getElementById('grimoireModal');
+    if(grimoire) grimoire.style.display = 'none';
+    const tree = document.getElementById('skillTreeModal');
+    if(tree) tree.style.display = 'none';
+
+    document.getElementById('mainMenuModal').style.display = isMenuOpen ? 'flex' : 'none';
+}
+window.toggleMainMenu = toggleMainMenu;
+window.openLevelUpModal = openLevelUpModal;
+
+// Atajo de teclado 'E'
+window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'e') {
+        if (gameState.inCombat || document.getElementById('roleModal').style.display === 'flex' || document.getElementById('characterModal').style.display === 'flex') return;
+        
+        if (document.getElementById('statsModal').style.display === 'flex') {
+            closeStatsModal();
+            toggleMainMenu(); // Lo cerramos por completo
+        } else {
+            isMenuOpen = true;
+            document.getElementById('mainMenuModal').style.display = 'none';
+            openStatsModal();
+        }
+    }
+});
+
+// =========================================
+// SISTEMA DE NPCs
+// =========================================
+export function openSpecificNPCModal(npcData) {
+    if (gameState.quest) {
+        playSFX(sfx.error); logMsg(`${npcData.name} te dice: '¡Termina la misión que tienes primero!'`); return;
+    }
+    
+    playSFX(sfx.ui_click);
+    
+    if (!gameState.player.zoneQuestProgress) gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
+    if (!gameState.player.hasKey) gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+
+    let step = gameState.player.zoneQuestProgress[gameState.currentZoneIndex];
+    
+    if (step >= 3) {
+        playSFX(sfx.error); logMsg(`${npcData.name} te dice: 'Ya has completado todas mis tareas en esta zona. ¡Cruza la puerta y avanza!'`); return;
+    }
+
+    const cd = mapData[gameState.currentZoneIndex]; 
+    let qScale = getMapScale(); 
+    
+    if (step === 0) {
+        const rEnemy = cd.newEnemies[0];
+        pendingQuest = { type: 'kill_enemy', target: rEnemy.name, goal: 3, progress: 0, rewardType: 'gold', rewardAmount: Math.floor(20 * (gameState.currentZoneIndex + 1) * qScale), text: `Derrota 3 ${rEnemy.name}s`, zone: gameState.currentZoneIndex };
+    } else if (step === 1) {
+        const gTarget = Math.floor(30 * (gameState.currentZoneIndex + 1) * qScale);
+        pendingQuest = { type: 'collect_gold', goal: gTarget, progress: 0, rewardType: 'xp', rewardAmount: Math.floor(15 * (gameState.currentZoneIndex + 1) * qScale), text: `Consigue ${gTarget} de oro`, zone: gameState.currentZoneIndex };
+    } else if (step === 2) {
+        pendingQuest = { type: 'kill_boss', target: cd.boss.name, goal: 1, progress: 0, rewardType: 'potion', rewardAmount: 1, text: `Derrota al Jefe: ${cd.boss.name}`, zone: gameState.currentZoneIndex };
+    }
+
+    const dialog = npcData.dialogues[Math.floor(Math.random() * npcData.dialogues.length)];
+    
+    document.getElementById('npcIcon').innerHTML = `<img src="${npcData.img}">`;
+    document.getElementById('npcName').textContent = npcData.name;
+    document.getElementById('npcDialog').textContent = `"${dialog}"`;
+    
+    let rewardText = pendingQuest.rewardAmount + " " + (pendingQuest.rewardType === 'gold' ? 'Oro' : pendingQuest.rewardType === 'xp' ? 'XP' : 'Poción');
+    if (step === 2) rewardText += " y la Llave";
+
+    document.getElementById('npcQuestDetail').innerHTML = `<b>Objetivo:</b> ${pendingQuest.text}<br><b>Recompensa:</b> ${rewardText}`;
+    document.getElementById('npcModal').style.display = 'flex';
+}
+
+export function closeNPCModal() { playSFX(sfx.ui_click); pendingQuest = null; document.getElementById('npcModal').style.display = 'none'; }
+export function acceptNPCQuest() { gameState.quest = pendingQuest; pendingQuest = null; playSFX(sfx.quest_accept); logMsg("¡Misión aceptada!"); updateHUD(); saveGame(); document.getElementById('npcModal').style.display = 'none'; }
+
+window.closeNPCModal = closeNPCModal;
+window.acceptNPCQuest = acceptNPCQuest;
+
+// =========================================
+// INVENTARIO Y EQUIPAMIENTO
+// =========================================
+export function openInventory() {
+    playSFX(sfx.ui_click);
+    
+    let htmlEq = '';
+  

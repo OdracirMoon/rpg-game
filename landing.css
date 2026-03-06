@@ -1,0 +1,242 @@
+/* ==========================================
+   VARIABLES GLOBALES (Tema RPG Oscuro)
+   ========================================== */
+:root {
+    --bg-color: #0d0d0d;
+    --panel-bg: #1a1a1a;
+    --text-primary: #f2f2f2;
+    --text-secondary: #b3b3b3;
+    --accent-color: #d4af37; /* Dorado estilo fantasía/RPG */
+    --accent-hover: #f1c40f;
+    --btn-bg: rgba(20, 20, 20, 0.8);
+    --danger-color: #c0392b;
+    --font-main: 'Georgia', 'Times New Roman', serif; /* Fuente estilo clásico */
+}
+
+/* ==========================================
+   RESET Y ESTILOS BASE
+   ========================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    /* Fondo con una textura sutil o gradiente para darle profundidad */
+    background-image: radial-gradient(circle at center, #2a2a2a 0%, #000000 100%);
+    overflow: hidden; /* Evita scroll en el menú principal */
+}
+
+/* ==========================================
+   CONTENEDOR PRINCIPAL
+   ========================================== */
+.main-menu-container {
+    text-align: center;
+    width: 100%;
+    max-width: 600px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+}
+
+/* Título del juego */
+.game-title {
+    font-size: 4rem;
+    color: var(--accent-color);
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.5), 2px 2px 4px #000;
+}
+
+/* ==========================================
+   BOTONES
+   ========================================== */
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    align-items: center;
+}
+
+.btn {
+    width: 100%;
+    max-width: 350px;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    font-family: var(--font-main);
+    font-weight: bold;
+    color: var(--text-primary);
+    background-color: var(--btn-bg);
+    border: 2px solid var(--accent-color);
+    border-radius: 5px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+    text-decoration: none; /* Para el enlace de MercadoPago */
+    display: inline-block;
+}
+
+/* Animaciones Hover */
+.btn:hover {
+    transform: scale(1.05);
+    background-color: var(--accent-color);
+    color: #000;
+    box-shadow: 0 0 15px var(--accent-color);
+}
+
+/* Botón principal (JUGAR) un poco más grande */
+.primary-btn {
+    font-size: 1.5rem;
+    padding: 1.2rem 2rem;
+    background-color: rgba(212, 175, 55, 0.1);
+}
+
+/* ==========================================
+   MODALES (PANELES OCULTOS)
+   ========================================== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.85); /* Fondo oscuro semitransparente */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+.modal-content {
+    background-color: var(--panel-bg);
+    border: 3px solid var(--accent-color);
+    border-radius: 10px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.modal-content h2 {
+    color: var(--accent-color);
+    margin-bottom: 1rem;
+    font-size: 2rem;
+}
+
+.modal-content p {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+/* Acciones dentro del modal */
+.modal-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+    flex-wrap: wrap;
+}
+
+.modal-btn, .close-btn {
+    width: auto;
+    font-size: 1rem;
+    padding: 0.8rem 1.5rem;
+}
+
+/* Input para subir archivo */
+.upload-container {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    border: 2px dashed var(--text-secondary);
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+input[type="file"] {
+    color: var(--text-primary);
+    font-family: var(--font-main);
+}
+
+/* ==========================================
+   TIENDA (GRID)
+   ========================================== */
+.shop-content {
+    max-width: 800px; /* Modal de tienda más ancho */
+}
+
+.shop-categories-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.shop-item {
+    background-color: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--text-secondary);
+    padding: 1.5rem;
+    border-radius: 5px;
+    transition: border-color 0.3s ease;
+}
+
+.shop-item:hover {
+    border-color: var(--accent-color);
+}
+
+.shop-item h3 {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.buy-btn {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border-color: var(--text-secondary);
+    color: var(--text-secondary);
+    cursor: not-allowed; /* Indica que aún no está activo */
+}
+
+.buy-btn:hover {
+    transform: none;
+    box-shadow: none;
+    background-color: var(--btn-bg);
+}
+
+/* ==========================================
+   RESPONSIVO (MÓVILES)
+   ========================================== */
+@media (max-width: 600px) {
+    .game-title {
+        font-size: 2.5rem;
+    }
+
+    .shop-categories-grid {
+        grid-template-columns: 1fr; /* 1 columna en móviles */
+    }
+
+    .btn {
+        max-width: 100%;
+    }
+
+    .modal-content {
+        padding: 1.5rem;
+    }
+}

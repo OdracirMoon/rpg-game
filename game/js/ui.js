@@ -13,13 +13,15 @@ export let pendingQuest = null;
 // =========================================
 // UTILIDADES Y CÁLCULOS BASE
 // =========================================
+// Adaptamos los cálculos a tus nuevas estadísticas MOBA. 
+// (Por ahora leen el atk, def y mag viejos de los ítems para no romper la tienda de la Fase 1)
 export function getMapScale() { return 1 + ((gameState.mapLevel - 1) * 0.5); }
 export function getMaxHp() { return gameState.player.baseMaxHp + (gameState.player.armor ? gameState.player.armor.hpBonus : 0); }
 export function getMaxMp() { return gameState.player.baseMaxMp + (gameState.player.armor ? gameState.player.armor.mpBonus : 0); }
 export function getMaxEp() { return gameState.player.baseMaxEp; }
-export function getAtk() { return gameState.player.baseAtk + (gameState.player.weapon ? gameState.player.weapon.atk : 0); }
-export function getDef() { return gameState.player.baseDef + (gameState.player.armor ? gameState.player.armor.def : 0); }
-export function getMag() { return gameState.player.baseMag + (gameState.player.weapon ? gameState.player.weapon.mag : 0); }
+export function getAtk() { return gameState.player.baseAd + (gameState.player.weapon ? gameState.player.weapon.atk : 0); }
+export function getDef() { return gameState.player.baseArmor + (gameState.player.armor ? gameState.player.armor.def : 0); }
+export function getMag() { return gameState.player.baseAp + (gameState.player.weapon ? gameState.player.weapon.mag : 0); }
 export function getHpColor(percent) { if(percent > 50) return '#4caf50'; if(percent > 20) return '#ffeb3b'; return '#f44336'; }
 
 // =========================================
@@ -91,7 +93,7 @@ export function checkLowHp() {
 export function updateHUD() {
     try {
         const tHp = getMaxHp(); const tMp = getMaxMp(); const tEp = getMaxEp();
-        const tAtk = getAtk(); const tDef = getDef(); const tMag = getMag();
+        const tAd = getAtk(); const tDef = getDef(); const tAp = getMag();
         
         const hpPercent = Math.max(0, (gameState.player.hp / tHp) * 100);
         document.getElementById('playerHpBar').style.width = `${hpPercent}%`;
@@ -106,16 +108,19 @@ export function updateHUD() {
         document.getElementById('playerEpBar').style.width = `${epPercent}%`;
         document.getElementById('playerEpText').textContent = `${gameState.player.ep} / ${tEp}`;
 
-        document.getElementById('playerClassName').textContent = gameState.player.playerClass || "Héroe";
+        // Mostrar nombre del personaje en lugar de la clase genérica
+        let pName = gameState.player.characterName || gameState.player.playerClass || "Héroe";
+        document.getElementById('playerClassName').textContent = pName;
         document.getElementById('playerLevel').textContent = `(Lv. ${gameState.player.level})`;
 
+        // Resumen de estadísticas en el menú principal
         let statsEl = document.getElementById('menuStats');
         if (statsEl) {
             statsEl.innerHTML = `
-                <b>Ataque Fís:</b> ${tAtk} <span class="stat-bonus">${gameState.player.weapon && gameState.player.weapon.atk > 0 ? '(+'+gameState.player.weapon.atk+')' : ''}</span><br>
-                <b>Poder Mág:</b> ${tMag} <span class="stat-magic">${gameState.player.weapon && gameState.player.weapon.mag > 0 ? '(+'+gameState.player.weapon.mag+')' : ''}</span><br>
-                <b>Defensa:</b> ${tDef} <span class="stat-bonus">${gameState.player.armor && gameState.player.armor.def > 0 ? '(+'+gameState.player.armor.def+')' : ''}</span><br>
-                <b>XP:</b> ⭐${gameState.player.xp}/${gameState.player.level * 15} | <b>Oro:</b> <img src="img/items/coin.png" class="icon"> ${gameState.player.gold}
+                <b>🗡️ AD (Físico):</b> ${tAd} <span class="stat-bonus">${gameState.player.weapon && gameState.player.weapon.atk > 0 ? '(+'+gameState.player.weapon.atk+')' : ''}</span><br>
+                <b>🔮 AP (Mágico):</b> ${tAp} <span class="stat-magic">${gameState.player.weapon && gameState.player.weapon.mag > 0 ? '(+'+gameState.player.weapon.mag+')' : ''}</span><br>
+                <b>🛡️ Armadura:</b> ${tDef} <span class="stat-bonus">${gameState.player.armor && gameState.player.armor.def > 0 ? '(+'+gameState.player.armor.def+')' : ''}</span><br>
+                <b>⭐ XP:</b> ${gameState.player.xp}/${gameState.player.level * 15} | <b>💰 Oro:</b> ${gameState.player.gold}
             `;
             
             if (gameState.player.statPoints > 0) {
@@ -125,7 +130,6 @@ export function updateHUD() {
                     </button>
                 `;
             }
-            // NUEVO: Aviso de Puntos de Habilidad (SP) en el menú
             if (gameState.player.skillPoints > 0) {
                 statsEl.innerHTML += `
                     <button onclick="openSkillTree()" style="width: 100%; margin-top: 5px; padding: 10px; font-weight: bold; font-size: 14px; background: #00bcd4; color: white; border: 1px solid #009688; box-shadow: 0 0 10px #00bcd4;">
@@ -157,17 +161,91 @@ export function updateHUD() {
 }
 
 // =========================================
+// SISTEMA DE ESTADÍSTICAS AVANZADAS (NUEVO)
+// =========================================
+export function openStatsModal() {
+    playSFX(sfx.ui_click);
+    document.getElementById('mainMenuModal').style.display = 'none';
+    
+    const p = gameState.player;
+    
+    // Obtenemos los valores finales sumando equipo
+    const finalHp = getMaxHp();
+    const finalMp = getMaxMp();
+    const finalEp = getMaxEp();
+    const finalAd = getAtk();
+    const finalAp = getMag();
+    const finalArmor = getDef();
+    
+    let html = `
+        <div style="background: #1a0f14; padding: 12px; border-radius: 8px; border: 1px solid #f44336; box-shadow: inset 0 0 10px rgba(244,67,54,0.1);">
+            <h3 style="color:#f44336; margin-top:0; font-size: 16px; border-bottom: 1px dashed #f44336; padding-bottom: 5px;">❤️ Supervivencia</h3>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Vida Máxima:</span> <b style="color:#fff;">${finalHp}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Regen. Vida:</span> <b style="color:#4caf50;">+${p.baseHpRegen || 0}/5s</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>🛡️ Armadura:</span> <b style="color:#fff;">${finalArmor}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>✨ Resist. Mágica:</span> <b style="color:#fff;">${p.baseMagicResist || 0}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Tenacidad:</span> <b style="color:#fff;">${p.baseTenacity || 0}%</b></p>
+        </div>
+
+        <div style="background: #1a180f; padding: 12px; border-radius: 8px; border: 1px solid #ffeb3b; box-shadow: inset 0 0 10px rgba(255,235,59,0.1);">
+            <h3 style="color:#ffeb3b; margin-top:0; font-size: 16px; border-bottom: 1px dashed #ffeb3b; padding-bottom: 5px;">⚔️ Daño</h3>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>🗡️ Daño Físico (AD):</span> <b style="color:#fff;">${finalAd}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>🔮 Poder Mágico (AP):</span> <b style="color:#2196f3;">${finalAp}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>💥 Prob. Crítico:</span> <b style="color:#ff9800;">${Math.floor((p.baseCritChance || 0) * 100)}%</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Daño Crítico:</span> <b style="color:#ff9800;">${Math.floor((p.baseCritDamage || 1.75) * 100)}%</b></p>
+        </div>
+
+        <div style="background: #0f1a1a; padding: 12px; border-radius: 8px; border: 1px solid #00bcd4; box-shadow: inset 0 0 10px rgba(0,188,212,0.1);">
+            <h3 style="color:#00bcd4; margin-top:0; font-size: 16px; border-bottom: 1px dashed #00bcd4; padding-bottom: 5px;">⚡ Velocidad</h3>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Vel. de Ataque:</span> <b style="color:#fff;">${(p.baseAttackSpeed || 1).toFixed(2)}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Ability Haste:</span> <b style="color:#fff;">${p.baseAbilityHaste || 0}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>👟 Vel. Movimiento:</span> <b style="color:#fff;">${p.baseMoveSpeed || 300}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>🎯 Rango:</span> <b style="color:#fff;">${p.baseRange || 1}</b></p>
+        </div>
+
+        <div style="background: #0f1a12; padding: 12px; border-radius: 8px; border: 1px solid #4caf50; box-shadow: inset 0 0 10px rgba(76,175,80,0.1);">
+            <h3 style="color:#4caf50; margin-top:0; font-size: 16px; border-bottom: 1px dashed #4caf50; padding-bottom: 5px;">🩸 Sustento</h3>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Robo de Vida:</span> <b style="color:#fff;">${Math.floor((p.baseLifeSteal || 0) * 100)}%</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Omnivamp:</span> <b style="color:#fff;">${Math.floor((p.baseOmnivamp || 0) * 100)}%</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>💧 Maná Máx:</span> <b style="color:#2196f3;">${finalMp}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Regen. Maná:</span> <b style="color:#2196f3;">+${p.baseMpRegen || 0}/5s</b></p>
+        </div>
+
+        <div style="background: #160f1a; padding: 12px; border-radius: 8px; border: 1px solid #9c27b0; box-shadow: inset 0 0 10px rgba(156,39,176,0.1);">
+            <h3 style="color:#9c27b0; margin-top:0; font-size: 16px; border-bottom: 1px dashed #9c27b0; padding-bottom: 5px;">🧨 Penetración</h3>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Letalidad:</span> <b style="color:#fff;">${p.baseLethality || 0}</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Pen. Armadura:</span> <b style="color:#fff;">${Math.floor((p.baseArmorPen || 0) * 100)}%</b></p>
+            <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Pen. Mágica:</span> <b style="color:#fff;">${p.baseMagicPen || 0}</b></p>
+        </div>
+    `;
+
+    document.getElementById('fullStatsContainer').innerHTML = html;
+    document.getElementById('statsModal').style.display = 'flex';
+}
+
+export function closeStatsModal() {
+    playSFX(sfx.ui_click);
+    document.getElementById('statsModal').style.display = 'none';
+    document.getElementById('mainMenuModal').style.display = 'flex';
+}
+window.openStatsModal = openStatsModal;
+window.closeStatsModal = closeStatsModal;
+
+// =========================================
 // PANELES Y VENTANAS
 // =========================================
 export function toggleMainMenu() {
-    if (gameState.inCombat || document.getElementById('classModal').style.display === 'flex') return;
+    if (gameState.inCombat || document.getElementById('roleModal').style.display === 'flex' || document.getElementById('characterModal').style.display === 'flex') return;
     
     isMenuOpen = !isMenuOpen;
     playSFX(sfx.ui_click);
     
+    // Cierra todo lo demás
     document.getElementById('invModal').style.display = 'none';
     document.getElementById('shopModal').style.display = 'none';
     document.getElementById('npcModal').style.display = 'none';
+    document.getElementById('statsModal').style.display = 'none';
+    
     const grimoire = document.getElementById('grimoireModal');
     if(grimoire) grimoire.style.display = 'none';
     const tree = document.getElementById('skillTreeModal');
@@ -177,6 +255,24 @@ export function toggleMainMenu() {
 }
 window.toggleMainMenu = toggleMainMenu;
 window.openLevelUpModal = openLevelUpModal;
+
+// Atajo de teclado 'E' para abrir estadísticas directamente
+window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'e') {
+        if (gameState.inCombat || document.getElementById('roleModal').style.display === 'flex' || document.getElementById('characterModal').style.display === 'flex') return;
+        
+        if (document.getElementById('statsModal').style.display === 'flex') {
+            closeStatsModal();
+            toggleMainMenu(); // Lo cerramos por completo
+        } else {
+            // Lo abrimos
+            isMenuOpen = true;
+            document.getElementById('mainMenuModal').style.display = 'none';
+            openStatsModal();
+        }
+    }
+});
+
 
 // =========================================
 // SISTEMA DE NPCs
@@ -239,366 +335,8 @@ export function openInventory() {
     
     let htmlEq = '';
     if (gameState.player.weapon) {
-        let statText = gameState.player.weapon.atk > 0 ? `ATK +${gameState.player.weapon.atk}` : `MAG +${gameState.player.weapon.mag}`;
+        let statText = gameState.player.weapon.atk > 0 ? `AD +${gameState.player.weapon.atk}` : `AP +${gameState.player.weapon.mag}`;
         htmlEq += `<div class="shop-item"><div><img src="img/weapons/${gameState.player.weapon.icon}" class="icon"> <span class="${gameState.player.weapon.colorClass}">${gameState.player.weapon.name}</span><br><small>${statText}</small></div><button onclick="unequipItem('weapon')" class="btn-danger">Desequipar</button></div>`;
     } else {
         htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px;">Arma: Nada equipado</p>`;
-    }
-    
-    if (gameState.player.armor) {
-        let statText = gameState.player.armor.mpBonus > 0 ? `DEF +${gameState.player.armor.def} | MANÁ +${gameState.player.armor.mpBonus}` : `DEF +${gameState.player.armor.def} | VIDA +${gameState.player.armor.hpBonus}`;
-        htmlEq += `<div class="shop-item"><div><img src="img/weapons/${gameState.player.armor.icon}" class="icon"> <span class="${gameState.player.armor.colorClass}">${gameState.player.armor.name}</span><br><small>${statText}</small></div><button onclick="unequipItem('armor')" class="btn-danger">Desequipar</button></div>`;
-    } else {
-        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px;">Armadura: Nada equipado</p>`;
-    }
-    document.getElementById('invEquipped').innerHTML = htmlEq;
-
-    let htmlBag = '<h4>Armas</h4>';
-    if(gameState.player.inventory.weapons.length === 0) htmlBag += '<p style="font-size:12px; color:#aaa; text-align:center;">No tienes armas en la mochila.</p>';
-    gameState.player.inventory.weapons.forEach((w, idx) => {
-        let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
-        htmlBag += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${w.colorClass}">${w.name}</span><br><small>${statText}</small></div><button onclick="equipFromInv('weapon', ${idx})" style="background:var(--accent); color:#000;">Equipar</button></div>`;
-    });
-    
-    htmlBag += '<h4>Armaduras</h4>';
-    if(gameState.player.inventory.armors.length === 0) htmlBag += '<p style="font-size:12px; color:#aaa; text-align:center;">No tienes armaduras en la mochila.</p>';
-    gameState.player.inventory.armors.forEach((a, idx) => {
-        let statText = a.mpBonus > 0 ? `DEF +${a.def} | MANÁ +${a.mpBonus}` : `DEF +${a.def} | VIDA +${a.hpBonus}`;
-        htmlBag += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${a.colorClass}">${a.name}</span><br><small>${statText}</small></div><button onclick="equipFromInv('armor', ${idx})" style="background:var(--accent); color:#000;">Equipar</button></div>`;
-    });
-    
-    document.getElementById('invBag').innerHTML = htmlBag; 
-    document.getElementById('invModal').style.display = 'flex';
-}
-
-export function closeInventory() { playSFX(sfx.ui_click); document.getElementById('invModal').style.display = 'none'; }
-
-export function unequipItem(type) {
-    playSFX(sfx.equip);
-    if (type === 'weapon' && gameState.player.weapon) {
-        gameState.player.inventory.weapons.push(gameState.player.weapon);
-        gameState.player.weapon = null;
-        logMsg("Desequipaste tu arma.");
-    } else if (type === 'armor' && gameState.player.armor) {
-        gameState.player.inventory.armors.push(gameState.player.armor);
-        gameState.player.armor = null;
-        gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp);
-        gameState.player.mp = Math.min(getMaxMp(), gameState.player.mp);
-        logMsg("Desequipaste tu armadura.");
-    }
-    updateHUD(); openInventory(); saveGame();
-}
-
-export function equipFromInv(type, idx) {
-    playSFX(sfx.equip);
-    if (type === 'weapon') {
-        const item = gameState.player.inventory.weapons.splice(idx, 1)[0];
-        if(gameState.player.weapon) { gameState.player.inventory.weapons.push(gameState.player.weapon); }
-        gameState.player.weapon = item;
-    } else {
-        const item = gameState.player.inventory.armors.splice(idx, 1)[0];
-        if(gameState.player.armor) { gameState.player.inventory.armors.push(gameState.player.armor); }
-        gameState.player.armor = item; 
-        gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + (item.hpBonus || 0));
-    }
-    updateHUD(); openInventory(); saveGame();
-}
-
-export function usePotion() { const max = getMaxHp(); if (gameState.player.potions > 0 && gameState.player.hp < max) { gameState.player.hp = Math.min(max, gameState.player.hp + 25); gameState.player.potions--; playSFX(sfx.use_potion); spawnFloatingText('+25 HP', '#4caf50', gameState.inCombat ? 'combat-player' : 'map'); logMsg("Usaste Poción Vida (+25 HP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
-export function useManaPotion() { const max = getMaxMp(); if (gameState.player.manaPotions > 0 && gameState.player.mp < max) { gameState.player.mp = Math.min(max, gameState.player.mp + 20); gameState.player.manaPotions--; playSFX(sfx.use_potion); spawnFloatingText('+20 MP', '#2196f3', gameState.inCombat ? 'combat-player' : 'map'); logMsg("Usaste Poción Maná (+20 MP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
-export function useEnergyPotion() { const max = getMaxEp(); if (gameState.player.energyPotions > 0 && gameState.player.ep < max) { gameState.player.ep = Math.min(max, gameState.player.ep + 30); gameState.player.energyPotions--; playSFX(sfx.use_potion); spawnFloatingText('+30 EP', '#9c27b0', gameState.inCombat ? 'combat-player' : 'map'); logMsg("Usaste Poción Energía (+30 EP)"); updateHUD(); saveGame(); } else { playSFX(sfx.error); } }
-
-window.openInventory = openInventory;
-window.closeInventory = closeInventory;
-window.unequipItem = unequipItem;
-window.equipFromInv = equipFromInv;
-window.usePotion = usePotion;
-window.useManaPotion = useManaPotion;
-window.useEnergyPotion = useEnergyPotion;
-
-// =========================================
-// SISTEMA DE GRIMORIO
-// =========================================
-export function openGrimoire() {
-    playSFX(sfx.ui_click);
-    
-    let htmlEq = '';
-    const eqSp = gameState.player.equippedSkills.special;
-    if (eqSp && skillsData[eqSp]) {
-        let s = skillsData[eqSp];
-        htmlEq += `<div class="shop-item" style="border-color: #f44336;"><div><span style="font-size:24px">${s.icon}</span> <span>${s.name}</span><br><small>Ofensiva | ${s.cost} ${s.resource.toUpperCase()}</small></div><button onclick="unequipSkill('special')" class="btn-danger">Quitar</button></div>`;
-    } else {
-        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px; border: 1px dashed #f44336;">Espacio Ofensivo: Vacío</p>`;
-    }
-    
-    const eqDef = gameState.player.equippedSkills.defensive;
-    if (eqDef && skillsData[eqDef]) {
-        let s = skillsData[eqDef];
-        htmlEq += `<div class="shop-item" style="border-color: #4caf50;"><div><span style="font-size:24px">${s.icon}</span> <span>${s.name}</span><br><small>Defensiva | ${s.cost} ${s.resource.toUpperCase()}</small></div><button onclick="unequipSkill('defensive')" class="btn-danger">Quitar</button></div>`;
-    } else {
-        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px; border: 1px dashed #4caf50;">Espacio Defensivo: Vacío</p>`;
-    }
-    document.getElementById('grimEquipped').innerHTML = htmlEq;
-
-    let htmlKnown = '';
-    if (!gameState.player.knownSkills || gameState.player.knownSkills.length === 0) {
-        htmlKnown = '<p style="font-size:12px; color:#aaa; text-align:center;">Aún no conoces ninguna habilidad nueva. Sube de nivel o encuentra libros mágicos.</p>';
-    } else {
-        gameState.player.knownSkills.forEach(skillId => {
-            let s = skillsData[skillId];
-            let isEquipped = (eqSp === skillId || eqDef === skillId);
-            let btnHtml = '';
-            
-            if (isEquipped) {
-                btnHtml = `<button disabled style="background:#555; color:#888;">En uso</button>`;
-            } else if (s.type === 'special') {
-                btnHtml = `<button onclick="equipSkill('${skillId}', 'special')" style="background:#f44336; color:#fff;">Usar Ofensiva</button>`;
-            } else {
-                btnHtml = `<button onclick="equipSkill('${skillId}', 'defensive')" style="background:#4caf50; color:#fff;">Usar Defensiva</button>`;
-            }
-            
-            htmlKnown += `
-                <div class="shop-item" style="flex-direction:column; align-items:flex-start; gap:8px;">
-                    <div style="display:flex; justify-content:space-between; width:100%; align-items: center;">
-                        <div>
-                            <span style="font-size:20px">${s.icon}</span> 
-                            <span style="font-weight:bold; color:#fff;">${s.name}</span> 
-                            <small style="color:${s.resource === 'mp' ? '#2196f3' : '#9c27b0'};">(${s.cost} ${s.resource.toUpperCase()})</small>
-                        </div>
-                        ${btnHtml}
-                    </div>
-                    <div style="font-size:12px; color:#ccc; line-height: 1.4;">${s.desc}</div>
-                </div>`;
-        });
-    }
-    document.getElementById('grimList').innerHTML = htmlKnown; 
-    
-    document.getElementById('mainMenuModal').style.display = 'none';
-    document.getElementById('grimoireModal').style.display = 'flex';
-}
-
-export function closeGrimoire() { 
-    playSFX(sfx.ui_click); 
-    document.getElementById('grimoireModal').style.display = 'none'; 
-    document.getElementById('mainMenuModal').style.display = 'flex';
-}
-
-export function equipSkill(skillId, slot) {
-    playSFX(sfx.equip);
-    gameState.player.equippedSkills[slot] = skillId;
-    logMsg(`Has equipado la habilidad: ${skillsData[skillId].name}.`);
-    saveGame();
-    openGrimoire();
-}
-
-export function unequipSkill(slot) {
-    playSFX(sfx.equip);
-    gameState.player.equippedSkills[slot] = null;
-    logMsg(`Has desequipado una habilidad.`);
-    saveGame();
-    openGrimoire();
-}
-
-window.openGrimoire = openGrimoire;
-window.closeGrimoire = closeGrimoire;
-window.equipSkill = equipSkill;
-window.unequipSkill = unequipSkill;
-
-
-// =========================================
-// SISTEMA DE ÁRBOL DE HABILIDADES (NUEVO)
-// =========================================
-export function openSkillTree() {
-    playSFX(sfx.ui_click);
-    document.getElementById('mainMenuModal').style.display = 'none';
-    
-    document.getElementById('spDisplay').textContent = gameState.player.skillPoints || 0;
-    
-    const container = document.getElementById('skillTreeContainer');
-    const emptyMsg = document.getElementById('skillTreeEmptyMsg');
-    container.innerHTML = '';
-    
-    // Filtramos solo las habilidades de la clase actual
-    const classSkills = Object.values(skillsData).filter(s => s.class === gameState.player.playerClass);
-    
-    if (classSkills.length === 0) {
-        emptyMsg.style.display = 'block';
-    } else {
-        emptyMsg.style.display = 'none';
-        
-        // Dibujamos las habilidades
-        classSkills.forEach(skill => {
-            const isLearned = gameState.player.knownSkills.includes(skill.id);
-            const reqLearned = skill.req ? gameState.player.knownSkills.includes(skill.req) : true;
-            
-            let htmlNode = `<div style="width: 300px; padding: 15px; border-radius: 8px; background: #0b1220; display: flex; flex-direction: column; align-items: center; border: 2px solid `;
-            
-            let btnHtml = '';
-            
-            // Lógica de colores y estados del nodo
-            if (isLearned) {
-                htmlNode += `#ffeb3b; box-shadow: 0 0 15px rgba(255, 235, 59, 0.4);">`;
-                btnHtml = `<button disabled style="background:transparent; color:#ffeb3b; border: 1px solid #ffeb3b;">⭐ Ya Aprendida</button>`;
-            } else if (!reqLearned) {
-                htmlNode += `#333; opacity: 0.5;">`;
-                let reqName = skillsData[skill.req].name;
-                btnHtml = `<button disabled style="background:#333; color:#888;">Bloqueada (Requiere: ${reqName})</button>`;
-            } else {
-                htmlNode += `#00bcd4;">`;
-                if (gameState.player.skillPoints > 0) {
-                    btnHtml = `<button onclick="learnSkill('${skill.id}')" style="background:#00bcd4; color:#fff;">Aprender (1 SP)</button>`;
-                } else {
-                    btnHtml = `<button disabled style="background:#555; color:#aaa;">Falta 1 SP</button>`;
-                }
-            }
-            
-            htmlNode += `
-                <div style="font-size: 40px; margin-bottom: 5px;">${skill.icon}</div>
-                <h4 style="margin: 0 0 5px 0; color: #fff;">${skill.name}</h4>
-                <p style="font-size: 12px; color: #aaa; text-align: center; height: 35px; margin-bottom: 10px;">${skill.desc}</p>
-                <div style="font-size: 11px; color: ${skill.resource === 'mp' ? '#2196f3' : '#9c27b0'}; margin-bottom: 15px;">Costo: ${skill.cost} ${skill.resource.toUpperCase()}</div>
-                ${btnHtml}
-            </div>`;
-            
-            container.innerHTML += htmlNode;
-        });
-    }
-    
-    document.getElementById('skillTreeModal').style.display = 'flex';
-}
-
-export function closeSkillTree() {
-    playSFX(sfx.ui_click);
-    document.getElementById('skillTreeModal').style.display = 'none';
-    document.getElementById('mainMenuModal').style.display = 'flex';
-}
-
-export function learnSkill(skillId) {
-    if (gameState.player.skillPoints > 0) {
-        playSFX(sfx.quest_complete);
-        gameState.player.skillPoints--;
-        gameState.player.knownSkills.push(skillId);
-        logMsg(`¡Has aprendido ${skillsData[skillId].name}! Revísalo en tu Grimorio.`);
-        saveGame();
-        openSkillTree(); // Refresca el panel
-    }
-}
-
-window.openSkillTree = openSkillTree;
-window.closeSkillTree = closeSkillTree;
-window.learnSkill = learnSkill;
-
-
-// =========================================
-// TIENDA DEL JUEGO
-// =========================================
-export function openShop() {
-    playSFX(sfx.shop_open); 
-    const cd = mapData[gameState.currentZoneIndex];
-    document.getElementById('shopTier').textContent = `(${cd.rarity})`; document.getElementById('shopTier').className = cd.colorClass;
-    
-    let scaleFactor = getMapScale();
-    let pPrice = Math.floor(20 * scaleFactor);
-    let mpPrice = Math.floor(25 * scaleFactor);
-    let epPrice = Math.floor(15 * scaleFactor);
-
-    let htmlBuy = `
-        <div class="shop-item"><div><img src="img/items/potion.png" class="icon"> <span>Poción (+25 HP)</span></div><button onclick="buyPotion()">${pPrice} <img src="img/items/coin.png" class="icon"></button></div>
-        <div class="shop-item"><div><img src="img/items/mana_potion.png" class="icon"> <span>Maná (+20 MP)</span></div><button onclick="buyManaPotion()">${mpPrice} <img src="img/items/coin.png" class="icon"></button></div>
-        <div class="shop-item"><div><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> <span>Energía (+30 EP)</span></div><button onclick="buyEnergyPotion()">${epPrice} <img src="img/items/coin.png" class="icon"></button></div>
-    `;
-    cd.shop.weapons.forEach(w => { 
-        let sAtk = Math.floor(w.atk * scaleFactor);
-        let sMag = Math.floor(w.mag * scaleFactor);
-        let sPrice = Math.floor(w.price * scaleFactor);
-        let sName = w.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
-        let statText = sAtk > 0 ? `ATK +${sAtk}` : `MAG +${sMag}`;
-        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${statText}</small></div><button onclick="buyWeapon('${sName}', ${sAtk}, ${sMag}, ${sPrice}, '${cd.colorClass}', '${w.icon}')">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`; 
-    });
-    cd.shop.armors.forEach(a => { 
-        let sDef = Math.floor(a.def * scaleFactor);
-        let sHpB = Math.floor(a.hpBonus * scaleFactor);
-        let sMpB = Math.floor(a.mpBonus * scaleFactor);
-        let sPrice = Math.floor(a.price * scaleFactor);
-        let sName = a.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
-        let statText = sMpB > 0 ? `DEF +${sDef} | MANÁ +${sMpB}` : `DEF +${sDef} | VIDA +${sHpB}`;
-        htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${statText}</small></div><button onclick="buyArmor('${sName}', ${sDef}, ${sHpB}, ${sMpB}, ${sPrice}, '${cd.colorClass}', '${a.icon}')">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`; 
-    });
-    document.getElementById('shopContentBuy').innerHTML = htmlBuy; 
-    
-    renderSellTab(); 
-    switchShopTab('buy'); 
-    
-    document.getElementById('shopModal').style.display = 'flex';
-}
-
-export function renderSellTab() {
-    let htmlSell = '<h4>Tus Armas</h4>';
-    if(gameState.player.inventory.weapons.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa; text-align:center;">Mochila vacía.</p>';
-    gameState.player.inventory.weapons.forEach((w, idx) => {
-        let statText = w.atk > 0 ? `ATK +${w.atk}` : `MAG +${w.mag}`;
-        let sellPrice = Math.floor((w.price || 15) / 2); 
-        htmlSell += `<div class="shop-item"><div><img src="img/weapons/${w.icon}" class="icon"> <span class="${w.colorClass}">${w.name}</span><br><small>${statText}</small></div><button class="btn-success" onclick="sellWeapon(${idx}, ${sellPrice})">+${sellPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
-    });
-    
-    htmlSell += '<h4>Tus Armaduras</h4>';
-    if(gameState.player.inventory.armors.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa; text-align:center;">Mochila vacía.</p>';
-    gameState.player.inventory.armors.forEach((a, idx) => {
-        let statText = a.mpBonus > 0 ? `DEF +${a.def} | MANÁ +${a.mpBonus}` : `DEF +${a.def} | VIDA +${a.hpBonus}`;
-        let sellPrice = Math.floor((a.price || 20) / 2);
-        htmlSell += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${a.colorClass}">${a.name}</span><br><small>${statText}</small></div><button class="btn-success" onclick="sellArmor(${idx}, ${sellPrice})">+${sellPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
-    });
-    document.getElementById('shopContentSell').innerHTML = htmlSell;
-}
-
-export function switchShopTab(tab) {
-    playSFX(sfx.ui_click);
-    if(tab === 'buy') {
-        document.getElementById('tabBuy').classList.add('active-tab');
-        document.getElementById('tabSell').classList.remove('active-tab');
-        document.getElementById('shopContentBuy').style.display = 'grid';
-        document.getElementById('shopContentSell').style.display = 'none';
-    } else {
-        document.getElementById('tabSell').classList.add('active-tab');
-        document.getElementById('tabBuy').classList.remove('active-tab');
-        document.getElementById('shopContentSell').style.display = 'grid';
-        document.getElementById('shopContentBuy').style.display = 'none';
-    }
-}
-
-export function closeShop() { playSFX(sfx.shop_close); document.getElementById('shopModal').style.display = 'none'; }
-
-export function sellWeapon(idx, price) { playSFX(sfx.sell_item); gameState.player.inventory.weapons.splice(idx, 1); gameState.player.gold += price; logMsg(`Vendiste un arma por ${price} oro.`); updateHUD(); renderSellTab(); saveGame(); }
-export function sellArmor(idx, price) { playSFX(sfx.sell_item); gameState.player.inventory.armors.splice(idx, 1); gameState.player.gold += price; logMsg(`Vendiste una armadura por ${price} oro.`); updateHUD(); renderSellTab(); saveGame(); }
-
-export function buyPotion() { let p = Math.floor(20 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.potions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Vida."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
-export function buyManaPotion() { let p = Math.floor(25 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.manaPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Maná."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
-export function buyEnergyPotion() { let p = Math.floor(15 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.energyPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Energía."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
-
-export function buyWeapon(name, atk, mag, price, colorClass, icon) { 
-    if (gameState.player.gold >= price) { 
-        gameState.player.gold -= price; 
-        gameState.player.inventory.weapons.push({ name, atk, mag, price, colorClass, icon }); 
-        playSFX(sfx.buy_item); logMsg(`Compraste: ${name}. Revisa tu mochila.`); 
-        updateHUD(); renderSellTab(); saveGame(); 
-    } else { playSFX(sfx.error); alert("Oro insuficiente."); } 
-}
-
-export function buyArmor(name, def, hpBonus, mpBonus, price, colorClass, icon) { 
-    if (gameState.player.gold >= price) { 
-        gameState.player.gold -= price; 
-        gameState.player.inventory.armors.push({ name, def, hpBonus, mpBonus, price, colorClass, icon }); 
-        playSFX(sfx.buy_item); logMsg(`Compraste: ${name}. Revisa tu mochila.`); 
-        updateHUD(); renderSellTab(); saveGame(); 
-    } else { playSFX(sfx.error); alert("Oro insuficiente."); } 
-}
-
-window.switchShopTab = switchShopTab;
-window.closeShop = closeShop;
-window.sellWeapon = sellWeapon;
-window.sellArmor = sellArmor;
-window.buyPotion = buyPotion;
-window.buyManaPotion = buyManaPotion;
-window.buyEnergyPotion = buyEnergyPotion;
-window.buyWeapon = buyWeapon;
-window.buyArmor = buyArmor;
+ 

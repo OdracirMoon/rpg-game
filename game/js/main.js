@@ -110,6 +110,7 @@ export function importGame(evento) {
     };
     lector.readAsText(archivo); evento.target.value = '';
 }
+
 window.saveGame = saveGame; window.loadGameBtn = loadGameBtn; window.resetGame = resetGame;
 window.returnToMainMenu = returnToMainMenu; window.exportGame = exportGame; window.importGame = importGame; window.toggleAudio = toggleAudio;
 
@@ -179,6 +180,9 @@ export function selectCharacter(charId) {
 
     gameState.player.role = char.role; gameState.player.characterId = char.id; gameState.player.characterName = char.name;
     gameState.player.mapImg = char.imgs.map; gameState.player.combatImg = char.imgs.combat;
+    
+    // VARIABLE DE SEGURIDAD PARA MAP.JS
+    gameState.player.playerClass = char.name; 
 
     gameState.player.baseMaxHp = char.stats.hp; gameState.player.hp = char.stats.hp; gameState.player.baseHpRegen = char.stats.hpReg;
     gameState.player.baseMaxMp = char.stats.mp; gameState.player.mp = char.stats.mp; gameState.player.baseMpRegen = 1; 
@@ -210,10 +214,9 @@ export function selectCharacter(charId) {
 window.selectRole = selectRole; window.backToRoles = backToRoles; window.selectCharacter = selectCharacter;
 
 // =========================================
-// CONTROLES Y BUCLE (REPARADOS PARA MÓVIL)
+// CONTROLES Y BUCLE
 // =========================================
 
-// Esta función maestra comunica el HTML con el archivo map.js
 window.movePlayer = function(dx, dy) {
     move(dx, dy);
 };
@@ -241,4 +244,3 @@ setInterval(() => {
 }, 1500);
 
 initGame();
-            

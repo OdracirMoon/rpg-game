@@ -140,6 +140,17 @@ export function updateHUD() {
         document.getElementById('playerClassName').textContent = pName;
         document.getElementById('playerLevel').textContent = `(Lv. ${gameState.player.level || 1})`;
 
+        // Botón fijo de subida de nivel para móvil/escritorio sin inyectar HTML dinámico en menús.
+        const hudLevelBtn = document.getElementById('hudLevelUpBtn');
+        if (hudLevelBtn) {
+            if ((gameState.player.statPoints || 0) > 0) {
+                hudLevelBtn.style.display = 'block';
+                hudLevelBtn.textContent = `⭐ +${gameState.player.statPoints} Punto(s)`;
+            } else {
+                hudLevelBtn.style.display = 'none';
+            }
+        }
+
         checkLowHp(); 
     } catch (e) { console.error("Error HUD:", e); }
 }

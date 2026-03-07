@@ -112,12 +112,6 @@ function getCachedImage(src, forceReload = false) {
     return img;
 }
 
-function resolveTileSources(type) {
-    if (type === 'swamp') return ['img/tiles/tile_swamp.png'];
-    if (type === 'fountain') return ['img/tiles/tile_fountain.png', 'img/tiles/fountain_obj.png'];
-    return [`img/tiles/tile_${type}.png`];
-}
-
 function drawEntitySprite(ctx, entity, fallbackSrc, px, py, TS) {
     const src = (entity && entity.spriteSheet) ? entity.spriteSheet : fallbackSrc;
     if (!src) return;
@@ -139,55 +133,64 @@ function drawTile(ctx, t, px, py, TS, stride) {
         return;
     }
 
-    const tileSources = resolveTileSources(t.type);
-    let img = null;
-    for (const src of tileSources) {
-        img = getCachedImage(src, failedSpriteSources.has(src));
-        if (img && img.complete && img.naturalWidth !== 0) break;
-    }
+    let tileKey = 'tile_' + t.type;
+    // Para la fuente, usamos el agua como fondo base
+    if (t.type === 'fountain') tileKey = 'tile_water';
 
-    if (img && img.complete && img.naturalWidth !== 0) {
+    let img = getCachedImage('img/tiles/' + tileKey + '.png');
+    
+    // Fallback visual mientras carga o si el archivo PNG no existe en la carpeta
+    const colors = { grass: '#184b20', path: '#5d4037', wall: '#444', water: '#10304a', swamp: '#2b3b2c', fountain: '#008ba3' };
+    
+    if (img.complete && img.naturalWidth !== 0) {
         ctx.drawImage(img, px, py, TS, TS);
     } else {
-        // fallback: caja de color según tipo (por si la imagen no carga)
-        const colors = { grass: '#184b20', path: '#5d4037', wall: '#444', water: '#10304a', swamp: '#2b3b2c', fountain: '#008ba3' };
         ctx.fillStyle = colors[t.type] || '#222';
         ctx.fillRect(px, py, TS, TS);
-        if (img) {
-            img.onload = () => {
-                // redraw that tile once loaded
-                ctx.drawImage(img, px, py, TS, TS);
-            };
+        img.onload = () => { ctx.drawImage(img, px, py, TS, TS); };
+    }
+
+    // Dibujar el objeto de la fuente ENCIMA del fondo
+    if (t.type === 'fountain') {
+        let fImg = getCachedImage('img/tiles/fountain_obj.png');
+        if (fImg.complete && fImg.naturalWidth !== 0) {
+            ctx.drawImage(fImg, px, py, TS, TS);
+        } else {
+            fImg.onload = () => ctx.drawImage(fImg, px, py, TS, TS);
         }
     }
 
+    // --- Resto de elementos superpuestos ---
     if (t.isBossTile) {
-        // draw a faint border to highlight boss
         ctx.strokeStyle = 'yellow';
         ctx.lineWidth = 2;
         ctx.strokeRect(px, py, TS, TS);
     }
 
     if (t.enemy) {
-        const enemy = ensureEnemy(t.enemy);
-        drawEntitySprite(ctx, enemy, enemy ? enemy.img : null, px, py, TS);
-    }
-    if (t.boss) {
-        drawEntitySprite(ctx, t.boss, t.boss.img, px, py, TS);
+        // Prioriza el spriteSheet de animación, si no tiene usa la imagen estática
+        let eImgUrl = t.enemy.spriteSheet ? t.enemy.spriteSheet : t.enemy.img;
+        let eImg = getCachedImage(eImgUrl);
+        if (eImg.complete && eImg.naturalWidth !== 0) ctx.drawImage(eImg, px, py, TS, TS);
+        else eImg.onload = () => ctx.drawImage(eImg, px, py, TS, TS);
     }
     if (t.merchant) {
-        drawEntitySprite(ctx, { spriteSheet: null }, 'img/npcs/merchant.png', px, py, TS);
+        let mImg = getCachedImage('img/npcs/merchant.png');
+        if (mImg.complete && mImg.naturalWidth !== 0) ctx.drawImage(mImg, px, py, TS, TS);
+        else mImg.onload = () => ctx.drawImage(mImg, px, py, TS, TS);
     }
     if (t.npc) {
-        drawEntitySprite(ctx, t.npc, t.npc.img, px, py, TS);
+        let nImgUrl = t.npc.spriteSheet ? t.npc.spriteSheet : t.npc.img;
+        let nImg = getCachedImage(nImgUrl);
+        if (nImg.complete && nImg.naturalWidth !== 0) ctx.drawImage(nImg, px, py, TS, TS);
+        else nImg.onload = () => ctx.drawImage(nImg, px, py, TS, TS);
     }
     if (t.chest) {
         let key = t.chest.opened ? 'chest_opened' : 'chest_closed';
         let cImg = getCachedImage('img/tiles/' + key + '.png');
-        if (cImg.complete) ctx.drawImage(cImg, px, py, TS, TS);
+        if (cImg.complete && cImg.naturalWidth !== 0) ctx.drawImage(cImg, px, py, TS, TS);
         else cImg.onload = () => ctx.drawImage(cImg, px, py, TS, TS);
     }
-    if (t.type === 'fountain') drawEntitySprite(ctx, { spriteSheet: null }, 'img/tiles/fountain_obj.png', px, py, TS);
 }
 
 export function renderMiniMap(canvasId = 'miniMapCanvas') {

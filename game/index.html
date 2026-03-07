@@ -47,6 +47,7 @@
         <div style="font-size: 11px; color: #aaa; border-top: 1px solid #333; padding-top: 5px;">
             📍 Zona: <span id="mapName" style="font-weight: bold;">Común</span>
         </div>
+        <button id="hudLevelUpBtn" onclick="openLevelUpModal()" class="btn-success" style="display:none; width:100%; margin-top:6px; padding:8px; font-size:12px;">⭐ Subir Nivel</button>
         <div style="font-size: 10px; color: #888; margin-top: 3px;" class="desktop-only">
             [ESC] Sistema | [I] Héroe | [E] Estadísticas | [M] Mapa/Misiones
         </div>
@@ -55,6 +56,13 @@
     <div id="mainMenuModal" class="modal-overlay">
         <div class="modal-card" style="width: 450px;">
             <h2 style="margin: 0 0 15px 0; color: #fff;">⚙️ Menú de Sistema</h2>
+
+            <div style="border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;">
+                <h4 style="color: #00bcd4; margin-top: 0;">Navegación</h4>
+                <button onclick="openInventory(); toggleMainMenu();" style="width: 100%; margin-bottom: 5px;">🎒 Inventario</button>
+                <button onclick="openStatsModal();" style="width: 100%; margin-bottom: 5px;">📊 Estadísticas</button>
+                <button onclick="openMapModal(); toggleMainMenu();" style="width: 100%; margin-bottom: 5px;">🗺️ Mapa y Misiones</button>
+            </div>
 
             <div class="menu-section">
                 <h3>⚙️ Sistema</h3>

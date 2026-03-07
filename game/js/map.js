@@ -40,6 +40,12 @@ export function drawPathWorld(startX, startY, endX, endY) {
     }
 }
 
+function ensureEnemy(enemy) {
+    if (!enemy) return null;
+    if (enemy.spriteSheet === undefined) enemy.spriteSheet = null;
+    return enemy;
+}
+
 export function scaleEnemy(template, isBoss, zoneIdx) {
     let e = JSON.parse(JSON.stringify(template));
     let mapScale = 1 + (zoneIdx * 0.6); 
@@ -71,6 +77,7 @@ export function scaleEnemy(template, isBoss, zoneIdx) {
     e.evasion = e.evasion || 0;
     e.manaBurn = e.manaBurn || 0;
     e.trait = e.trait || '';
+    e.spriteSheet = e.spriteSheet || null;
 
     e.gold = Math.floor(e.gold * (1 + zoneIdx * 0.3) * globalMapLevelScale); 
     e.xp = Math.floor(e.xp * (1 + zoneIdx * 0.4) * globalMapLevelScale);
@@ -86,15 +93,43 @@ export function scaleEnemy(template, isBoss, zoneIdx) {
 // =========================================
 
 const spriteCache = {};
-function getCachedImage(src) {
-    if (spriteCache[src]) return spriteCache[src];
+const failedSpriteSources = new Set();
+
+function getCachedImage(src, forceReload = false) {
+    if (!src) return null;
+    if (!forceReload && spriteCache[src]) return spriteCache[src];
+
     const img = new Image();
     img.src = src;
+    img.onload = () => {
+        failedSpriteSources.delete(src);
+    };
     img.onerror = () => {
+        failedSpriteSources.add(src);
         console.warn("Tile image failed to load:", src);
     };
     spriteCache[src] = img;
     return img;
+}
+
+function resolveTileSources(type) {
+    if (type === 'swamp') return ['img/tiles/tile_swamp.png'];
+    if (type === 'fountain') return ['img/tiles/tile_fountain.png', 'img/tiles/fountain_obj.png'];
+    return [`img/tiles/tile_${type}.png`];
+}
+
+function drawEntitySprite(ctx, entity, fallbackSrc, px, py, TS) {
+    const src = (entity && entity.spriteSheet) ? entity.spriteSheet : fallbackSrc;
+    if (!src) return;
+    let img = getCachedImage(src, failedSpriteSources.has(src));
+    if (!img) return;
+
+    if (img.complete && img.naturalWidth !== 0) {
+        // Preparado para animación futura: hoy dibuja frame estático completo.
+        ctx.drawImage(img, px, py, TS, TS);
+    } else {
+        img.onload = () => ctx.drawImage(img, px, py, TS, TS);
+    }
 }
 
 function drawTile(ctx, t, px, py, TS, stride) {
@@ -104,19 +139,26 @@ function drawTile(ctx, t, px, py, TS, stride) {
         return;
     }
 
-    let tileKey = 'tile_' + t.type;
-    let img = getCachedImage('./img/tiles/' + tileKey + '.png');
-    if (img.complete && img.naturalWidth !== 0) {
+    const tileSources = resolveTileSources(t.type);
+    let img = null;
+    for (const src of tileSources) {
+        img = getCachedImage(src, failedSpriteSources.has(src));
+        if (img && img.complete && img.naturalWidth !== 0) break;
+    }
+
+    if (img && img.complete && img.naturalWidth !== 0) {
         ctx.drawImage(img, px, py, TS, TS);
     } else {
         // fallback: caja de color según tipo (por si la imagen no carga)
         const colors = { grass: '#184b20', path: '#5d4037', wall: '#444', water: '#10304a', swamp: '#2b3b2c', fountain: '#008ba3' };
         ctx.fillStyle = colors[t.type] || '#222';
         ctx.fillRect(px, py, TS, TS);
-        img.onload = () => {
-            // redraw that tile once loaded
-            ctx.drawImage(img, px, py, TS, TS);
-        };
+        if (img) {
+            img.onload = () => {
+                // redraw that tile once loaded
+                ctx.drawImage(img, px, py, TS, TS);
+            };
+        }
     }
 
     if (t.isBossTile) {
@@ -127,19 +169,17 @@ function drawTile(ctx, t, px, py, TS, stride) {
     }
 
     if (t.enemy) {
-        let eImg = getCachedImage(t.enemy.img);
-        if (eImg.complete) ctx.drawImage(eImg, px, py, TS, TS);
-        else eImg.onload = () => ctx.drawImage(eImg, px, py, TS, TS);
+        const enemy = ensureEnemy(t.enemy);
+        drawEntitySprite(ctx, enemy, enemy ? enemy.img : null, px, py, TS);
+    }
+    if (t.boss) {
+        drawEntitySprite(ctx, t.boss, t.boss.img, px, py, TS);
     }
     if (t.merchant) {
-        let mImg = getCachedImage('img/npcs/merchant.png');
-        if (mImg.complete) ctx.drawImage(mImg, px, py, TS, TS);
-        else mImg.onload = () => ctx.drawImage(mImg, px, py, TS, TS);
+        drawEntitySprite(ctx, { spriteSheet: null }, 'img/npcs/merchant.png', px, py, TS);
     }
     if (t.npc) {
-        let nImg = getCachedImage(t.npc.img);
-        if (nImg.complete) ctx.drawImage(nImg, px, py, TS, TS);
-        else nImg.onload = () => ctx.drawImage(nImg, px, py, TS, TS);
+        drawEntitySprite(ctx, t.npc, t.npc.img, px, py, TS);
     }
     if (t.chest) {
         let key = t.chest.opened ? 'chest_opened' : 'chest_closed';
@@ -147,12 +187,44 @@ function drawTile(ctx, t, px, py, TS, stride) {
         if (cImg.complete) ctx.drawImage(cImg, px, py, TS, TS);
         else cImg.onload = () => ctx.drawImage(cImg, px, py, TS, TS);
     }
-    if (t.type === 'fountain') {
-        let fImg = getCachedImage('img/tiles/fountain_obj.png');
-        if (fImg.complete) ctx.drawImage(fImg, px, py, TS, TS);
-        else fImg.onload = () => ctx.drawImage(fImg, px, py, TS, TS);
-    }
+    if (t.type === 'fountain') drawEntitySprite(ctx, { spriteSheet: null }, 'img/tiles/fountain_obj.png', px, py, TS);
 }
+
+export function renderMiniMap(canvasId = 'miniMapCanvas') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !gameState.worldMap || gameState.worldMap.length === 0) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const tileW = canvas.width / MAP_W;
+    const tileH = canvas.height / MAP_H;
+
+    for (let y = 0; y < MAP_H; y++) {
+        for (let x = 0; x < MAP_W; x++) {
+            const t = gameState.worldMap[y * MAP_W + x];
+            if (!t || !t.discovered) {
+                ctx.fillStyle = '#000';
+            } else {
+                const palette = {
+                    grass: '#2e7d32',
+                    path: '#8d6e63',
+                    wall: '#424242',
+                    water: '#1565c0',
+                    swamp: '#33691e',
+                    fountain: '#00acc1',
+                    gate: '#ffeb3b'
+                };
+                ctx.fillStyle = palette[t.type] || '#263238';
+            }
+            ctx.fillRect(x * tileW, y * tileH, tileW, tileH);
+        }
+    }
+
+    ctx.fillStyle = '#ffeb3b';
+    ctx.fillRect(gameState.player.x * tileW, gameState.player.y * tileH, Math.max(2, tileW), Math.max(2, tileH));
+}
+window.renderMiniMap = renderMiniMap;
 
 // =========================================
 // UTILIDADES DE CACHE DEL MAPA (LOCALSTORAGE)
@@ -471,7 +543,7 @@ export function openChest(tile) {
 }
 
 export function move(dx, dy) {
-    if (isMenuOpen || gameState.inCombat || document.getElementById('classModal').style.display === 'flex' || document.getElementById('npcModal').style.display === 'flex' || document.getElementById('shopModal').style.display === 'flex') return;
+    if (isMenuOpen || gameState.inCombat || document.getElementById('classModal').style.display === 'flex' || document.getElementById('npcModal').style.display === 'flex' || document.getElementById('shopModal').style.display === 'flex' || document.getElementById('mapModal').style.display === 'flex') return;
     
     // detectar dirección de desplazamiento
     if (dy === -1) gameState.player.direction = 'up';

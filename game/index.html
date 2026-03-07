@@ -48,40 +48,13 @@
             📍 Zona: <span id="mapName" style="font-weight: bold;">Común</span>
         </div>
         <div style="font-size: 10px; color: #888; margin-top: 3px;" class="desktop-only">
-            [ESC] Menú | [E] Estadísticas
+            [ESC] Sistema | [I] Héroe | [E] Estadísticas | [M] Mapa/Misiones
         </div>
     </div>
 
     <div id="mainMenuModal" class="modal-overlay">
         <div class="modal-card" style="width: 450px;">
-            <h2 style="margin: 0 0 15px 0; color: #fff;">⏸️ Menú Principal</h2>
-            
-            <div class="menu-section">
-                <h3>📊 Resumen de Estadísticas</h3>
-                <div id="menuStats" style="font-size: 14px; line-height: 1.5; margin-bottom: 10px;"></div>
-                <button class="btn-sys-alt" onclick="openStatsModal()" style="width: 100%; border-color: #2196f3; color: #2196f3;">🔍 Ver Estadísticas Avanzadas (E)</button>
-                <div id="menuEquipment" style="margin-top: 10px; font-size: 13px; border-top: 1px dashed #4a5a80; padding-top: 8px;"></div>
-            </div>
-
-            <div class="menu-section">
-                <h3>📜 Misión Actual</h3>
-                <div id="quest" style="font-size: 13px;">Explora y habla con los NPCs en el mapa.</div>
-            </div>
-
-            <div class="menu-section">
-                <h3>🎒 Menú de Héroe</h3>
-                <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                    <button onclick="usePotion()" style="flex: 1;"><img src="img/items/potion.png" class="icon"> Usar HP</button>
-                    <button onclick="useManaPotion()" style="flex: 1; background: #2196f3; color: white;"><img src="img/items/mana_potion.png" class="icon"> Usar MP</button>
-                    <button onclick="useEnergyPotion()" style="flex: 1; background: #9c27b0; color: white;"><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> Usar EP</button>
-                </div>
-                
-                <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top:5px;">
-                    <button class="btn-success" onclick="openInventory()" style="flex: 1;">🎒 Inventario</button>
-                    <button onclick="openGrimoire()" style="flex: 1; background: #673ab7; color: white; border: 1px solid #9c27b0;">📖 Grimorio</button>
-                    <button onclick="openSkillTree()" style="flex: 1; background: #009688; color: white; border: 1px solid #00bcd4;">🌳 Árbol Habilidades</button>
-                </div>
-            </div>
+            <h2 style="margin: 0 0 15px 0; color: #fff;">⚙️ Menú de Sistema</h2>
 
             <div class="menu-section">
                 <h3>⚙️ Sistema</h3>
@@ -105,6 +78,19 @@
 
             <button class="btn-sys-alt" onclick="returnToMainMenu()" style="margin-top: 15px; background: #d35400; color: white;">🏠 Volver al Menú Principal</button>
             <button class="btn-danger" onclick="toggleMainMenu()" style="margin-top: 5px;">❌ Cerrar Menú</button>
+        </div>
+    </div>
+
+    <div id="mapModal" class="modal-overlay" style="z-index: 1022; display: none;">
+        <div class="modal-card" style="width: 700px; max-width: 95vw;">
+            <h2 style="margin: 0 0 15px 0; color: #fff;">🗺️ Mapa y Misiones</h2>
+            <div style="background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a; margin-bottom: 12px; text-align: left;">
+                <div id="mapQuestInfo" style="font-size: 14px; color: #ddd; line-height: 1.5;">Sin misión activa.</div>
+            </div>
+            <div style="display:flex; justify-content:center; margin-bottom: 12px;">
+                <canvas id="miniMapCanvas" width="400" height="400" style="border: 1px solid #32486b; background: #000; image-rendering: pixelated;"></canvas>
+            </div>
+            <button class="btn-danger" onclick="closeMapModal()">Cerrar Mapa</button>
         </div>
     </div>
 
@@ -258,6 +244,10 @@
     <div id="invModal" class="modal-overlay" style="z-index: 1020;">
         <div class="modal-card" style="width: 700px; max-width: 95vw;">
             <h2 style="margin: 0 0 15px 0; color: #fff;">🎒 Inventario</h2>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
+                <button onclick="openGrimoire()" style="flex: 1; background: #673ab7; color: white; border: 1px solid #9c27b0;">📖 Grimorio</button>
+                <button onclick="openSkillTree()" style="flex: 1; background: #009688; color: white; border: 1px solid #00bcd4;">🌳 Árbol Habilidades</button>
+            </div>
             <div id="invContainer" style="display: flex; gap: 15px; text-align: left; flex-direction: column;">
                 <div style="background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;"><h3 style="color:var(--accent); margin-top:0; font-size:16px;">🗡️ Equipado</h3><div id="invEquipped" class="large-item-grid"></div></div>
                 <div style="background: #0b1220; padding: 12px; border-radius: 8px; border: 1px solid #14203a;"><h3 style="color:var(--accent); margin-top:0; font-size:16px;">📦 En Mochila</h3><div id="invBag" class="large-item-grid" style="max-height: 40vh; overflow-y: auto; padding-right: 5px;"></div></div>

@@ -4,7 +4,12 @@
 import { gameState } from './state.js';
 import { SAVE_KEY, GAME_VERSION, activeSlot, charactersData } from './data.js';
 import { sfx, playSFX, playBGM, toggleAudio } from './audio.js';
-import { logMsg, updateHUD, spawnFloatingText, isMenuOpen, toggleMainMenu } from './ui.js';
+import {
+    logMsg, updateHUD, spawnFloatingText, isMenuOpen,
+    toggleMainMenu, openInventory, closeInventory,
+    openStatsModal, closeStatsModal,
+    toggleMapModal
+} from './ui.js';
 import { generateWorld, updateFOV, render, move } from './map.js';
 
 // =========================================
@@ -252,7 +257,25 @@ window.movePlayer = function(dx, dy) {
 
 window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
+    const isRoleModalOpen = document.getElementById('roleModal') && document.getElementById('roleModal').style.display === 'flex';
+    const isCharModalOpen = document.getElementById('characterModal') && document.getElementById('characterModal').style.display === 'flex';
+    if (gameState.inCombat || isRoleModalOpen || isCharModalOpen) return;
+
     if (e.key === 'Escape') { toggleMainMenu(); return; }
+    if (k === 'i') {
+        const invModal = document.getElementById('invModal');
+        if (invModal && invModal.style.display === 'flex') closeInventory();
+        else openInventory();
+        return;
+    }
+    if (k === 'e') {
+        const statsModal = document.getElementById('statsModal');
+        if (statsModal && statsModal.style.display === 'flex') closeStatsModal();
+        else openStatsModal();
+        return;
+    }
+    if (k === 'm') { toggleMapModal(); return; }
+
     if (k === 'w' || k === 'arrowup') move(0, -1);
     if (k === 's' || k === 'arrowdown') move(0, 1);
     if (k === 'a' || k === 'arrowleft') move(-1, 0);

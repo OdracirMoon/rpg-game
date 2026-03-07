@@ -10,6 +10,22 @@ import { openLevelUpModal } from './combat.js';
 export let isMenuOpen = false;
 export let pendingQuest = null;
 
+function canOpenUiPanels() {
+    return !gameState.inCombat &&
+        document.getElementById('roleModal').style.display !== 'flex' &&
+        document.getElementById('characterModal').style.display !== 'flex';
+}
+
+function closeNonSystemPanels() {
+    document.getElementById('invModal').style.display = 'none';
+    document.getElementById('shopModal').style.display = 'none';
+    document.getElementById('npcModal').style.display = 'none';
+    document.getElementById('statsModal').style.display = 'none';
+    const mapModal = document.getElementById('mapModal'); if (mapModal) mapModal.style.display = 'none';
+    const grimoire = document.getElementById('grimoireModal'); if (grimoire) grimoire.style.display = 'none';
+    const tree = document.getElementById('skillTreeModal'); if (tree) tree.style.display = 'none';
+}
+
 // =========================================
 // UTILIDADES Y CÁLCULOS BASE (Protegidos)
 // =========================================
@@ -124,48 +140,6 @@ export function updateHUD() {
         document.getElementById('playerClassName').textContent = pName;
         document.getElementById('playerLevel').textContent = `(Lv. ${gameState.player.level || 1})`;
 
-        let statsEl = document.getElementById('menuStats');
-        if (statsEl) {
-            statsEl.innerHTML = `
-                <b>🗡️ AD:</b> ${getAtk()} <span class="stat-bonus">${gameState.player.weapon && gameState.player.weapon.ad ? '(+'+gameState.player.weapon.ad+')' : ''}</span> |
-                <b>🔮 AP:</b> ${getMag()} <span class="stat-magic">${gameState.player.weapon && gameState.player.weapon.ap ? '(+'+gameState.player.weapon.ap+')' : ''}</span><br>
-                <b>🛡️ Armor:</b> ${getDef()} <span class="stat-bonus">${gameState.player.armor && gameState.player.armor.armor ? '(+'+gameState.player.armor.armor+')' : ''}</span> |
-                <b>✨ MR:</b> ${getMr()} <span class="stat-magic">${gameState.player.armor && gameState.player.armor.mr ? '(+'+gameState.player.armor.mr+')' : ''}</span><br>
-                <b>⭐ XP:</b> ${gameState.player.xp || 0}/${(gameState.player.level || 1) * 15} | <b>💰 Oro:</b> ${gameState.player.gold || 0}
-            `;
-            if (gameState.player.statPoints > 0) {
-                statsEl.innerHTML += `<button class="btn-success" onclick="openLevelUpModal()" style="width: 100%; margin-top: 10px; padding: 10px;">⭐ ¡${gameState.player.statPoints} Puntos de Atributo! ⭐</button>`;
-            }
-            if (gameState.player.skillPoints > 0) {
-                statsEl.innerHTML += `<button onclick="openSkillTree()" style="width: 100%; margin-top: 5px; padding: 10px; background: #00bcd4; color: white; border: 1px solid #009688;">🌳 ¡${gameState.player.skillPoints} Puntos de Habilidad!</button>`;
-            }
-        }
-
-        let eqEl = document.getElementById('menuEquipment');
-        if (eqEl) {
-            eqEl.innerHTML = `
-                <img src="img/weapons/${gameState.player.weapon ? gameState.player.weapon.icon : 'iron_dagger.png'}" class="icon"> <b>Arma:</b> <span class="${gameState.player.weapon ? gameState.player.weapon.colorClass : ''}">${gameState.player.weapon ? gameState.player.weapon.name : 'Ninguna'}</span><br>
-                <img src="img/weapons/${gameState.player.armor ? gameState.player.armor.icon : 'leather_vest.png'}" class="icon"> <b>Armadura:</b> <span class="${gameState.player.armor ? gameState.player.armor.colorClass : ''}">${gameState.player.armor ? gameState.player.armor.name : 'Ninguna'}</span>
-            `;
-        }
-
-        // mostrar misión actual en el menú principal
-        let questEl = document.getElementById('quest');
-        if (questEl) {
-            if (gameState.quest) {
-                let q = gameState.quest;
-                let prog = q.progress || 0;
-                let text = q.text;
-                if (q.type === 'collect_gold') {
-                    text = `${prog} / ${q.goal} oro`; 
-                } else {
-                    text = `${prog} / ${q.goal} ${q.target}`;
-                }
-                questEl.textContent = text;
-            } else {
-                questEl.textContent = "Explora y habla con los NPCs en el mapa.";
-            }
-        }
         checkLowHp(); 
     } catch (e) { console.error("Error HUD:", e); }
 }
@@ -176,6 +150,8 @@ export function openStatsModal() {
     try {
         playSFX(sfx.ui_click);
         document.getElementById('mainMenuModal').style.display = 'none';
+        document.getElementById('invModal').style.display = 'none';
+        const mapModal = document.getElementById('mapModal'); if (mapModal) mapModal.style.display = 'none';
         const p = gameState.player;
         
         let atkSpeed = Number(p.baseAttackSpeed); if (isNaN(atkSpeed)) atkSpeed = 1.0;
@@ -236,32 +212,69 @@ export function openStatsModal() {
         `;
         document.getElementById('fullStatsContainer').innerHTML = html;
         document.getElementById('statsModal').style.display = 'flex';
-    } catch (e) { document.getElementById('statsModal').style.display = 'none'; document.getElementById('mainMenuModal').style.display = 'flex'; }
+    } catch (e) { document.getElementById('statsModal').style.display = 'none'; }
 }
-export function closeStatsModal() { playSFX(sfx.ui_click); document.getElementById('statsModal').style.display = 'none'; document.getElementById('mainMenuModal').style.display = 'flex'; }
+export function closeStatsModal() { playSFX(sfx.ui_click); document.getElementById('statsModal').style.display = 'none'; }
 window.openStatsModal = openStatsModal; window.closeStatsModal = closeStatsModal;
 
 // =========================================
 // PANELES Y VENTANAS
 // =========================================
 export function toggleMainMenu() {
-    if (gameState.inCombat || document.getElementById('roleModal').style.display === 'flex' || document.getElementById('characterModal').style.display === 'flex') return;
+    if (!canOpenUiPanels()) return;
     isMenuOpen = !isMenuOpen; playSFX(sfx.ui_click);
-    if (isMenuOpen) { updateHUD(); }
-    document.getElementById('invModal').style.display = 'none'; document.getElementById('shopModal').style.display = 'none'; document.getElementById('npcModal').style.display = 'none'; document.getElementById('statsModal').style.display = 'none';
-    const grimoire = document.getElementById('grimoireModal'); if(grimoire) grimoire.style.display = 'none';
-    const tree = document.getElementById('skillTreeModal'); if(tree) tree.style.display = 'none';
+    if (isMenuOpen) { updateHUD(); closeNonSystemPanels(); }
     document.getElementById('mainMenuModal').style.display = isMenuOpen ? 'flex' : 'none';
 }
 window.toggleMainMenu = toggleMainMenu;
 window.openLevelUpModal = openLevelUpModal;
 
-window.addEventListener('keydown', e => {
-    if (e.key.toLowerCase() === 'e') {
-        if (gameState.inCombat || document.getElementById('roleModal').style.display === 'flex' || document.getElementById('characterModal').style.display === 'flex') return;
-        if (document.getElementById('statsModal').style.display === 'flex') { closeStatsModal(); toggleMainMenu(); } else { isMenuOpen = true; document.getElementById('mainMenuModal').style.display = 'none'; openStatsModal(); }
+export function openMapModal() {
+    if (!canOpenUiPanels()) return;
+    playSFX(sfx.ui_click);
+    isMenuOpen = false;
+    closeNonSystemPanels();
+    document.getElementById('mainMenuModal').style.display = 'none';
+
+    const mapQuestInfo = document.getElementById('mapQuestInfo');
+    if (mapQuestInfo) {
+        if (gameState.quest) {
+            const q = gameState.quest;
+            const prog = q.progress || 0;
+            let detail = q.text || 'Misión activa';
+            if (q.type === 'collect_gold') {
+                detail = `${prog} / ${q.goal} oro`;
+            } else if (q.target) {
+                detail = `${prog} / ${q.goal} ${q.target}`;
+            } else {
+                detail = `${prog} / ${q.goal}`;
+            }
+            mapQuestInfo.innerHTML = `<b>Misión Actual:</b> ${q.text}<br><b>Progreso:</b> ${detail}`;
+        } else {
+            mapQuestInfo.innerHTML = '<b>Sin misión activa.</b> Explora y habla con NPCs para obtener tareas.';
+        }
     }
-});
+
+    if (typeof window.renderMiniMap === 'function') {
+        window.renderMiniMap('miniMapCanvas');
+    }
+    document.getElementById('mapModal').style.display = 'flex';
+}
+
+export function closeMapModal() {
+    playSFX(sfx.ui_click);
+    document.getElementById('mapModal').style.display = 'none';
+}
+
+export function toggleMapModal() {
+    const mapModal = document.getElementById('mapModal');
+    if (!mapModal || !canOpenUiPanels()) return;
+    if (mapModal.style.display === 'flex') closeMapModal();
+    else openMapModal();
+}
+window.openMapModal = openMapModal;
+window.closeMapModal = closeMapModal;
+window.toggleMapModal = toggleMapModal;
 
 
 // =========================================
@@ -303,6 +316,8 @@ function buildAccessoryStatsText(acc) {
 // =========================================
 export function openInventory() {
     playSFX(sfx.ui_click);
+    isMenuOpen = false;
+    document.getElementById('mainMenuModal').style.display = 'none';
     
     let htmlEq = '';
     if (gameState.player.weapon) {
@@ -429,6 +444,7 @@ window.unequipItem = unequipItem; window.equipFromInv = equipFromInv;
 // =========================================
 export function openGrimoire() {
     playSFX(sfx.ui_click);
+    document.getElementById('invModal').style.display = 'none';
     
     let htmlEq = '';
     const eqSp = gameState.player.equippedSkills.special;
@@ -479,7 +495,7 @@ export function openGrimoire() {
     document.getElementById('mainMenuModal').style.display = 'none';
     document.getElementById('grimoireModal').style.display = 'flex';
 }
-export function closeGrimoire() { playSFX(sfx.ui_click); document.getElementById('grimoireModal').style.display = 'none'; document.getElementById('mainMenuModal').style.display = 'flex'; }
+export function closeGrimoire() { playSFX(sfx.ui_click); document.getElementById('grimoireModal').style.display = 'none'; }
 export function equipSkill(skillId, slot) { playSFX(sfx.equip); gameState.player.equippedSkills[slot] = skillId; logMsg(`Has equipado: ${skillsData[skillId].name}.`); saveGame(); openGrimoire(); }
 export function unequipSkill(slot) { playSFX(sfx.equip); gameState.player.equippedSkills[slot] = null; saveGame(); openGrimoire(); }
 window.openGrimoire = openGrimoire; window.closeGrimoire = closeGrimoire; window.equipSkill = equipSkill; window.unequipSkill = unequipSkill;
@@ -489,6 +505,7 @@ window.openGrimoire = openGrimoire; window.closeGrimoire = closeGrimoire; window
 // =========================================
 export function openSkillTree() {
     playSFX(sfx.ui_click);
+    document.getElementById('invModal').style.display = 'none';
     document.getElementById('mainMenuModal').style.display = 'none';
     document.getElementById('spDisplay').textContent = gameState.player.skillPoints || 0;
     
@@ -534,7 +551,7 @@ export function openSkillTree() {
     }
     document.getElementById('skillTreeModal').style.display = 'flex';
 }
-export function closeSkillTree() { playSFX(sfx.ui_click); document.getElementById('skillTreeModal').style.display = 'none'; document.getElementById('mainMenuModal').style.display = 'flex'; }
+export function closeSkillTree() { playSFX(sfx.ui_click); document.getElementById('skillTreeModal').style.display = 'none'; }
 export function learnSkill(skillId) { if (gameState.player.skillPoints > 0) { playSFX(sfx.quest_complete); gameState.player.skillPoints--; gameState.player.knownSkills.push(skillId); logMsg(`¡Has aprendido ${skillsData[skillId].name}!`); saveGame(); openSkillTree(); } }
 window.openSkillTree = openSkillTree; window.closeSkillTree = closeSkillTree; window.learnSkill = learnSkill;
 

@@ -1,4 +1,4 @@
-// =========================================
+﻿// =========================================
 // DATOS ESTÁTICOS DEL JUEGO Y CONFIGURACIÓN
 // =========================================
 
@@ -38,14 +38,14 @@ export const MAP_W = 100;
 export const MAP_H = 100;
 
 export const npcsData = [
-    { name: 'Alcalde Rufus', img: 'img/npcs/alcalde.png', dialogues: ['¡Por favor, héroe! El mundo está en peligro.'] },
-    { name: 'Herrero Balder', img: 'img/npcs/herrero.png', dialogues: ['Las armas no se forjan solas. ¡Ayúdame a limpiar la zona!'] },
-    { name: 'Sabia Elara', img: 'img/npcs/sabia.png', dialogues: ['Siento una perturbación en el flujo del maná... Ve a investigar.'] }
+  { name: 'Alcalde Rufus', img: 'img/npcs/alcalde.png', spriteSheet: null, dialogues: ['¡Por favor, héroe! El mundo está en peligro.'] },
+  { name: 'Herrero Balder', img: 'img/npcs/herrero.png', spriteSheet: null, dialogues: ['Las armas no se forjan solas. ¡Ayúdame a limpiar la zona!'] },
+  { name: 'Sabia Elara', img: 'img/npcs/sabia.png', spriteSheet: null, dialogues: ['Siento una perturbación en el flujo del maná... Ve a investigar.'] }
 ];
 
 // NUEVOS ÍTEMS CON ESTADÍSTICAS MOBA
 export const mapData = [
-    { rarity: 'Común', css: 'rarity-comun', colorClass: 'color-comun', colorHex: '#888', recLevel: '1-3', newEnemies: [{ name: 'Slime', hp: 25, atk: 9, def: 2, mag: 3, gold: 3, xp: 4, crit: 0.05, img: 'img/enemies/green_slime.png' }, { name: 'Rata', hp: 20, atk: 11, def: 1, mag: 0, gold: 3, xp: 4, crit: 0.03, img: 'img/enemies/rat.png' }], boss: { name: 'Slime Gigante', hp: 80, atk: 16, def: 5, mag: 6, trait: 'regen', gold: 25, xp: 25, img: 'img/bosses/giant_slime.png' }, 
+    { rarity: 'Común', css: 'rarity-comun', colorClass: 'color-comun', colorHex: '#888', recLevel: '1-3', newEnemies: [{ name: 'Slime', hp: 25, atk: 9, def: 2, mag: 3, gold: 3, xp: 4, crit: 0.05, img: 'img/enemies/green_slime.png', spriteSheet: null }, { name: 'Rata', hp: 20, atk: 11, def: 1, mag: 0, gold: 3, xp: 4, crit: 0.03, img: 'img/enemies/rat.png', spriteSheet: null }], boss: { name: 'Slime Gigante', hp: 80, atk: 16, def: 5, mag: 6, trait: 'regen', gold: 25, xp: 25, img: 'img/bosses/giant_slime.png', spriteSheet: null }, 
       shop: { 
         weapons: [
             { name: 'Daga Oxidada', ad: 4, ap: 0, crit: 0.05, lifesteal: 0.02, lethality: 0, magicPen: 0, price: 30, icon: 'iron_dagger.png' },
@@ -60,7 +60,7 @@ export const mapData = [
         accessories: []
       } 
     },
-    { rarity: 'Poco Común', css: 'rarity-pococomun', colorClass: 'color-pococomun', colorHex: '#4caf50', recLevel: '4-6', newEnemies: [{ name: 'Goblin', hp: 40, atk: 16, def: 4, mag: 0, gold: 6, xp: 8, crit: 0.1, img: 'img/enemies/goblin.png' }, { name: 'Asesino Goblin', hp: 35, atk: 18, def: 3, mag: 0, evasion: 0.3, gold: 8, xp: 10, img: 'img/enemies/goblin_assassin.png' }], boss: { name: 'Rey Goblin', hp: 120, atk: 24, def: 6, mag: 6, trait: 'crit', gold: 60, xp: 40, img: 'img/bosses/king_goblin.png' }, 
+    { rarity: 'Poco Común', css: 'rarity-pococomun', colorClass: 'color-pococomun', colorHex: '#4caf50', recLevel: '4-6', newEnemies: [{ name: 'Goblin', hp: 40, atk: 16, def: 4, mag: 0, gold: 6, xp: 8, crit: 0.1, img: 'img/enemies/goblin.png', spriteSheet: null }, { name: 'Asesino Goblin', hp: 35, atk: 18, def: 3, mag: 0, evasion: 0.3, gold: 8, xp: 10, img: 'img/enemies/goblin_assassin.png', spriteSheet: null }], boss: { name: 'Rey Goblin', hp: 120, atk: 24, def: 6, mag: 6, trait: 'crit', gold: 60, xp: 40, img: 'img/bosses/king_goblin.png', spriteSheet: null }, 
       shop: { 
         weapons: [
             { name: 'Espada Larga', ad: 10, ap: 0, crit: 0.1, lifesteal: 0.05, lethality: 0, magicPen: 0, price: 90, icon: 'steel_sword.png' },
@@ -75,7 +75,7 @@ export const mapData = [
         accessories: []
       } 
     },
-    { rarity: 'Raro', css: 'rarity-raro', colorClass: 'color-raro', colorHex: '#2196f3', recLevel: '7-10', newEnemies: [{ name: 'Lobo Oscuro', hp: 40, atk: 18, def: 3, mag: 0, crit: 0.1, gold: 12, xp: 14, img: 'img/enemies/dark_wolf.png' }, { name: 'Caballero de Piedra', hp: 80, atk: 15, def: 50, mr: 0, gold: 15, xp: 18, img: 'img/enemies/stone_knight.png' }], boss: { name: 'Bestia Alfa', hp: 150, atk: 25, def: 6, mag: 8, trait: 'berserk', gold: 120, xp: 80, img: 'img/bosses/aplha_beast.png' }, 
+    { rarity: 'Raro', css: 'rarity-raro', colorClass: 'color-raro', colorHex: '#2196f3', recLevel: '7-10', newEnemies: [{ name: 'Lobo Oscuro', hp: 40, atk: 18, def: 3, mag: 0, crit: 0.1, gold: 12, xp: 14, img: 'img/enemies/dark_wolf.png', spriteSheet: null }, { name: 'Caballero de Piedra', hp: 80, atk: 15, def: 50, mr: 0, gold: 15, xp: 18, img: 'img/enemies/stone_knight.png', spriteSheet: null }], boss: { name: 'Bestia Alfa', hp: 150, atk: 25, def: 6, mag: 8, trait: 'berserk', gold: 120, xp: 80, img: 'img/bosses/aplha_beast.png', spriteSheet: null }, 
       shop: { 
         weapons: [
             { name: 'Mandoble del León', ad: 18, ap: 0, crit: 0.15, lifesteal: 0.08, lethality: 0, magicPen: 0, price: 250, icon: 'long_sword.png' },
@@ -90,7 +90,7 @@ export const mapData = [
         accessories: []
       } 
     },
-    { rarity: 'Épico', css: 'rarity-epico', colorClass: 'color-epico', colorHex: '#9c27b0', recLevel: '11-15', newEnemies: [{ name: 'Caballero Maldito', hp: 65, atk: 25, def: 6, mag: 10, lifesteal: 0.05, gold: 25, xp: 28, img: 'img/enemies/cursed_knight.png' }, { name: 'Espectro', hp: 50, atk: 20, def: 5, mr: 50, manaBurn: 15, gold: 30, xp: 35, img: 'img/enemies/specter.png' }], boss: { name: 'Caballero Oscuro', hp: 250, atk: 35, def: 10, mag: 15, trait: 'spiked', gold: 250, xp: 150, img: 'img/bosses/dark_knight.png' }, 
+    { rarity: 'Épico', css: 'rarity-epico', colorClass: 'color-epico', colorHex: '#9c27b0', recLevel: '11-15', newEnemies: [{ name: 'Caballero Maldito', hp: 65, atk: 25, def: 6, mag: 10, lifesteal: 0.05, gold: 25, xp: 28, img: 'img/enemies/cursed_knight.png', spriteSheet: null }, { name: 'Espectro', hp: 50, atk: 20, def: 5, mr: 50, manaBurn: 15, gold: 30, xp: 35, img: 'img/enemies/specter.png', spriteSheet: null }], boss: { name: 'Caballero Oscuro', hp: 250, atk: 35, def: 10, mag: 15, trait: 'spiked', gold: 250, xp: 150, img: 'img/bosses/dark_knight.png', spriteSheet: null }, 
       shop: { 
         weapons: [
             { name: 'Hoja del Vacío', ad: 30, ap: 0, crit: 0.20, lifesteal: 0.12, lethality: 5, magicPen: 0, price: 750, icon: 'dark_greatsword.png' },
@@ -111,7 +111,7 @@ export const mapData = [
         ] 
       } 
     },
-    { rarity: 'Legendario', css: 'rarity-legendario', colorClass: 'color-legendario', colorHex: '#ff9800', recLevel: '16-20', newEnemies: [{ name: 'Demonio', hp: 100, atk: 35, def: 8, mag: 20, gold: 50, xp: 60, img: 'img/enemies/infernal_demon.png' }], boss: { name: 'Señor Demonio', hp: 450, atk: 50, def: 15, mag: 25, trait: 'vampire', gold: 500, xp: 300, img: 'img/bosses/lord_demon.png' }, 
+    { rarity: 'Legendario', css: 'rarity-legendario', colorClass: 'color-legendario', colorHex: '#ff9800', recLevel: '16-20', newEnemies: [{ name: 'Demonio', hp: 100, atk: 35, def: 8, mag: 20, gold: 50, xp: 60, img: 'img/enemies/infernal_demon.png', spriteSheet: null }], boss: { name: 'Señor Demonio', hp: 450, atk: 50, def: 15, mag: 25, trait: 'vampire', gold: 500, xp: 300, img: 'img/bosses/lord_demon.png', spriteSheet: null }, 
       shop: { 
         weapons: [
             { name: 'Hacha Infernal', ad: 50, ap: 0, crit: 0.25, lifesteal: 0.15, lethality: 10, magicPen: 0, price: 2200, icon: 'chaos_axe.png' },
@@ -126,7 +126,7 @@ export const mapData = [
         accessories: []
       } 
     },
-    { rarity: 'Mítico', css: 'rarity-mitico', colorClass: 'color-mitico', colorHex: '#ffeb3b', recLevel: '21+', newEnemies: [{ name: 'Dragón Antiguo', hp: 180, atk: 50, def: 12, mag: 30, gold: 100, xp: 120, img: 'img/enemies/dragon.png' }], boss: { name: 'Dragón Dorado', hp: 800, atk: 70, def: 25, mag: 40, trait: 'regen', gold: 1000, xp: 600, img: 'img/bosses/golden_dragon.png' }, 
+    { rarity: 'Mítico', css: 'rarity-mitico', colorClass: 'color-mitico', colorHex: '#ffeb3b', recLevel: '21+', newEnemies: [{ name: 'Dragón Antiguo', hp: 180, atk: 50, def: 12, mag: 30, gold: 100, xp: 120, img: 'img/enemies/dragon.png', spriteSheet: null }], boss: { name: 'Dragón Dorado', hp: 800, atk: 70, def: 25, mag: 40, trait: 'regen', gold: 1000, xp: 600, img: 'img/bosses/golden_dragon.png', spriteSheet: null }, 
       shop: { 
         weapons: [
             { name: 'Lanza Divina', ad: 80, ap: 0, crit: 0.35, lifesteal: 0.20, lethality: 20, magicPen: 0, price: 6500, icon: 'divine_spear.png' },
@@ -208,3 +208,5 @@ export const combatFormulas = {
     cooldownReductionMultiplier: (haste) => 100 / (100 + haste)
 };
              
+
+

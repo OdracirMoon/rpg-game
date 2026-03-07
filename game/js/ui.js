@@ -138,6 +138,24 @@ export function updateHUD() {
                 <img src="img/weapons/${gameState.player.armor ? gameState.player.armor.icon : 'leather_vest.png'}" class="icon"> <b>Armadura:</b> <span class="${gameState.player.armor ? gameState.player.armor.colorClass : ''}">${gameState.player.armor ? gameState.player.armor.name : 'Ninguna'}</span>
             `;
         }
+
+        // mostrar misión actual en el menú principal
+        let questEl = document.getElementById('quest');
+        if (questEl) {
+            if (gameState.quest) {
+                let q = gameState.quest;
+                let prog = q.progress || 0;
+                let text = q.text;
+                if (q.type === 'collect_gold') {
+                    text = `${prog} / ${q.goal} oro`; 
+                } else {
+                    text = `${prog} / ${q.goal} ${q.target}`;
+                }
+                questEl.textContent = text;
+            } else {
+                questEl.textContent = "Explora y habla con los NPCs en el mapa.";
+            }
+        }
         checkLowHp(); 
     } catch (e) { console.error("Error HUD:", e); }
 }

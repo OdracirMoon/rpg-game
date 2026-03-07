@@ -78,7 +78,19 @@ export function loadGameBtn() {
 export function resetGame() {
     playSFX(sfx.ui_click);
     if (confirm(`¿Estás seguro de borrar tu partida de la Ranura ${activeSlot}?`)) {
-        try { localStorage.removeItem(SAVE_KEY); } catch(e) {}
+        try { 
+            localStorage.removeItem(SAVE_KEY);
+            // también removemos los mapas cacheados
+            if (typeof window !== 'undefined') {
+                const prefix = 'miniRPG_MapLevel_' + activeSlot;
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(prefix)) {
+                        localStorage.removeItem(key);
+                    }
+                }
+            }
+        } catch(e) {}
         window.location.href = '../index.html'; 
     }
 }
@@ -180,6 +192,9 @@ export function selectCharacter(charId) {
 
     gameState.player.role = char.role; gameState.player.characterId = char.id; gameState.player.characterName = char.name;
     gameState.player.mapImg = char.imgs.map; gameState.player.combatImg = char.imgs.combat;
+    gameState.player.spriteSheet = char.spriteSheet || null;
+    gameState.player.direction = 'down';
+    gameState.player.isWalking = false;
     
     // VARIABLE DE SEGURIDAD PARA MAP.JS
     gameState.player.playerClass = char.name; 
@@ -208,7 +223,17 @@ export function selectCharacter(charId) {
     } else if (char.role === 'Simple') { gameState.player.gold = 200; }
 
     document.getElementById('characterModal').style.display = 'none'; logMsg(`¡Has iniciado aventura como ${char.name}!`);
-    playBGM('field'); generateWorld(); 
+    // al comenzar desde cero limpiamos cualquier mapa cacheado previo
+    if (typeof window !== 'undefined') {
+        const prefix = 'miniRPG_MapLevel_' + activeSlot;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+                localStorage.removeItem(key);
+            }
+        }
+    }
+    playBGM('field'); generateWorld(true); 
 }
 
 window.selectRole = selectRole; window.backToRoles = backToRoles; window.selectCharacter = selectCharacter;

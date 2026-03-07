@@ -2,7 +2,7 @@
 // SISTEMA DE COMBATE Y MATEMÁTICAS MOBA
 // =========================================
 import { gameState } from './state.js';
-import { mapData, skillsData } from './data.js';
+import { mapData, skillsData, combatFormulas } from './data.js';
 import { sfx, playSFX, playBGM } from './audio.js';
 import { 
     getAtk, getDef, getMag, getMaxHp, getMaxMp, getMaxEp, 
@@ -11,6 +11,46 @@ import {
 } from './ui.js';
 import { render, generateWorld } from './map.js';
 import { saveGame } from './main.js';
+
+// =========================================
+// UTILS DE VALIDACIÓN
+// =========================================
+
+// asegura que el objeto enemy tiene propiedades numéricas básicas
+function ensureEnemy(enemy) {
+    if (!enemy) return { hp: 0, atk: 0, def: 0, mag: 0, maxHp: 1, isBoss: false };
+    enemy.hp = (enemy.hp !== undefined) ? enemy.hp : 0;
+    enemy.atk = enemy.atk || 0;
+    enemy.def = enemy.def || 0;
+    enemy.mag = enemy.mag || 0;
+    enemy.maxHp = (enemy.maxHp !== undefined) ? enemy.maxHp : enemy.hp || 1;
+    // Nuevos stats para equilibrar con el jugador
+    enemy.mr = enemy.mr || Math.floor(enemy.def * combatFormulas.magicResistanceMultiplier);
+    enemy.crit = enemy.crit || 0;
+    enemy.lifesteal = enemy.lifesteal || 0;
+    enemy.lethality = enemy.lethality || 0;
+    enemy.magicPen = enemy.magicPen || 0;
+    return enemy;
+}
+
+// asegura que el estado del player no tiene valores undefined
+function ensurePlayer() {
+    if (!gameState.player) gameState.player = {};
+    const p = gameState.player;
+    p.hp = (p.hp !== undefined) ? p.hp : 0;
+    p.mp = (p.mp !== undefined) ? p.mp : 0;
+    p.ep = (p.ep !== undefined) ? p.ep : 0;
+    p.gold = p.gold || 0;
+    p.xp = p.xp || 0;
+    p.level = p.level || 1;
+    // atributos MOBA básicos
+    p.baseMaxHp = p.baseMaxHp || 0;
+    p.baseMaxMp = p.baseMaxMp || 0;
+    p.baseMaxEp = p.baseMaxEp || 0;
+    p.baseAd = p.baseAd || 0;
+    p.baseAp = p.baseAp || 0;
+    p.baseArmor = p.baseArmor || 0;
+}
 
 // =========================================
 // INTERFAZ DE COMBATE
@@ -55,7 +95,8 @@ export function animateHeal(elementId) {
 
 export function updateCombatUI() {
     if (!gameState.currentEnemyTile || !gameState.currentEnemyTile.enemy) return;
-    let enemy = gameState.currentEnemyTile.enemy;
+    let enemy = ensureEnemy(gameState.currentEnemyTile.enemy);
+    ensurePlayer();
     let safeMaxHp = enemy.maxHp || 1;
     
     const hpPercent = Math.max(0, (enemy.hp / safeMaxHp) * 100);
@@ -84,10 +125,11 @@ export function updateCombatUI() {
 // FLUJO DE COMBATE
 // =========================================
 export function startCombat(tile) {
+    ensurePlayer();
     gameState.combatState.defBuffTurns = 0; gameState.combatState.poisonTurns = 0;
     generateCombatButtons(); lockCombatButtons(false); 
     gameState.inCombat = true; gameState.currentEnemyTile = tile; 
-    let enemy = tile.enemy;
+    let enemy = ensureEnemy(tile.enemy);
     enemy.mag = enemy.mag || 0; enemy.maxHp = enemy.maxHp || enemy.hp;
     
     if (enemy.isBoss) { playSFX(sfx.boss_spawn); playBGM('boss'); } else { playSFX(sfx.enemy_spawn); }
@@ -115,6 +157,8 @@ export function endCombat() {
 }
 
 export function checkEnemyDeathAndEndTurn(enemy) {
+    enemy = ensureEnemy(enemy);
+    ensurePlayer();
     updateCombatUI(); updateHUD();
     if (enemy.hp <= 0) { setTimeout(() => { logCombat(`🏆 ¡Enemigo derrotado!`); setTimeout(resolveVictory, 500); }, 200); } 
     else { setTimeout(() => processEnemyTurn(enemy), 600); }
@@ -124,17 +168,18 @@ export function checkEnemyDeathAndEndTurn(enemy) {
 // ATAQUE Y MATEMÁTICAS MOBA
 // =========================================
 export function doAttack() {
+    ensurePlayer();
     lockCombatButtons(true);
-    let enemy = gameState.currentEnemyTile.enemy;
+    let enemy = ensureEnemy(gameState.currentEnemyTile && gameState.currentEnemyTile.enemy);
     
     // 1. CÁLCULO DE CRÍTICO Y DAÑO BASE
     let ad = getAtk();
     let isCrit = Math.random() < getCrit();
-    if (isCrit) ad = Math.floor(ad * (gameState.player.baseCritDamage || 1.75));
+    if (isCrit) ad = Math.floor(ad * combatFormulas.critMultiplier);
     
     // 2. CÁLCULO DE LETALIDAD (Ignora armadura)
     let effDef = Math.max(0, enemy.def - getLethality());
-    const pDmg = Math.max(1, ad - effDef);
+    const pDmg = Math.max(combatFormulas.minDamage, ad - effDef);
     enemy.hp -= pDmg;
     
     playSFX(sfx.attack); animateDamage('modalImg'); 
@@ -150,7 +195,7 @@ export function doAttack() {
     // 3. CÁLCULO DE ROBO DE VIDA
     let totalLifesteal = getLifesteal() + (gameState.player.baseOmnivamp || 0);
     if (totalLifesteal > 0) {
-        let heal = Math.floor(pDmg * totalLifesteal);
+        let heal = Math.floor(pDmg * combatFormulas.lifestealHealPercent * totalLifesteal);
         if (heal > 0) {
             gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + heal);
             animateHeal('combatPlayerImg');
@@ -162,8 +207,9 @@ export function doAttack() {
 }
 
 export function useSkill(skillId) {
+    ensurePlayer();
     lockCombatButtons(true);
-    let enemy = gameState.currentEnemyTile.enemy;
+    let enemy = ensureEnemy(gameState.currentEnemyTile && gameState.currentEnemyTile.enemy);
     const pMag = getMag(); const pAtk = getAtk(); const maxHp = getMaxHp();
     
     const skillInfo = skillsData[skillId];
@@ -179,68 +225,69 @@ export function useSkill(skillId) {
 
     // Defensas efectivas
     let effDef = Math.max(0, enemy.def - getLethality());
-    let effMr = Math.max(0, Math.floor(enemy.def/2) - getMagicPen()); // Magia ignora resistencia mágica
+    let effMr = Math.max(0, Math.floor(enemy.def * combatFormulas.magicResistanceMultiplier) - getMagicPen()); // Magia ignora resistencia mágica
 
     let dmgDealt = 0;
 
     // --- HABILIDADES ---
     if (skillId === 'golpe_brutal') {
-        dmgDealt = Math.max(1, Math.floor(pAtk * 2) - effDef); enemy.hp -= dmgDealt;
+        dmgDealt = Math.max(combatFormulas.minDamage, Math.floor(pAtk * combatFormulas.golpeBrutalMultiplier) - effDef);
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#ffeb3b', 'combat-enemy');
         logCombat(`💥 Golpe Brutal: <b style="color:#ffeb3b">${dmgDealt}</b> de daño físico.`);
     }
     else if (skillId === 'corte_cruzado') {
-        let dmgPerHit = Math.max(1, Math.floor(pAtk * 0.9) - Math.floor(effDef/3)); dmgDealt = dmgPerHit * 3; enemy.hp -= dmgDealt;
+        let dmgPerHit = Math.max(combatFormulas.minDamage, Math.floor(pAtk * combatFormulas.corteCruzadoMultiplier) - Math.floor(effDef / combatFormulas.corteCruzadoDefDivider));
+        dmgDealt = dmgPerHit * combatFormulas.corteCruzadoHits; enemy.hp -= dmgDealt;
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#ffeb3b', 'combat-enemy');
         logCombat(`⚔️ Corte Cruzado: 3 impactos para <b style="color:#ffeb3b">${dmgDealt}</b> de daño.`);
     }
     else if (skillId === 'grito_guerra') {
-        gameState.combatState.defBuffTurns = 3; playSFX(sfx.equip); animateHeal('combatPlayerImg');
+        gameState.combatState.defBuffTurns = combatFormulas.defBuffTurns; playSFX(sfx.equip); animateHeal('combatPlayerImg');
         logCombat(`🛡️ Grito de Guerra: Tu Armadura aumenta enormemente por 3 turnos.`);
     }
     else if (skillId === 'piel_hierro') {
-        gameState.combatState.defBuffTurns = 5; let heal = Math.floor(maxHp * 0.15); gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
+        gameState.combatState.defBuffTurns = combatFormulas.pielHierroTurns; let heal = Math.floor(maxHp * combatFormulas.pielHierroHealPercent); gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
         playSFX(sfx.equip); animateHeal('combatPlayerImg'); spawnFloatingText('+' + heal, '#4caf50', 'combat-player');
         logCombat(`🗿 Piel de Hierro: Armadura masiva y curas <b style="color:#4caf50">${heal}</b> HP.`);
     }
     else if (skillId === 'tiro_doble') {
-        let dmg1 = Math.max(1, Math.floor(pAtk * 0.8) - Math.floor(effDef/2)); dmgDealt = dmg1 * 2; enemy.hp -= dmgDealt;
+        let dmg1 = Math.max(combatFormulas.minDamage, Math.floor(pAtk * combatFormulas.tiroDobleMultiplier) - Math.floor(effDef / combatFormulas.tiroDobleDefDivider)); dmgDealt = dmg1 * combatFormulas.tiroDobleHits; enemy.hp -= dmgDealt;
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#ffeb3b', 'combat-enemy');
         logCombat(`🏹 Tiro Doble: <b style="color:#ffeb3b">${dmgDealt}</b> de daño total.`);
     }
     else if (skillId === 'lluvia_flechas') {
-        let d = Math.max(1, Math.floor(pAtk * 0.6) - Math.floor(effDef/4)); dmgDealt = d * 4; enemy.hp -= dmgDealt;
+        let d = Math.max(combatFormulas.minDamage, Math.floor(pAtk * combatFormulas.lluviaFlechasMultiplier) - Math.floor(effDef / combatFormulas.lluviaFlechasDefDivider)); dmgDealt = d * combatFormulas.lluviaFlechasHits; enemy.hp -= dmgDealt;
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#ffeb3b', 'combat-enemy');
         logCombat(`🌧️ Lluvia de Flechas: 4 impactos para <b style="color:#ffeb3b">${dmgDealt}</b> de daño.`);
     }
     else if (skillId === 'flecha_venenosa') {
-        dmgDealt = Math.max(1, pAtk - effDef); enemy.hp -= dmgDealt; gameState.combatState.poisonTurns = 4; 
+        dmgDealt = Math.max(combatFormulas.minDamage, pAtk * combatFormulas.flechaVenenosaMultiplier - effDef); enemy.hp -= dmgDealt; gameState.combatState.poisonTurns = combatFormulas.flechaVenenosaTurns; 
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#4caf50', 'combat-enemy');
         logCombat(`🐍 Veneno: <b style="color:#ffeb3b">${dmgDealt}</b> daño y envenena (4 turnos).`);
     }
     else if (skillId === 'trampa_espinas') {
-        dmgDealt = Math.max(1, Math.floor(pAtk * 1.5) - effDef); enemy.hp -= dmgDealt; gameState.combatState.poisonTurns = 6; 
+        dmgDealt = Math.max(combatFormulas.minDamage, Math.floor(pAtk * combatFormulas.trampaEspinasMultiplier) - effDef); enemy.hp -= dmgDealt; gameState.combatState.poisonTurns = combatFormulas.trampaEspinasTurns; 
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#4caf50', 'combat-enemy');
         logCombat(`🕸️ Trampa Letal: <b style="color:#ffeb3b">${dmgDealt}</b> daño y veneno grave (6 turnos).`);
     }
     else if (skillId === 'fuego') {
-        dmgDealt = Math.max(1, Math.floor(pMag * 1.8) - effMr); enemy.hp -= dmgDealt;
+        dmgDealt = Math.max(combatFormulas.minDamage, Math.floor(pMag * combatFormulas.fuegoMultiplier) - effMr); enemy.hp -= dmgDealt;
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#ff9800', 'combat-enemy');
         logCombat(`🔥 Fuego: <b style="color:#ff9800">${dmgDealt}</b> de daño mágico.`);
     }
     else if (skillId === 'meteorito') {
-        dmgDealt = Math.max(1, Math.floor(pMag * 3.5) - effMr); enemy.hp -= dmgDealt;
+        dmgDealt = Math.max(combatFormulas.minDamage, Math.floor(pMag * combatFormulas.meteoritoMultiplier) - effMr); enemy.hp -= dmgDealt;
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#ff9800', 'combat-enemy');
         logCombat(`☄️ METEORITO: <b style="color:#ff9800">${dmgDealt}</b> daño mágico destructivo.`);
     }
     else if (skillId === 'curar') {
-        const heal = Math.floor(pMag * 2.5) + 10; gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
+        const heal = Math.floor(pMag * combatFormulas.curarMultiplier) + combatFormulas.curarBonus; gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
         playSFX(sfx.use_potion); animateHeal('combatPlayerImg'); spawnFloatingText('+' + heal, '#4caf50', 'combat-player');
         logCombat(`💚 Te curaste <b style="color:#4caf50">${heal}</b> de Vida.`);
     }
     else if (skillId === 'drenar_vida') {
-        dmgDealt = Math.max(1, Math.floor(pMag * 1.5) - effMr); enemy.hp -= dmgDealt;
-        const heal = Math.floor(dmgDealt * 0.8); gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
+        dmgDealt = Math.max(combatFormulas.minDamage, Math.floor(pMag * combatFormulas.drenarVidaMultiplier) - effMr); enemy.hp -= dmgDealt;
+        const heal = Math.floor(dmgDealt * combatFormulas.drenarVidaHealPercent); gameState.player.hp = Math.min(maxHp, gameState.player.hp + heal);
         playSFX(sfx.attack); animateDamage('modalImg'); animateHeal('combatPlayerImg');
         spawnFloatingText('-' + dmgDealt, '#ff9800', 'combat-enemy'); spawnFloatingText('+' + heal, '#4caf50', 'combat-player');
         logCombat(`🦇 Drenar Vida: Robas <b style="color:#ff9800">${dmgDealt}</b> de vida y te curas <b style="color:#4caf50">${heal}</b>.`);
@@ -249,7 +296,7 @@ export function useSkill(skillId) {
     // OMNIVAMP (Cura extra universal por habilidades)
     let omni = gameState.player.baseOmnivamp || 0;
     if (omni > 0 && dmgDealt > 0) {
-        let extraHeal = Math.floor(dmgDealt * omni);
+        let extraHeal = Math.floor(dmgDealt * combatFormulas.omnivampHealPercent * omni);
         if(extraHeal > 0) {
             gameState.player.hp = Math.min(maxHp, gameState.player.hp + extraHeal);
             spawnFloatingText('+' + extraHeal, '#4caf50', 'combat-player');
@@ -260,6 +307,7 @@ export function useSkill(skillId) {
 }
 
 export function doFlee() { 
+    ensurePlayer();
     if (gameState.player.ep < 10) { playSFX(sfx.error); logMsg("¡Necesitas 10 EP para huir!"); return; }
     gameState.player.ep -= 10; playSFX(sfx.ui_click); logMsg("¡Huiste usando 10 EP!"); 
     spawnFloatingText('-10 EP', '#9c27b0', 'combat-player');
@@ -270,11 +318,13 @@ export function doFlee() {
 // TURNO DEL ENEMIGO (DAÑO MITIGADO POR MR Y ARMOR)
 // =========================================
 export function processEnemyTurn(enemy) {
+    enemy = ensureEnemy(enemy);
+    ensurePlayer();
     try {
         if (!gameState.inCombat || !gameState.currentEnemyTile) return; 
 
         if (gameState.combatState.poisonTurns > 0) {
-            let poisonDmg = Math.max(2, Math.floor((enemy.maxHp || enemy.hp) * 0.05));
+            let poisonDmg = Math.max(combatFormulas.minPoisonDamage, Math.floor((enemy.maxHp || enemy.hp) * combatFormulas.poisonDamagePercent));
             enemy.hp -= poisonDmg; gameState.combatState.poisonTurns--;
             animateDamage('modalImg'); spawnFloatingText('-' + poisonDmg, '#4caf50', 'combat-enemy');
             logCombat(`🤢 El veneno drena <b style="color:#4caf50">${poisonDmg}</b> HP. (${gameState.combatState.poisonTurns} rest)`);
@@ -285,26 +335,26 @@ export function processEnemyTurn(enemy) {
         let eDmg = 0; let enemyMag = enemy.mag || 0; let isMagic = (enemyMag > 0 && Math.random() < 0.4); 
         if (enemy.isBoss) playSFX(sfx.boss_attack);
 
-        let minDmg = Math.max(1, Math.floor(enemy.atk * 0.15));
+        let minDmg = Math.max(combatFormulas.minDamage, Math.floor(enemy.atk * combatFormulas.enemyMinDamagePercent));
         
         let playerArmor = getDef();
         let playerMR = getMr();
 
         if (gameState.combatState.defBuffTurns > 0) {
-            playerArmor = Math.floor(playerArmor * 1.5) + 10; // Escudo aumenta armadura
+            playerArmor = Math.floor(playerArmor * combatFormulas.defBuffMultiplier) + combatFormulas.defBuffBonus; // Escudo aumenta armadura
             gameState.combatState.defBuffTurns--;
             logCombat(`🛡️ Armadura extra activa. (${gameState.combatState.defBuffTurns} rest)`);
         }
 
         if (isMagic) {
             // El enemigo ataca con magia, mitigado por tu Resistencia Mágica (MR)
-            eDmg = Math.max(minDmg, Math.floor((enemyMag * 1.5) - playerMR));
+            eDmg = Math.max(minDmg, Math.floor((enemyMag * combatFormulas.enemyMagicMultiplier) - playerMR));
             logCombat(`🔮 ¡Magia oscura! Recibes <b style="color:#f44336">${eDmg}</b> de daño.`);
         } else {
             // El enemigo ataca con físico, mitigado por tu Armadura
             eDmg = Math.max(minDmg, enemy.atk - playerArmor);
-            if (enemy.isBoss && enemy.trait === 'crit' && Math.random() < 0.3) { 
-                eDmg = Math.floor(eDmg * 1.5); logCombat(`⚡ <b style="color:#ffeb3b">¡CRÍTICO ENEMIGO!</b>`); 
+            if (enemy.isBoss && enemy.trait === 'crit' && Math.random() < combatFormulas.enemyCritChance) { 
+                eDmg = Math.floor(eDmg * combatFormulas.enemyCritMultiplier); logCombat(`⚡ <b style="color:#ffeb3b">¡CRÍTICO ENEMIGO!</b>`); 
             }
             logCombat(`💥 Recibes <b style="color:#f44336">${eDmg}</b> de daño físico.`);
         }
@@ -316,12 +366,12 @@ export function processEnemyTurn(enemy) {
         }
 
         if (enemy.isBoss && enemy.trait === 'vampire' && eDmg > 0) {
-            let heal = Math.floor(eDmg * 0.5); enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + heal);
+            let heal = Math.floor(eDmg * combatFormulas.vampireHealPercent); enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + heal);
             animateHeal('modalImg'); spawnFloatingText('+' + heal, '#4caf50', 'combat-enemy');
             logCombat(`🦇 El jefe se cura <b style="color:#4caf50">${heal}</b> HP.`);
         }
         if (enemy.isBoss && enemy.trait === 'regen') {
-            let heal = Math.max(1, Math.floor((enemy.maxHp || enemy.hp) * 0.05));
+            let heal = Math.max(combatFormulas.minRegenHeal, Math.floor((enemy.maxHp || enemy.hp) * combatFormulas.regenHealPercent));
             enemy.hp = Math.min(enemy.maxHp || enemy.hp, enemy.hp + heal);
             animateHeal('modalImg'); spawnFloatingText('+' + heal, '#4caf50', 'combat-enemy');
             logCombat(`✨ Regenera <b style="color:#4caf50">${heal}</b> HP.`);
@@ -419,14 +469,15 @@ export function confirmLevelUp() {
 // =========================================
 export function resolveVictory() {
     try {
-        let enemy = gameState.currentEnemyTile.enemy;
+        let enemy = ensureEnemy(gameState.currentEnemyTile && gameState.currentEnemyTile.enemy);
+        ensurePlayer();
         
         if (enemy.isBoss && enemy.zone === 5) { 
             gameState.mapLevel++;
             alert(`¡HAS DERROTADO AL DRAGÓN DORADO!\nAvanzas al Mapa Nivel ${gameState.mapLevel}.`);
             gameState.quest = null; gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0]; gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
             gameState.player.hp = getMaxHp(); gameState.player.mp = getMaxMp(); gameState.player.ep = getMaxEp();
-            endCombat(); generateWorld(); saveCheckpoint('boss'); checkLevelUp(); saveGame(); return;
+            endCombat(); generateWorld(true); saveCheckpoint('boss'); checkLevelUp(); saveGame(); return;
         }
         
         if (enemy.isBoss) { playSFX(sfx.boss_die); gameState.flags['boss' + enemy.zone] = true; logMsg(`¡Has derrotado al Jefe!`); saveCheckpoint('boss'); } 
@@ -465,6 +516,9 @@ export function resolveVictory() {
             if (gameState.quest.type === 'kill_boss' && enemy.name.replace(` (Lv.${gameState.mapLevel})`, '') === gameState.quest.target) gameState.quest.progress++;
             if (gameState.quest.type === 'collect_gold') gameState.quest.progress += enemy.gold;
             
+            // actualizar HUD tras avanzar
+            updateHUD();
+            
             if (gameState.quest.progress >= gameState.quest.goal) { 
                 playSFX(sfx.quest_complete); logMsg(`¡Misión completada!`); 
                 if (gameState.quest.rewardType === 'gold') gameState.player.gold += gameState.quest.rewardAmount; 
@@ -481,6 +535,7 @@ export function resolveVictory() {
                 if (!gameState.player.zoneQuestProgress) gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
                 gameState.player.zoneQuestProgress[gameState.quest.zone]++;
                 gameState.quest = null; 
+                updateHUD();
             }
         }
         

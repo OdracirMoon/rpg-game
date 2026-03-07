@@ -18,6 +18,9 @@ export const gameState = {
         characterName: '',
         mapImg: 'img/player/heroe.png', 
         combatImg: 'img/player/heroe.png',
+        direction: 'down',
+        isWalking: false,
+        spriteSheet: null,
 
         // --- ESTADÍSTICAS BASE (Estilo MOBA) ---
         // Supervivencia

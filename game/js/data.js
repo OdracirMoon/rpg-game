@@ -25,13 +25,13 @@ export const skillsData = {
 };
 
 export const charactersData = {
-    'caballero': { id: 'caballero', name: 'Caballero Vanguardia', role: 'Guerrero', desc: 'Tanque duro de matar. Excelente armadura y regeneración.', stats: { hp: 120, hpReg: 5, mp: 0, ep: 100, ad: 15, ap: 0, armor: 25, mr: 15, ms: 300, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/guerrero_mapa.png', combat: 'img/player/guerrero_combate.png' } },
-    'berserker': { id: 'berserker', name: 'Berserker Sediento', role: 'Guerrero', desc: 'Guerrero ofensivo con Robo de Vida base y mucho Daño.', stats: { hp: 90, hpReg: 2, mp: 0, ep: 80, ad: 22, ap: 0, armor: 10, mr: 10, ms: 315, crit: 0.1, lifesteal: 0.05 }, imgs: { map: 'img/player/guerrero_mapa.png', combat: 'img/player/guerrero_combate.png' } },
-    'cazador': { id: 'cazador', name: 'Cazador Ágil', role: 'Arquero', desc: 'Alta velocidad de ataque y movimiento.', stats: { hp: 70, hpReg: 2, mp: 40, ep: 80, ad: 18, ap: 0, armor: 8, mr: 8, ms: 330, crit: 0.15, lifesteal: 0 }, imgs: { map: 'img/player/arquero_mapa.png', combat: 'img/player/arquero_combate.png' } },
-    'francotirador': { id: 'francotirador', name: 'Tirador Letal', role: 'Arquero', desc: 'Lento pero letal. Inicia con Letalidad para perforar armaduras.', stats: { hp: 65, hpReg: 1, mp: 60, ep: 50, ad: 25, ap: 0, armor: 5, mr: 5, ms: 290, crit: 0.05, lifesteal: 0 }, imgs: { map: 'img/player/arquero_mapa.png', combat: 'img/player/arquero_combate.png' } },
-    'hechicero': { id: 'hechicero', name: 'Hechicero Arcano', role: 'Mago', desc: 'Maestro del daño mágico explosivo.', stats: { hp: 55, hpReg: 1, mp: 150, ep: 0, ad: 5, ap: 30, armor: 4, mr: 12, ms: 300, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/mago_mapa.png', combat: 'img/player/mago_combate.png' } },
-    'brujo': { id: 'brujo', name: 'Brujo de Sangre', role: 'Mago', desc: 'Mago oscuro que recupera vida al hacer daño.', stats: { hp: 75, hpReg: 3, mp: 100, ep: 0, ad: 8, ap: 20, armor: 8, mr: 15, ms: 295, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/mago_mapa.png', combat: 'img/player/mago_combate.png' } },
-    'aldeano': { id: 'aldeano', name: 'Aldeano Ahorrador', role: 'Simple', desc: 'Estadísticas mediocres, pero empieza con 200 de Oro.', stats: { hp: 60, hpReg: 1, mp: 20, ep: 40, ad: 8, ap: 8, armor: 5, mr: 5, ms: 300, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/simple_mapa.png', combat: 'img/player/simple_combate.png' } }
+    'caballero': { id: 'caballero', name: 'Caballero Vanguardia', role: 'Guerrero', desc: 'Tanque duro de matar. Excelente armadura y regeneración.', stats: { hp: 120, hpReg: 5, mp: 0, ep: 100, ad: 15, ap: 0, armor: 25, mr: 15, ms: 300, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/guerrero_mapa.png', combat: 'img/player/guerrero_combate.png' }, spriteSheet: 'img/player/caballero_walk.png' }, // 'img/player/caballero_walk.png'
+    'berserker': { id: 'berserker', name: 'Berserker Sediento', role: 'Guerrero', desc: 'Guerrero ofensivo con Robo de Vida base y mucho Daño.', stats: { hp: 90, hpReg: 2, mp: 0, ep: 80, ad: 22, ap: 0, armor: 10, mr: 10, ms: 315, crit: 0.1, lifesteal: 0.05 }, imgs: { map: 'img/player/guerrero_mapa.png', combat: 'img/player/guerrero_combate.png' }, spriteSheet: 'img/player/berserker_walk.png' }, // 'img/player/berserker_walk.png'
+    'cazador': { id: 'cazador', name: 'Cazador Ágil', role: 'Arquero', desc: 'Alta velocidad de ataque y movimiento.', stats: { hp: 70, hpReg: 2, mp: 40, ep: 80, ad: 18, ap: 0, armor: 8, mr: 8, ms: 330, crit: 0.15, lifesteal: 0 }, imgs: { map: 'img/player/arquero_mapa.png', combat: 'img/player/arquero_combate.png' }, spriteSheet: 'img/player/cazador_walk.png' }, // 'img/player/cazador_walk.png'
+    'francotirador': { id: 'francotirador', name: 'Tirador Letal', role: 'Arquero', desc: 'Lento pero letal. Inicia con Letalidad para perforar armaduras.', stats: { hp: 65, hpReg: 1, mp: 60, ep: 50, ad: 25, ap: 0, armor: 5, mr: 5, ms: 290, crit: 0.05, lifesteal: 0 }, imgs: { map: 'img/player/arquero_mapa.png', combat: 'img/player/arquero_combate.png' }, spriteSheet: null }, // 'img/player/francotirador_walk.png'
+    'hechicero': { id: 'hechicero', name: 'Hechicero Arcano', role: 'Mago', desc: 'Maestro del daño mágico explosivo.', stats: { hp: 55, hpReg: 1, mp: 150, ep: 50, ad: 5, ap: 30, armor: 4, mr: 12, ms: 300, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/mago_mapa.png', combat: 'img/player/mago_combate.png' }, spriteSheet: 'img/player/hechicero_walk.png' }, // 'img/player/hechicero_walk.png'
+    'brujo': { id: 'brujo', name: 'Brujo de Sangre', role: 'Mago', desc: 'Mago oscuro que recupera vida al hacer daño.', stats: { hp: 75, hpReg: 3, mp: 100, ep: 50, ad: 8, ap: 20, armor: 8, mr: 15, ms: 295, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/mago_mapa.png', combat: 'img/player/mago_combate.png' }, spriteSheet: null }, // 'img/player/brujo_walk.png'
+    'aldeano': { id: 'aldeano', name: 'Aldeano Ahorrador', role: 'Simple', desc: 'Estadísticas mediocres, pero empieza con 200 de Oro.', stats: { hp: 60, hpReg: 1, mp: 20, ep: 40, ad: 8, ap: 8, armor: 5, mr: 5, ms: 300, crit: 0, lifesteal: 0 }, imgs: { map: 'img/player/simple_mapa.png', combat: 'img/player/simple_combate.png' }, spriteSheet: 'img/player/aldeano_walk.png' }
 };
 
 export const MAP_W = 100; 
@@ -45,7 +45,7 @@ export const npcsData = [
 
 // NUEVOS ÍTEMS CON ESTADÍSTICAS MOBA
 export const mapData = [
-    { rarity: 'Común', css: 'rarity-comun', colorClass: 'color-comun', colorHex: '#888', recLevel: '1-3', newEnemies: [{ name: 'Slime', hp: 15, atk: 7, def: 1, mag: 2, gold: 3, xp: 4, img: 'img/enemies/green_slime.png' }, { name: 'Rata', hp: 12, atk: 9, def: 0, mag: 0, gold: 3, xp: 4, img: 'img/enemies/rat.png' }], boss: { name: 'Slime Gigante', hp: 50, atk: 12, def: 3, mag: 4, trait: 'regen', gold: 25, xp: 25, img: 'img/bosses/giant_slime.png' }, 
+    { rarity: 'Común', css: 'rarity-comun', colorClass: 'color-comun', colorHex: '#888', recLevel: '1-3', newEnemies: [{ name: 'Slime', hp: 25, atk: 9, def: 2, mag: 3, gold: 3, xp: 4, crit: 0.05, img: 'img/enemies/green_slime.png' }, { name: 'Rata', hp: 20, atk: 11, def: 1, mag: 0, gold: 3, xp: 4, crit: 0.03, img: 'img/enemies/rat.png' }], boss: { name: 'Slime Gigante', hp: 80, atk: 16, def: 5, mag: 6, trait: 'regen', gold: 25, xp: 25, img: 'img/bosses/giant_slime.png' }, 
       shop: { 
         weapons: [
             { name: 'Daga Oxidada', ad: 4, ap: 0, crit: 0.05, lifesteal: 0.02, lethality: 0, magicPen: 0, price: 30, icon: 'iron_dagger.png' },
@@ -59,7 +59,7 @@ export const mapData = [
         ] 
       } 
     },
-    { rarity: 'Poco Común', css: 'rarity-pococomun', colorClass: 'color-pococomun', colorHex: '#4caf50', recLevel: '4-6', newEnemies: [{ name: 'Goblin', hp: 25, atk: 12, def: 2, mag: 0, gold: 6, xp: 8, img: 'img/enemies/goblin.png' }], boss: { name: 'Rey Goblin', hp: 90, atk: 18, def: 4, mag: 5, trait: 'crit', gold: 60, xp: 40, img: 'img/bosses/king_goblin.png' }, 
+    { rarity: 'Poco Común', css: 'rarity-pococomun', colorClass: 'color-pococomun', colorHex: '#4caf50', recLevel: '4-6', newEnemies: [{ name: 'Goblin', hp: 40, atk: 16, def: 4, mag: 0, gold: 6, xp: 8, crit: 0.1, img: 'img/enemies/goblin.png' }], boss: { name: 'Rey Goblin', hp: 120, atk: 24, def: 6, mag: 6, trait: 'crit', gold: 60, xp: 40, img: 'img/bosses/king_goblin.png' }, 
       shop: { 
         weapons: [
             { name: 'Espada Larga', ad: 10, ap: 0, crit: 0.1, lifesteal: 0.05, lethality: 0, magicPen: 0, price: 90, icon: 'steel_sword.png' },
@@ -73,7 +73,7 @@ export const mapData = [
         ] 
       } 
     },
-    { rarity: 'Raro', css: 'rarity-raro', colorClass: 'color-raro', colorHex: '#2196f3', recLevel: '7-10', newEnemies: [{ name: 'Lobo Oscuro', hp: 40, atk: 18, def: 3, mag: 0, gold: 12, xp: 14, img: 'img/enemies/dark_wolf.png' }], boss: { name: 'Bestia Alfa', hp: 150, atk: 25, def: 6, mag: 8, trait: 'crit', gold: 120, xp: 80, img: 'img/bosses/aplha_beast.png' }, 
+    { rarity: 'Raro', css: 'rarity-raro', colorClass: 'color-raro', colorHex: '#2196f3', recLevel: '7-10', newEnemies: [{ name: 'Lobo Oscuro', hp: 40, atk: 18, def: 3, mag: 0, crit: 0.1, gold: 12, xp: 14, img: 'img/enemies/dark_wolf.png' }], boss: { name: 'Bestia Alfa', hp: 150, atk: 25, def: 6, mag: 8, trait: 'crit', gold: 120, xp: 80, img: 'img/bosses/aplha_beast.png' }, 
       shop: { 
         weapons: [
             { name: 'Mandoble del León', ad: 18, ap: 0, crit: 0.15, lifesteal: 0.08, lethality: 0, magicPen: 0, price: 250, icon: 'long_sword.png' },
@@ -87,7 +87,7 @@ export const mapData = [
         ] 
       } 
     },
-    { rarity: 'Épico', css: 'rarity-epico', colorClass: 'color-epico', colorHex: '#9c27b0', recLevel: '11-15', newEnemies: [{ name: 'Caballero Maldito', hp: 65, atk: 25, def: 6, mag: 10, gold: 25, xp: 28, img: 'img/enemies/cursed_knight.png' }], boss: { name: 'Caballero Oscuro', hp: 250, atk: 35, def: 10, mag: 15, trait: 'vampire', gold: 250, xp: 150, img: 'img/bosses/dark_knight.png' }, 
+    { rarity: 'Épico', css: 'rarity-epico', colorClass: 'color-epico', colorHex: '#9c27b0', recLevel: '11-15', newEnemies: [{ name: 'Caballero Maldito', hp: 65, atk: 25, def: 6, mag: 10, lifesteal: 0.05, gold: 25, xp: 28, img: 'img/enemies/cursed_knight.png' }], boss: { name: 'Caballero Oscuro', hp: 250, atk: 35, def: 10, mag: 15, trait: 'vampire', gold: 250, xp: 150, img: 'img/bosses/dark_knight.png' }, 
       shop: { 
         weapons: [
             { name: 'Hoja del Vacío', ad: 30, ap: 0, crit: 0.20, lifesteal: 0.12, lethality: 5, magicPen: 0, price: 750, icon: 'dark_greatsword.png' },
@@ -130,4 +130,61 @@ export const mapData = [
       } 
     }
 ];
+
+// =========================================
+// FÓRMULAS DE COMBATE CENTRALIZADAS
+// =========================================
+export const combatFormulas = {
+    // Daño base y mitigación
+    minDamage: 1,
+    critMultiplier: 1.75,
+    magicResistanceMultiplier: 0.5, // mr = def * 0.5
+    lethalityIgnores: true, // lethality ignora def completamente
+
+    // Enemigos
+    enemyMinDamagePercent: 0.25,
+    enemyMagicMultiplier: 1.8,
+    enemyCritMultiplier: 1.5,
+    enemyCritChance: 0.3,
+    poisonDamagePercent: 0.05,
+    minPoisonDamage: 2,
+    vampireHealPercent: 0.5,
+    regenHealPercent: 0.05,
+    minRegenHeal: 1,
+
+    // Buffs del jugador
+    defBuffMultiplier: 1.5,
+    defBuffBonus: 10,
+    defBuffTurns: 3,
+    pielHierroHealPercent: 0.15,
+    pielHierroTurns: 5,
+
+    // Skills físicas
+    golpeBrutalMultiplier: 2,
+    corteCruzadoMultiplier: 0.9,
+    corteCruzadoHits: 3,
+    corteCruzadoDefDivider: 3,
+    tiroDobleMultiplier: 0.8,
+    tiroDobleHits: 2,
+    tiroDobleDefDivider: 2,
+    lluviaFlechasMultiplier: 0.6,
+    lluviaFlechasHits: 4,
+    lluviaFlechasDefDivider: 4,
+    flechaVenenosaMultiplier: 1,
+    flechaVenenosaTurns: 4,
+    trampaEspinasMultiplier: 1.5,
+    trampaEspinasTurns: 6,
+
+    // Skills mágicas
+    fuegoMultiplier: 1.8,
+    meteoritoMultiplier: 3.5,
+    curarMultiplier: 2.5,
+    curarBonus: 10,
+    drenarVidaMultiplier: 1.5,
+    drenarVidaHealPercent: 0.8,
+
+    // Robo de vida
+    lifestealHealPercent: 1, // heal = dmg * lifesteal
+    omnivampHealPercent: 1, // heal = dmg * omnivamp
+};
              

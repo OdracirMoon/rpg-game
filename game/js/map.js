@@ -2,7 +2,7 @@
 // SISTEMA DE MAPA, GENERACIÓN Y MOVIMIENTO
 // =========================================
 import { gameState } from './state.js';
-import { MAP_W, MAP_H, mapData, npcsData } from './data.js';
+import { MAP_W, MAP_H, mapData, npcsData, activeSlot } from './data.js';
 import { sfx, playSFX } from './audio.js';
 import { 
     isMenuOpen, updateHUD, logMsg, spawnFloatingText, 
@@ -46,14 +46,26 @@ export function scaleEnemy(template, isBoss, zoneIdx) {
     let lvlScale = 1 + ((gameState.player.level - 1) * 0.25); 
     let globalMapLevelScale = getMapScale(); 
     
-    let finalHpMulti = 1.4 * mapScale * lvlScale * globalMapLevelScale; 
-    let finalAtkMulti = 1.3 * mapScale * lvlScale * globalMapLevelScale;
-    let finalDefMulti = 1.2 * mapScale * lvlScale * globalMapLevelScale;
+    // aumentamos multiplicadores base para que los enemigos sean más resistentes
+    let finalHpMulti = 2.0 * mapScale * lvlScale * globalMapLevelScale; 
+    let finalAtkMulti = 1.7 * mapScale * lvlScale * globalMapLevelScale;
+    let finalDefMulti = 1.5 * mapScale * lvlScale * globalMapLevelScale;
+    let finalMagMulti = 1.6 * mapScale * lvlScale * globalMapLevelScale;
     
-    if(isBoss) { finalHpMulti *= 1.6; finalAtkMulti *= 1.4; finalDefMulti *= 1.3; } 
+    if(isBoss) { 
+        finalHpMulti *= 1.8; 
+        finalAtkMulti *= 1.6; 
+        finalDefMulti *= 1.5; 
+        finalMagMulti *= 1.6; 
+    } 
 
     e.hp = Math.floor(e.hp * finalHpMulti); e.maxHp = e.hp;
-    e.atk = Math.floor(e.atk * finalAtkMulti); e.def = Math.floor(e.def * finalDefMulti); e.mag = Math.floor(e.mag * finalAtkMulti);
+    e.atk = Math.floor(e.atk * finalAtkMulti); e.def = Math.floor(e.def * finalDefMulti); e.mag = Math.floor((e.mag || 0) * finalMagMulti);
+    e.mr = Math.floor((e.mr || e.def * 0.5) * finalDefMulti); // mr escala con def
+    e.crit = e.crit || 0; // crit no escala, o agregar si quieres
+    e.lifesteal = e.lifesteal || 0;
+    e.lethality = e.lethality || 0;
+    e.magicPen = e.magicPen || 0;
     e.gold = Math.floor(e.gold * (1 + zoneIdx * 0.3) * globalMapLevelScale); 
     e.xp = Math.floor(e.xp * (1 + zoneIdx * 0.4) * globalMapLevelScale);
     e.isBoss = isBoss; e.zone = zoneIdx;
@@ -64,9 +76,130 @@ export function scaleEnemy(template, isBoss, zoneIdx) {
 }
 
 // =========================================
+// CACHE DE IMÁGENES Y DIBUJO SOBRE CANVAS
+// =========================================
+
+const spriteCache = {};
+function getCachedImage(src) {
+    if (spriteCache[src]) return spriteCache[src];
+    const img = new Image();
+    img.src = src;
+    img.onerror = () => {
+        console.warn("Tile image failed to load:", src);
+    };
+    spriteCache[src] = img;
+    return img;
+}
+
+function drawTile(ctx, t, px, py, TS, stride) {
+    if (!t.discovered) {
+        ctx.fillStyle = '#03070d';
+        ctx.fillRect(px, py, TS, TS);
+        return;
+    }
+
+    let tileKey = 'tile_' + t.type;
+    let img = getCachedImage('./img/tiles/' + tileKey + '.png');
+    if (img.complete && img.naturalWidth !== 0) {
+        ctx.drawImage(img, px, py, TS, TS);
+    } else {
+        // fallback: caja de color según tipo (por si la imagen no carga)
+        const colors = { grass: '#184b20', path: '#5d4037', wall: '#444', water: '#10304a', swamp: '#2b3b2c', fountain: '#008ba3' };
+        ctx.fillStyle = colors[t.type] || '#222';
+        ctx.fillRect(px, py, TS, TS);
+        img.onload = () => {
+            // redraw that tile once loaded
+            ctx.drawImage(img, px, py, TS, TS);
+        };
+    }
+
+    if (t.isBossTile) {
+        // draw a faint border to highlight boss
+        ctx.strokeStyle = 'yellow';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px, py, TS, TS);
+    }
+
+    if (t.enemy) {
+        let eImg = getCachedImage(t.enemy.img);
+        if (eImg.complete) ctx.drawImage(eImg, px, py, TS, TS);
+        else eImg.onload = () => ctx.drawImage(eImg, px, py, TS, TS);
+    }
+    if (t.merchant) {
+        let mImg = getCachedImage('img/npcs/merchant.png');
+        if (mImg.complete) ctx.drawImage(mImg, px, py, TS, TS);
+        else mImg.onload = () => ctx.drawImage(mImg, px, py, TS, TS);
+    }
+    if (t.npc) {
+        let nImg = getCachedImage(t.npc.img);
+        if (nImg.complete) ctx.drawImage(nImg, px, py, TS, TS);
+        else nImg.onload = () => ctx.drawImage(nImg, px, py, TS, TS);
+    }
+    if (t.chest) {
+        let key = t.chest.opened ? 'chest_opened' : 'chest_closed';
+        let cImg = getCachedImage('img/tiles/' + key + '.png');
+        if (cImg.complete) ctx.drawImage(cImg, px, py, TS, TS);
+        else cImg.onload = () => ctx.drawImage(cImg, px, py, TS, TS);
+    }
+    if (t.type === 'fountain') {
+        let fImg = getCachedImage('img/tiles/fountain_obj.png');
+        if (fImg.complete) ctx.drawImage(fImg, px, py, TS, TS);
+        else fImg.onload = () => ctx.drawImage(fImg, px, py, TS, TS);
+    }
+}
+
+// =========================================
+// UTILIDADES DE CACHE DEL MAPA (LOCALSTORAGE)
+// =========================================
+const MAP_CACHE_PREFIX = 'miniRPG_MapLevel_';
+
+function getMapCacheKey(level) {
+    return MAP_CACHE_PREFIX + activeSlot + '_lvl' + level;
+}
+
+function loadCachedMap(level) {
+    try {
+        const json = localStorage.getItem(getMapCacheKey(level));
+        if (!json) return null;
+        return JSON.parse(json);
+    } catch (e) { return null; }
+}
+
+function saveCachedMap(level, map, flags) {
+    try {
+        localStorage.setItem(getMapCacheKey(level), JSON.stringify({ map, flags }));
+    } catch (e) { console.warn('No se pudo cachear el mapa', e); }
+}
+
+function clearCachedMaps() {
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(MAP_CACHE_PREFIX + activeSlot)) {
+                localStorage.removeItem(key);
+            }
+        }
+    } catch (e) { }
+}
+
+// =========================================
 // GENERACIÓN DEL MUNDO
 // =========================================
-export function generateWorld() {
+export function generateWorld(force = false) {
+    // si ya tenemos mapa cargado y no se fuerza, no regeneramos
+    if (!force && gameState.worldMap && gameState.worldMap.length === MAP_W * MAP_H) {
+        return;
+    }
+
+    // intentar cargar mapa cacheado para el nivel actual
+    const cache = loadCachedMap(gameState.mapLevel);
+    if (cache && !force) {
+        gameState.worldMap = cache.map;
+        gameState.flags = cache.flags;
+        updateFOV(); render();
+        return;
+    }
+
     gameState.worldMap = new Array(MAP_W * MAP_H);
     gameState.flags = { boss0: false, boss1: false, boss2: false, boss3: false, boss4: false, boss5: false };
 
@@ -155,6 +288,8 @@ export function generateWorld() {
 
     gameState.player.x = 16; gameState.player.y = 25; 
     playSFX(sfx.map_change);
+    // guardamos versión cacheada del mapa inmediatamente
+    saveCachedMap(gameState.mapLevel, gameState.worldMap, gameState.flags);
     updateFOV(); render(); saveGame();
 }
 
@@ -187,74 +322,95 @@ export function centerCamera() {
 }
 
 export function render() {
+    // asegurarse de que el jugador descubre sus alrededores antes de dibujar
+    if (gameState.player && gameState.worldMap) updateFOV();
+
     const TS = getTileSize();
     const stride = TS + 2;
-    const m = document.getElementById('map'); 
-    
-    m.style.gridTemplateColumns = `repeat(${MAP_W}, ${TS}px)`;
-    m.style.gridAutoRows = `${TS}px`;
-    
-    const existingTiles = m.querySelectorAll('.tile');
-    existingTiles.forEach(t => t.remove());
-    
+    const mapEl = document.getElementById('map');
+
+    // actualizar variable CSS para tamaño de sprite
+    document.documentElement.style.setProperty('--ts', TS + 'px');
+    const canvas = document.getElementById('mapCanvas');
+    if (!canvas || !mapEl) return;
+
+    // viewport rendering: canvas del tamaño de la ventana
+    const canvasWidth = window.innerWidth;
+    const canvasHeight = window.innerHeight;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+    canvas.style.background = '#000';
+
+    const ctx = canvas.getContext('2d');
+    // establecer fondo negro y limpiar
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
     gameState.currentZoneIndex = getZoneIndex(gameState.player.x, gameState.player.y);
-    
-    const widthTiles = Math.ceil(window.innerWidth / TS);
-    const heightTiles = Math.ceil(window.innerHeight / TS);
-    const vRadiusX = Math.ceil(widthTiles / 2) + 1;
-    const vRadiusY = Math.ceil(heightTiles / 2) + 1;
 
-    for(let y = Math.max(0, gameState.player.y - vRadiusY); y <= Math.min(MAP_H - 1, gameState.player.y + vRadiusY); y++) {
-        for(let x = Math.max(0, gameState.player.x - vRadiusX); x <= Math.min(MAP_W - 1, gameState.player.x + vRadiusX); x++) {
+    // calcular cuántos tiles caben en el viewport
+    const tilesPerRow = Math.ceil(canvasWidth / stride);
+    const tilesPerCol = Math.ceil(canvasHeight / stride);
+
+    // offset para centrar al jugador
+    const offsetX = Math.floor(tilesPerRow / 2);
+    const offsetY = Math.floor(tilesPerCol / 2);
+
+    for (let dy = -offsetY; dy <= offsetY; dy++) {
+        for (let dx = -offsetX; dx <= offsetX; dx++) {
+            const x = gameState.player.x + dx;
+            const y = gameState.player.y + dy;
+            if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) continue;
+
             let t = gameState.worldMap[y * MAP_W + x];
-            if(!t) continue;
+            if (!t) continue;
 
-            const d = document.createElement('div'); 
-            d.style.gridColumn = x + 1;
-            d.style.gridRow = y + 1;
+            // posición en el canvas
+            const canvasX = (dx + offsetX) * stride;
+            const canvasY = (dy + offsetY) * stride;
 
-            if (!t.discovered) { d.className = 'tile fog'; } 
-            else {
-                d.className = 'tile ' + t.type;
-                if (t.isBossTile) d.classList.add(mapData[t.zone].css);
-                
-                if (t.type === 'gate' && gameState.player.hasKey && gameState.player.hasKey[t.gateIndex]) {
-                    d.className = 'tile path';
-                }
-
-                if (t.enemy) { d.innerHTML = `<img src="${t.enemy.img}">`; }
-                else if (t.merchant) { d.innerHTML = `<img src="img/npcs/merchant.png" style="filter: drop-shadow(0 0 10px #4caf50);">`; }
-                else if (t.npc) { d.innerHTML = `<img src="${t.npc.img}" style="filter: drop-shadow(0 0 10px #ffeb3b);">`; }
-                else if (t.chest) {
-                    if (!t.chest.opened) {
-                        d.innerHTML = `<img src="img/tiles/chest_closed.png" class="chest-img">`;
-                    } else {
-                        d.innerHTML = `<img src="img/tiles/chest_opened.png" style="opacity: 0.5;">`;
-                    }
-                }
-                else if (t.type === 'fountain') {
-                    d.innerHTML = `<img src="img/tiles/fountain_obj.png" class="fountain-img">`;
-                }
-            }
-            m.appendChild(d);
+            drawTile(ctx, t, canvasX, canvasY, TS, stride);
         }
     }
-    
+
+    // elemento sprite aún puede usarse para animar movimiento
     let sprite = document.getElementById('playerSprite');
     if (!sprite) {
         sprite = document.createElement('div');
         sprite.id = 'playerSprite';
-        sprite.className = 'player-sprite';
-        m.appendChild(sprite);
+        mapEl.appendChild(sprite);
     }
-    sprite.innerHTML = `<img src="${gameState.player.mapImg}">`;
-    sprite.style.width = `${TS}px`;
-    sprite.style.height = `${TS}px`;
-    sprite.style.left = (gameState.player.x * stride) + 'px';
-    sprite.style.top = (gameState.player.y * stride) + 'px';
+    sprite.innerHTML = ''; // Limpiar imgs viejas
     
-    setTimeout(centerCamera, 10);
+    // Forzar el tamaño dinámico directamente en el elemento
+    sprite.style.setProperty('--ts', TS + 'px');
+    sprite.style.width = TS + 'px';
+    sprite.style.height = TS + 'px';
     
+    let isSpriteSheet = !!gameState.player.spriteSheet;
+    let spriteUrl = isSpriteSheet ? gameState.player.spriteSheet : gameState.player.mapImg;
+    
+    sprite.style.backgroundImage = "url('" + spriteUrl + "')";
+    
+    if (isSpriteSheet) {
+        sprite.className = "player-sprite is-spritesheet dir-" + (gameState.player.direction || 'down') + (gameState.player.isWalking ? " is-walking" : "");
+    } else {
+        sprite.className = "player-sprite is-static";
+    }
+
+    sprite.style.left = (canvasWidth / 2 - TS / 2) + 'px';
+    sprite.style.top = (canvasHeight / 2 - TS / 2) + 'px';
+
+    // no necesitamos centerCamera con viewport rendering
+    // setTimeout(centerCamera, 10);
+
+    // Si no hay tiles descubiertos visiblemente, garantizar que al menos casilla inicial se muestre
+    if (gameState.player && gameState.worldMap) {
+        updateFOV();
+    }
+
     document.getElementById('mapName').textContent = mapData[gameState.currentZoneIndex].rarity + (gameState.mapLevel > 1 ? ` (Mapa Lv.${gameState.mapLevel})` : '');
     updateHUD();
 }
@@ -311,6 +467,12 @@ export function openChest(tile) {
 export function move(dx, dy) {
     if (isMenuOpen || gameState.inCombat || document.getElementById('classModal').style.display === 'flex' || document.getElementById('npcModal').style.display === 'flex' || document.getElementById('shopModal').style.display === 'flex') return;
     
+    // detectar dirección de desplazamiento
+    if (dy === -1) gameState.player.direction = 'up';
+    if (dy === 1) gameState.player.direction = 'down';
+    if (dx === -1) gameState.player.direction = 'left';
+    if (dx === 1) gameState.player.direction = 'right';
+
     let nx = gameState.player.x + dx, ny = gameState.player.y + dy;
     let tile = gameState.worldMap[ny * MAP_W + nx]; 
     
@@ -347,6 +509,7 @@ export function move(dx, dy) {
     playSFX(sfx.step); 
     gameState.lastPlayerPos = { x: gameState.player.x, y: gameState.player.y }; 
     gameState.player.x = nx; gameState.player.y = ny;
+    gameState.player.isWalking = true;
     gameState.player.ep -= epCost;
     spawnFloatingText('-' + epCost + ' EP', '#9c27b0', 'map');
     
@@ -371,8 +534,13 @@ export function move(dx, dy) {
     }
 
     if (tile.enemy) {
+        gameState.player.isWalking = false;
         startCombat(tile); 
     } else {
         render();
+        setTimeout(() => {
+            gameState.player.isWalking = false;
+            render();
+        }, 300);
     }
 }

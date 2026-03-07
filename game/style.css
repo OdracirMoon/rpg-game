@@ -13,7 +13,8 @@ body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, 
     z-index: 8;
 }
 
-#map { position: relative; display: grid; gap: 2px; background: #000; width: 100%; height: 100%; overflow: hidden; scroll-behavior: smooth; align-content: start; justify-content: start; }
+#map { position: relative; background: #000; width: 100%; height: 100%; overflow: auto; scroll-behavior: smooth; }
+#mapCanvas { position: absolute; top: 0; left: 0; image-rendering: pixelated; }
 
 /* HUD MEJORADO: Más compacto, transparente y con desenfoque */
 #floatingHud { position: absolute; top: 20px; left: 20px; background: rgba(15, 26, 42, 0.65); backdrop-filter: blur(5px); padding: 10px; border-radius: 8px; border: 1px solid rgba(122, 215, 255, 0.4); width: 180px; z-index: 10; box-shadow: 0 4px 15px rgba(0,0,0,0.5); pointer-events: none; transition: all 0.3s ease; }
@@ -120,17 +121,38 @@ button:disabled { background: #334; color: #667; cursor: not-allowed; opacity: 0
 .player-sprite {
     position: absolute;
     z-index: 5;
-    transition: top 0.25s cubic-bezier(0.25, 1, 0.5, 1), left 0.25s cubic-bezier(0.25, 1, 0.5, 1);
-    pointer-events: none;
-}
-.player-sprite img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    background-repeat: no-repeat;
     image-rendering: pixelated;
-    display: block;
-    /* Personaje dentro de su recuadro, pero con sombra y brillo para destacar */
+    pointer-events: none;
     filter: drop-shadow(0 10px 15px rgba(0,0,0,0.8)) brightness(1.1); 
+}
+.player-sprite img { display: none; } /* Ocultar imagen vieja si existe */
+
+/* Respaldo para personajes de imagen estática */
+.is-static {
+    background-size: contain;
+    background-position: center;
+}
+
+/* Spritesheet de 13 columnas x 4 filas */
+.is-spritesheet {
+    background-size: calc(var(--ts) * 13) calc(var(--ts) * 4);
+}
+
+/* Orden de filas: Arriba, Izquierda, Abajo, Derecha */
+.is-spritesheet.dir-up { background-position-y: 0; }
+.is-spritesheet.dir-left { background-position-y: calc(var(--ts) * -1); }
+.is-spritesheet.dir-down { background-position-y: calc(var(--ts) * -2); }
+.is-spritesheet.dir-right { background-position-y: calc(var(--ts) * -3); }
+
+/* Animación de 9 pasos (recorre solo las primeras 9 columnas pegadas a la izq) */
+.is-spritesheet.is-walking { 
+    animation: walkAnim 0.6s steps(9) infinite; 
+}
+
+@keyframes walkAnim {
+    from { background-position-x: 0; }
+    to { background-position-x: calc(var(--ts) * -9); }
 }
 
 .damage-overlay {

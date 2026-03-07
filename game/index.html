@@ -26,7 +26,7 @@
         </div>
     </div>
 
-    <div id="map"></div>
+    <div id="map"><canvas id="mapCanvas"></canvas></div>
 
     <div id="floatingHud">
         <div class="hud-header">
@@ -115,7 +115,8 @@
             <button class="btn-danger" onclick="closeStatsModal()" style="margin-top: 20px; width: 100%;">Cerrar Estadísticas</button>
         </div>
     </div>
-        <div id="skillTreeModal" class="modal-overlay" style="z-index: 1025; display: none;">
+
+    <div id="skillTreeModal" class="modal-overlay" style="z-index: 1025; display: none;">
         <div class="modal-card" style="width: 800px; max-width: 95vw;">
             <h2 style="margin: 0 0 10px 0; color: #00bcd4;">🌳 Árbol de Habilidades</h2>
             <p style="font-size: 14px; color: #ddd; margin-bottom: 15px;">Puntos Disponibles (SP): <span id="spDisplay" style="font-weight: bold; color: #ffeb3b; font-size: 18px;">0</span></p>
@@ -160,6 +161,8 @@
         </div>
     </div>
 
+    <div id="classModal" style="display: none;"></div>
+
     <div id="roleModal" class="modal-overlay" style="z-index: 200;">
         <div class="modal-card" style="width: 950px; max-width: 95vw;">
             <h2 style="margin: 0 0 15px 0; color: #fff; font-size: 24px;">Elige tu Rol</h2>
@@ -168,25 +171,25 @@
                 
                 <div class="class-option class-guerrero" onclick="selectRole('Guerrero')" style="flex: 1; min-width: 200px;">
                     <h3 style="color: #4caf50; margin-top: 0; font-size: 20px;">🗡️ Guerrero</h3>
-                    <p style="font-size: 13px; color: #aaa;">Expertos en Daño Físico (AD) y Armadura. Luchan cuerpo a cuerpo.</p>
+                    <p style="font-size: 13px; color: #aaa;">Expertos en Daño Físico (AD) y Armadura.</p>
                     <button style="background: #4caf50; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Ver Guerreros</button>
                 </div>
                 
                 <div class="class-option class-arquero" onclick="selectRole('Arquero')" style="flex: 1; min-width: 200px;">
                     <h3 style="color: #ff9800; margin-top: 0; font-size: 20px;">🏹 Arquero</h3>
-                    <p style="font-size: 13px; color: #aaa;">Rápidos y letales a distancia. Expertos en Ataque Crítico y Letalidad.</p>
+                    <p style="font-size: 13px; color: #aaa;">Rápidos y letales a distancia.</p>
                     <button style="background: #ff9800; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Ver Arqueros</button>
                 </div>
 
                 <div class="class-option class-mago" onclick="selectRole('Mago')" style="flex: 1; min-width: 200px;">
                     <h3 style="color: #2196f3; margin-top: 0; font-size: 20px;">🔮 Mago</h3>
-                    <p style="font-size: 13px; color: #aaa;">Uso de Maná y Poder de Habilidad (AP) para daño mágico masivo.</p>
+                    <p style="font-size: 13px; color: #aaa;">Uso de Maná y Poder Mágico (AP).</p>
                     <button style="background: #2196f3; color: white; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Ver Magos</button>
                 </div>
 
                 <div class="class-option class-simple" onclick="selectRole('Simple')" style="flex: 1; min-width: 200px;">
                     <h3 style="color: #aaaaaa; margin-top: 0; font-size: 20px;">🎒 Simple</h3>
-                    <p style="font-size: 13px; color: #aaa;">Gente normal que busca fortuna. Estadísticas bajas pero con ventajas de Oro.</p>
+                    <p style="font-size: 13px; color: #aaa;">Equilibrado y con ventajas de Oro.</p>
                     <button style="background: #aaaaaa; color: #000; width: 100%; margin-top: 10px; font-size: 16px; padding: 12px;">Ver Simples</button>
                 </div>
             </div>
@@ -279,5 +282,4 @@
 
 <script type="module" src="js/main.js"></script>
 </body>
-                    </html>
-                    
+</html>

@@ -17,12 +17,12 @@
         <button id="btnMobileMenu" onclick="toggleMainMenu()">☰ Menú</button>
         <button id="btnMobileStats" onclick="openStatsModal()" style="background: #2196f3; color: white; border: 1px solid #0b1220; padding: 5px 10px; border-radius: 5px; font-weight: bold; margin-left: 5px;">📊 Stats</button>
         <div id="dpad">
-            <button class="dpad-btn" id="btnUp">⬆️</button>
+            <button class="dpad-btn" id="btnUp" ontouchstart="movePlayer(0, -1); event.preventDefault();" onmousedown="movePlayer(0, -1)">⬆️</button>
             <div class="dpad-mid">
-                <button class="dpad-btn" id="btnLeft">⬅️</button>
-                <button class="dpad-btn" id="btnRight">➡️</button>
+                <button class="dpad-btn" id="btnLeft" ontouchstart="movePlayer(-1, 0); event.preventDefault();" onmousedown="movePlayer(-1, 0)">⬅️</button>
+                <button class="dpad-btn" id="btnRight" ontouchstart="movePlayer(1, 0); event.preventDefault();" onmousedown="movePlayer(1, 0)">➡️</button>
             </div>
-            <button class="dpad-btn" id="btnDown">⬇️</button>
+            <button class="dpad-btn" id="btnDown" ontouchstart="movePlayer(0, 1); event.preventDefault();" onmousedown="movePlayer(0, 1)">⬇️</button>
         </div>
     </div>
 
@@ -107,27 +107,22 @@
             <button class="btn-danger" onclick="toggleMainMenu()" style="margin-top: 5px;">❌ Cerrar Menú</button>
         </div>
     </div>
-        <div id="statsModal" class="modal-overlay" style="z-index: 1030; display: none;">
+
+    <div id="statsModal" class="modal-overlay" style="z-index: 1030; display: none;">
         <div class="modal-card" style="width: 800px; max-width: 95vw;">
             <h2 style="margin: 0 0 15px 0; color: #fff;">📊 Perfil de Atributos</h2>
-            
-            <div id="fullStatsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; text-align: left;">
-                </div>
-
+            <div id="fullStatsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; text-align: left;"></div>
             <button class="btn-danger" onclick="closeStatsModal()" style="margin-top: 20px; width: 100%;">Cerrar Estadísticas</button>
         </div>
     </div>
-
-    <div id="skillTreeModal" class="modal-overlay" style="z-index: 1025; display: none;">
+        <div id="skillTreeModal" class="modal-overlay" style="z-index: 1025; display: none;">
         <div class="modal-card" style="width: 800px; max-width: 95vw;">
             <h2 style="margin: 0 0 10px 0; color: #00bcd4;">🌳 Árbol de Habilidades</h2>
             <p style="font-size: 14px; color: #ddd; margin-bottom: 15px;">Puntos Disponibles (SP): <span id="spDisplay" style="font-weight: bold; color: #ffeb3b; font-size: 18px;">0</span></p>
-            
             <div style="background: #0b1220; padding: 20px; border-radius: 8px; border: 1px solid #14203a; min-height: 40vh; position: relative;">
                 <p id="skillTreeEmptyMsg" style="color: #aaa; text-align: center; display: none;">Tu clase no tiene habilidades avanzadas o no perteneces a una clase entrenada.</p>
                 <div id="skillTreeContainer" style="display: flex; gap: 30px; justify-content: space-around; flex-wrap: wrap;"></div>
             </div>
-
             <button class="btn-danger" onclick="closeSkillTree()" style="margin-top: 15px;">Volver</button>
         </div>
     </div>
@@ -153,7 +148,6 @@
         <div class="modal-card" style="width: 400px; text-align: left;">
             <h2 style="margin: 0 0 10px 0; color: #ffeb3b; text-align: center;">¡NIVEL ALCANZADO!</h2>
             <p style="font-size: 14px; color: #ddd; margin-bottom: 15px; text-align: center;">Tienes <span id="statPointsDisplay" style="font-weight: bold; color: #ffeb3b; font-size: 18px;">5</span> puntos para repartir.</p>
-
             <div style="display: flex; flex-direction: column; gap: 10px; background: #0b1220; padding: 15px; border-radius: 8px; border: 1px solid #14203a;">
                 <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px;">❤️ Vida Máx (+5)</span><div style="display: flex; align-items: center;"><span id="lvlHpVal" style="margin-right: 15px; font-weight: bold; color: #4caf50;">0</span><button class="btn-sys" onclick="allocateStat('hp')" style="padding: 5px 10px;">➕</button></div></div>
                 <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px;">💧 Maná Máx (+5)</span><div style="display: flex; align-items: center;"><span id="lvlMpVal" style="margin-right: 15px; font-weight: bold; color: #2196f3;">0</span><button class="btn-sys" onclick="allocateStat('mp')" style="padding: 5px 10px;">➕</button></div></div>
@@ -162,7 +156,6 @@
                 <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px;">🔮 Magia (+1)</span><div style="display: flex; align-items: center;"><span id="lvlMagVal" style="margin-right: 15px; font-weight: bold; color: #ff9800;">0</span><button class="btn-sys" onclick="allocateStat('mag')" style="padding: 5px 10px;">➕</button></div></div>
                 <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px;">🛡️ Defensa (+1)</span><div style="display: flex; align-items: center;"><span id="lvlDefVal" style="margin-right: 15px; font-weight: bold; color: #aaa;">0</span><button class="btn-sys" onclick="allocateStat('def')" style="padding: 5px 10px;">➕</button></div></div>
             </div>
-
             <button id="btnConfirmStats" class="btn-success" onclick="confirmLevelUp()" style="margin-top: 15px; width: 100%; opacity: 0.5; pointer-events: none; padding: 12px; font-size: 16px;">Confirmar y Continuar</button>
         </div>
     </div>
@@ -208,7 +201,8 @@
             <button class="btn-danger" onclick="backToRoles()">Volver a Roles</button>
         </div>
     </div>
-        <div id="npcModal" class="modal-overlay" style="z-index: 1010;">
+
+    <div id="npcModal" class="modal-overlay" style="z-index: 1010;">
         <div class="modal-card" style="width: 450px;">
             <h2 id="npcName" style="margin: 0 0 15px 0; color: #fff; font-size: 24px;">NPC Nombre</h2>
             <div id="npcIcon" style="text-align: center; margin-bottom: 15px;"></div>
@@ -285,4 +279,5 @@
 
 <script type="module" src="js/main.js"></script>
 </body>
-</html>
+                    </html>
+                    

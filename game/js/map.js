@@ -46,26 +46,32 @@ export function scaleEnemy(template, isBoss, zoneIdx) {
     let lvlScale = 1 + ((gameState.player.level - 1) * 0.25); 
     let globalMapLevelScale = getMapScale(); 
     
-    // aumentamos multiplicadores base para que los enemigos sean más resistentes
-    let finalHpMulti = 2.0 * mapScale * lvlScale * globalMapLevelScale; 
-    let finalAtkMulti = 1.7 * mapScale * lvlScale * globalMapLevelScale;
-    let finalDefMulti = 1.5 * mapScale * lvlScale * globalMapLevelScale;
-    let finalMagMulti = 1.6 * mapScale * lvlScale * globalMapLevelScale;
+    let finalHpMulti = 3.5 * mapScale * lvlScale * globalMapLevelScale; 
+    let finalAtkMulti = 2.2 * mapScale * lvlScale * globalMapLevelScale; 
+    let finalDefMulti = 1.8 * mapScale * lvlScale * globalMapLevelScale; 
+    let finalMagMulti = 2.0 * mapScale * lvlScale * globalMapLevelScale; 
     
     if(isBoss) { 
-        finalHpMulti *= 1.8; 
-        finalAtkMulti *= 1.6; 
-        finalDefMulti *= 1.5; 
-        finalMagMulti *= 1.6; 
+        finalHpMulti *= 2.5; 
+        finalAtkMulti *= 1.8; 
+        finalDefMulti *= 1.8; 
+        finalMagMulti *= 1.8; 
     } 
 
     e.hp = Math.floor(e.hp * finalHpMulti); e.maxHp = e.hp;
     e.atk = Math.floor(e.atk * finalAtkMulti); e.def = Math.floor(e.def * finalDefMulti); e.mag = Math.floor((e.mag || 0) * finalMagMulti);
-    e.mr = Math.floor((e.mr || e.def * 0.5) * finalDefMulti); // mr escala con def
-    e.crit = e.crit || 0; // crit no escala, o agregar si quieres
+    // si el template define mr (incluso 0) lo usamos, sino calculamos a partir de def
+    let baseMr = (e.mr !== undefined ? e.mr : e.def * 0.5);
+    e.mr = Math.floor(baseMr * finalDefMulti); // mr escala con def o su propio valor
+    e.crit = e.crit || 0; // crit no escala
     e.lifesteal = e.lifesteal || 0;
     e.lethality = e.lethality || 0;
     e.magicPen = e.magicPen || 0;
+    // nuevos campos de fase2
+    e.evasion = e.evasion || 0;
+    e.manaBurn = e.manaBurn || 0;
+    e.trait = e.trait || '';
+
     e.gold = Math.floor(e.gold * (1 + zoneIdx * 0.3) * globalMapLevelScale); 
     e.xp = Math.floor(e.xp * (1 + zoneIdx * 0.4) * globalMapLevelScale);
     e.isBoss = isBoss; e.zone = zoneIdx;

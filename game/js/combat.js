@@ -7,7 +7,8 @@ import { sfx, playSFX, playBGM } from './audio.js';
 import { 
     getAtk, getDef, getMag, getMaxHp, getMaxMp, getMaxEp, 
     getCrit, getLifesteal, getLethality, getMagicPen, getMr,
-    getHpColor, getMapScale, logMsg, logCombat, spawnFloatingText, updateHUD 
+    getHpColor, getMapScale, logMsg, logCombat, spawnFloatingText, updateHUD,
+    updateInitiativeDisplay
 } from './ui.js';
 import { render, generateWorld } from './map.js';
 import { saveGame } from './main.js';
@@ -30,6 +31,10 @@ function ensureEnemy(enemy) {
     enemy.lifesteal = enemy.lifesteal || 0;
     enemy.lethality = enemy.lethality || 0;
     enemy.magicPen = enemy.magicPen || 0;
+    // Fase2: evasion y manaBurn
+    enemy.evasion = enemy.evasion || 0;
+    enemy.manaBurn = enemy.manaBurn || 0;
+    enemy.trait = enemy.trait || '';
     return enemy;
 }
 
@@ -63,14 +68,20 @@ export function generateCombatButtons() {
     if (specialId && skillsData[specialId]) {
         const skill = skillsData[specialId];
         const cssClass = skill.resource === 'mp' ? 'btn-magic' : 'btn-skill';
-        html += `<button id="btnSkill1" class="${cssClass}" onclick="useSkill('${skill.id}')" style="font-size: 16px; padding: 12px;">${skill.icon} ${skill.name} (${skill.cost} ${skill.resource.toUpperCase()})</button>`;
+        const cd = (gameState.player.cooldowns && gameState.player.cooldowns[skill.id]) || 0;
+        const disabled = cd > 0 || gameState.combatState.silenceTurns > 0;
+        const label = `${skill.icon} ${skill.name} (${skill.cost} ${skill.resource.toUpperCase()})${cd>0 ? ' ['+cd+']' : ''}`;
+        html += `<button id="btnSkill1" class="${cssClass}" onclick="useSkill('${skill.id}')" style="font-size: 16px; padding: 12px;" ${disabled? 'disabled' : ''}>${label}</button>`;
     }
 
     const defId = gameState.player.equippedSkills.defensive;
     if (defId && skillsData[defId]) {
         const skill = skillsData[defId];
         const cssClass = skill.resource === 'mp' ? 'btn-magic' : 'btn-skill';
-        html += `<button id="btnSkill2" class="${cssClass}" onclick="useSkill('${skill.id}')" style="font-size: 16px; padding: 12px;">${skill.icon} ${skill.name} (${skill.cost} ${skill.resource.toUpperCase()})</button>`;
+        const cd = (gameState.player.cooldowns && gameState.player.cooldowns[skill.id]) || 0;
+        const disabled = cd > 0 || gameState.combatState.silenceTurns > 0;
+        const label = `${skill.icon} ${skill.name} (${skill.cost} ${skill.resource.toUpperCase()})${cd>0 ? ' ['+cd+']' : ''}`;
+        html += `<button id="btnSkill2" class="${cssClass}" onclick="useSkill('${skill.id}')" style="font-size: 16px; padding: 12px;" ${disabled? 'disabled' : ''}>${label}</button>`;
     }
 
     html += `<button id="btnFlee" class="btn-danger" onclick="doFlee()" style="font-size: 16px; padding: 12px;">🏃 Huir (10 EP)</button>`;
@@ -104,7 +115,10 @@ export function updateCombatUI() {
     document.getElementById('enemyHpBar').style.backgroundColor = getHpColor(hpPercent);
     document.getElementById('enemyHpText').textContent = `${enemy.hp} / ${safeMaxHp}`;
     document.getElementById('enemyAtk').textContent = enemy.atk;
-    document.getElementById('enemyDef').textContent = `${enemy.def} | Mag: ${enemy.mag || 0}`;
+    let defText = `${enemy.def} | Mag: ${enemy.mag || 0}`;
+    if (enemy.evasion) defText += ` | Eva: ${Math.round(enemy.evasion * 100)}%`;
+    if (enemy.manaBurn) defText += ` | M.Burn`;
+    document.getElementById('enemyDef').textContent = defText;
 
     const tHp = getMaxHp(); const tMp = getMaxMp(); const tEp = getMaxEp();
     const pOp = Math.max(0, (gameState.player.hp / tHp) * 100);
@@ -119,59 +133,189 @@ export function updateCombatUI() {
     const pEp = Math.max(0, (gameState.player.ep / tEp) * 100);
     document.getElementById('combatPlayerEpBar').style.width = `${pEp}%`;
     document.getElementById('combatPlayerEpText').textContent = `${gameState.player.ep} / ${tEp}`;
+
+    // asegurar que los botones reflejen cooldowns/estado y actualizar iniciativa visual
+    generateCombatButtons();
+    updateInitiativeDisplay();
 }
 
 // =========================================
 // FLUJO DE COMBATE
 // =========================================
+let combatTickInterval = null; // interval ID usado para ATB
+
+// helper que aplica CC al jugador respetando tenacidad
+function applyCC(type, baseTurns) {
+    const adjusted = Math.max(1, Math.round(baseTurns * (1 - (gameState.player.baseTenacity || 0) / 100)));
+    gameState.combatState[type + 'Turns'] = adjusted;
+    logCombat(`⚠️ Has sido ${type} por ${adjusted} turnos.`);
+}
+
 export function startCombat(tile) {
     ensurePlayer();
+    // limpiar cooldowns de habilidades al iniciar pelea
+    gameState.player.cooldowns = {};
+    // reset todos los contadores de combate
     gameState.combatState.defBuffTurns = 0; gameState.combatState.poisonTurns = 0;
-    generateCombatButtons(); lockCombatButtons(false); 
-    gameState.inCombat = true; gameState.currentEnemyTile = tile; 
+    gameState.combatState.playerPoisonTurns = 0; gameState.combatState.playerPoisonDamage = 0;
+    gameState.combatState.stunTurns = 0; gameState.combatState.silenceTurns = 0; gameState.combatState.blindTurns = 0;
+    gameState.combatState.enemySlowTurns = 0;
+
+    gameState.inCombat = true; gameState.currentEnemyTile = tile;
     let enemy = ensureEnemy(tile.enemy);
     enemy.mag = enemy.mag || 0; enemy.maxHp = enemy.maxHp || enemy.hp;
-    
+
+    // ataque sorpresa si el jugador tiene rango y el enemigo no es jefe a distancia
+    if (gameState.player.baseRange > 1 && !enemy.isBoss) {
+        gameState.combatState.initiative = 100;
+        gameState.combatState.enemyInitiative = 0;
+        logCombat('🔫 ¡Ataque sorpresa! Tu alcance te da el primer turno.');
+    } else {
+        gameState.combatState.initiative = 0;
+        gameState.combatState.enemyInitiative = 0;
+    }
+
+    generateCombatButtons(); lockCombatButtons(true); // se habilitará cuando la iniciativa lo permita
+
     if (enemy.isBoss) { playSFX(sfx.boss_spawn); playBGM('boss'); } else { playSFX(sfx.enemy_spawn); }
-    document.getElementById('combatModal').style.display = 'flex'; document.getElementById('modalLog').innerHTML = ''; 
+    document.getElementById('combatModal').style.display = 'flex'; document.getElementById('modalLog').innerHTML = '';
     document.getElementById('modalName').textContent = enemy.isBoss ? `JEFE: ${enemy.name}` : enemy.name;
     document.getElementById('modalImg').src = enemy.img;
-    
+
     let traitText = "";
     if (enemy.isBoss && enemy.trait) {
         if(enemy.trait === 'regen') traitText = "✨ Regeneración";
         if(enemy.trait === 'crit') traitText = "⚡ Crítico";
         if(enemy.trait === 'vampire') traitText = "🦇 Vampirismo";
+        if(enemy.trait === 'spiked') traitText = "🛡️ Espinas";
+        if(enemy.trait === 'berserk') traitText = "😡 Berserk";
+        if(enemy.trait === 'venomous') traitText = "🐍 Venenoso";
     }
     document.getElementById('enemyTraitDisplay').textContent = traitText;
     document.getElementById('combatPlayerName').textContent = gameState.player.characterName || "Héroe";
-    document.getElementById('combatPlayerImg').src = gameState.player.combatImg; 
+    document.getElementById('combatPlayerImg').src = gameState.player.combatImg;
     logCombat(`<div>¡Un <b>${enemy.name}</b> salvaje aparece!</div>`);
     updateCombatUI(); render();
+
+    // iniciar el tick de iniciativa cada 300ms
+    if (combatTickInterval) clearInterval(combatTickInterval);
+    combatTickInterval = setInterval(tickInitiative, 300);
 }
 
 export function endCombat() { 
     gameState.inCombat = false; gameState.currentEnemyTile = null; 
     document.getElementById('combatModal').style.display = 'none'; lockCombatButtons(false);
     playBGM('field'); render(); 
+    if (combatTickInterval) { clearInterval(combatTickInterval); combatTickInterval = null; }
+}
+
+// llamado cuando el jugador completa su acción: resetea iniciativa, reduce CDs y cuenta efectos
+function endPlayerTurn() {
+    gameState.combatState.initiative = 0;
+    // reducir CDs
+    if (gameState.player.cooldowns) {
+        Object.keys(gameState.player.cooldowns).forEach(k => {
+            if (gameState.player.cooldowns[k] > 0) gameState.player.cooldowns[k]--;
+        });
+    }
+    // disminuir estados del jugador
+    if (gameState.combatState.silenceTurns > 0) gameState.combatState.silenceTurns--;
+    if (gameState.combatState.blindTurns > 0) gameState.combatState.blindTurns--;
+    // penalización de arma Chupasangre
+    if (gameState.player.weapon && gameState.player.weapon.passive === 'blood_drain') {
+        gameState.player.hp -= 5;
+        spawnFloatingText('-5 HP', '#f44336', 'combat-player');
+        logCombat('🩸 Tu espada drena 5 HP de tu sangre.');
+        if(gameState.player.hp <= 0) showDeathScreen();
+    }
+}
+
+// tick de ATB (iniciativa creciente). Se ejecuta periódicamente mientras dure el combate.
+export function tickInitiative() {
+    if (!gameState.inCombat) return;
+    // aplicar veneno de enemigo al jugador si existe
+    if (gameState.combatState.playerPoisonTurns > 0) {
+        let pdmg = gameState.combatState.playerPoisonDamage || Math.max(combatFormulas.minPoisonDamage, Math.floor(getMaxHp() * combatFormulas.poisonDamagePercent));
+        gameState.player.hp -= pdmg;
+        gameState.combatState.playerPoisonTurns--;
+        logCombat(`🤢 El veneno te drena <b style="color:#f44336">${pdmg}</b> HP. (${gameState.combatState.playerPoisonTurns} rest)`);
+        spawnFloatingText('-' + pdmg, '#f44336', 'combat-player');
+        if (gameState.player.hp <= 0) { showDeathScreen(); }
+    }
+    // si estás stunado pierdes el turno inmediato
+    if (gameState.combatState.stunTurns > 0) {
+        gameState.combatState.stunTurns--;
+        gameState.combatState.initiative = 0;
+        logCombat('😵 Estás aturdido y pierdes tu turno.');
+        gameState.combatState.enemyInitiative = 100; // forzar acción enemiga
+    }
+    // sólo incrementamos si aún no alcanzaron 100
+    if (gameState.combatState.initiative < 100) {
+        gameState.combatState.initiative += (gameState.player.baseAttackSpeed || 0) * 10;
+    }
+    if (gameState.combatState.enemyInitiative < 100) {
+        let enemySpeed = 10;
+        if (gameState.combatState.enemySlowTurns > 0) {
+            enemySpeed = 5;
+        }
+        gameState.combatState.enemyInitiative += enemySpeed;
+    }
+    // actualizar IU de iniciativa
+    updateInitiativeDisplay();
+    // cuando llega a 100 habilitamos botones
+    if (gameState.combatState.initiative >= 100) {
+        // turno del jugador disponible
+        generateCombatButtons();
+        lockCombatButtons(false);
+    }
+    if (gameState.combatState.enemyInitiative >= 100) {
+        lockCombatButtons(true);
+        // enemigo actúa inmediatamente y resetea
+        processEnemyTurn(ensureEnemy(gameState.currentEnemyTile && gameState.currentEnemyTile.enemy));
+        gameState.combatState.enemyInitiative = 0;
+    }
 }
 
 export function checkEnemyDeathAndEndTurn(enemy) {
     enemy = ensureEnemy(enemy);
     ensurePlayer();
     updateCombatUI(); updateHUD();
-    if (enemy.hp <= 0) { setTimeout(() => { logCombat(`🏆 ¡Enemigo derrotado!`); setTimeout(resolveVictory, 500); }, 200); } 
-    else { setTimeout(() => processEnemyTurn(enemy), 600); }
+    if (enemy.hp <= 0) {
+        setTimeout(() => { logCombat(`🏆 ¡Enemigo derrotado!`); setTimeout(resolveVictory, 500); }, 200);
+    }
+    // en el nuevo sistema de iniciativa el enemigo actuará cuando su barra llegue a 100,
+    // no hay que forzar un turno inmediato aquí.
 }
 
 // =========================================
 // ATAQUE Y MATEMÁTICAS MOBA
 // =========================================
+// ejecuta cuando el jugador hace un ataque básico
 export function doAttack() {
     ensurePlayer();
+    if (gameState.combatState.initiative < 100 || gameState.player.hp <= 0) return;
     lockCombatButtons(true);
     let enemy = ensureEnemy(gameState.currentEnemyTile && gameState.currentEnemyTile.enemy);
-    
+
+    // cegado
+    if (gameState.combatState.blindTurns > 0 && Math.random() < 0.5) {
+        logCombat('😵 Estás cegado y tu ataque falla.');
+        endPlayerTurn();
+        return;
+    }
+    // evasión enemiga
+    if (enemy.evasion && Math.random() < enemy.evasion) {
+        logCombat('🧍‍♂️ El enemigo evade tu ataque.');
+        endPlayerTurn();
+        return;
+    }
+    // pasiva congelante del jugador
+    if (gameState.player.weapon && gameState.player.weapon.passive === 'freeze' && Math.random() < 0.20) {
+        gameState.combatState.enemySlowTurns = 3;
+        spawnFloatingText('¡Congelado!', '#00bcd4', 'combat-enemy');
+        logCombat('❄️ El enemigo ha sido ralentizado.');
+    }
+
     // 1. CÁLCULO DE CRÍTICO Y DAÑO BASE
     let ad = getAtk();
     let isCrit = Math.random() < getCrit();
@@ -181,6 +325,13 @@ export function doAttack() {
     let effDef = Math.max(0, enemy.def - getLethality());
     const pDmg = Math.max(combatFormulas.minDamage, ad - effDef);
     enemy.hp -= pDmg;
+    // reflejo de espinas si corresponde
+    if (enemy.trait === 'spiked' && pDmg > 0) {
+        let refl = Math.floor(pDmg * combatFormulas.spikedReflectPercent);
+        gameState.player.hp -= refl;
+        spawnFloatingText('-' + refl, '#f44336', 'combat-player');
+        logCombat(`🛡️ Espinas: recibes <b>${refl}</b> de daño reflejado.`);
+    }
     
     playSFX(sfx.attack); animateDamage('modalImg'); 
     
@@ -203,17 +354,32 @@ export function doAttack() {
         }
     }
     
+    endPlayerTurn();
     checkEnemyDeathAndEndTurn(enemy);
 }
 
 export function useSkill(skillId) {
     ensurePlayer();
+    if (gameState.combatState.initiative < 100 || gameState.player.hp <= 0) return;
     lockCombatButtons(true);
     let enemy = ensureEnemy(gameState.currentEnemyTile && gameState.currentEnemyTile.enemy);
     const pMag = getMag(); const pAtk = getAtk(); const maxHp = getMaxHp();
-    
+
     const skillInfo = skillsData[skillId];
     if (!skillInfo) { lockCombatButtons(false); return; }
+
+    // chequeo de ceguera para habilidades físicas (resource==='ep')
+    if (skillInfo.resource === 'ep' && gameState.combatState.blindTurns > 0 && Math.random() < 0.5) {
+        logCombat('😵 Estás cegado y tu habilidad falla.');
+        endPlayerTurn();
+        return;
+    }
+    // evasion para habilidades físicas
+    if (skillInfo.resource === 'ep' && enemy.evasion && Math.random() < enemy.evasion) {
+        logCombat('🧍‍♂️ El enemigo evade tu habilidad.');
+        endPlayerTurn();
+        return;
+    }
 
     if (skillInfo.resource === 'ep') {
         if (gameState.player.ep < skillInfo.cost) { playSFX(sfx.error); logMsg(`¡Faltan ${skillInfo.cost} EP!`); lockCombatButtons(false); return; }
@@ -222,6 +388,10 @@ export function useSkill(skillId) {
         if (gameState.player.mp < skillInfo.cost) { playSFX(sfx.error); logMsg(`¡Faltan ${skillInfo.cost} MP!`); lockCombatButtons(false); return; }
         gameState.player.mp -= skillInfo.cost;
     }
+
+    // aplicar enfriamiento
+    gameState.player.cooldowns = gameState.player.cooldowns || {};
+    gameState.player.cooldowns[skillId] = Math.ceil(skillInfo.cooldown * combatFormulas.cooldownReductionMultiplier(gameState.player.baseAbilityHaste || 0));
 
     // Defensas efectivas
     let effDef = Math.max(0, enemy.def - getLethality());
@@ -303,14 +473,17 @@ export function useSkill(skillId) {
         }
     }
 
+    endPlayerTurn();
     checkEnemyDeathAndEndTurn(enemy);
 }
 
 export function doFlee() { 
     ensurePlayer();
+    if (gameState.combatState.initiative < 100 || gameState.player.hp <= 0) return;
     if (gameState.player.ep < 10) { playSFX(sfx.error); logMsg("¡Necesitas 10 EP para huir!"); return; }
     gameState.player.ep -= 10; playSFX(sfx.ui_click); logMsg("¡Huiste usando 10 EP!"); 
     spawnFloatingText('-10 EP', '#9c27b0', 'combat-player');
+    endPlayerTurn();
     gameState.player.x = gameState.lastPlayerPos.x; gameState.player.y = gameState.lastPlayerPos.y; 
     endCombat(); 
 }
@@ -321,8 +494,9 @@ export function processEnemyTurn(enemy) {
     enemy = ensureEnemy(enemy);
     ensurePlayer();
     try {
-        if (!gameState.inCombat || !gameState.currentEnemyTile) return; 
+        if (!gameState.inCombat || !gameState.currentEnemyTile) return;
 
+        // venom and buffs handled as before
         if (gameState.combatState.poisonTurns > 0) {
             let poisonDmg = Math.max(combatFormulas.minPoisonDamage, Math.floor((enemy.maxHp || enemy.hp) * combatFormulas.poisonDamagePercent));
             enemy.hp -= poisonDmg; gameState.combatState.poisonTurns--;
@@ -332,11 +506,17 @@ export function processEnemyTurn(enemy) {
             if (enemy.hp <= 0) { setTimeout(() => { logCombat(`🏆 ¡Enemigo sucumbió al veneno!`); setTimeout(resolveVictory, 500); }, 200); return; }
         }
 
-        let eDmg = 0; let enemyMag = enemy.mag || 0; let isMagic = (enemyMag > 0 && Math.random() < 0.4); 
+        let eDmg = 0; let enemyMag = enemy.mag || 0; let isMagic = (enemyMag > 0 && Math.random() < 0.4);
         if (enemy.isBoss) playSFX(sfx.boss_attack);
 
         let minDmg = Math.max(combatFormulas.minDamage, Math.floor(enemy.atk * combatFormulas.enemyMinDamagePercent));
-        
+        // berserk buff
+        let bossMulti = 1;
+        if (enemy.isBoss && enemy.trait === 'berserk' && enemy.hp <= (enemy.maxHp * combatFormulas.berserkHpThreshold)) {
+            bossMulti = combatFormulas.berserkDamageMultiplier;
+            logCombat(`<b style="color:#ff5722">😡 ¡El jefe está ENFURECIDO! Su daño se multiplica.</b>`);
+        }
+
         let playerArmor = getDef();
         let playerMR = getMr();
 
@@ -347,21 +527,37 @@ export function processEnemyTurn(enemy) {
         }
 
         if (isMagic) {
-            // El enemigo ataca con magia, mitigado por tu Resistencia Mágica (MR)
             eDmg = Math.max(minDmg, Math.floor((enemyMag * combatFormulas.enemyMagicMultiplier) - playerMR));
             logCombat(`🔮 ¡Magia oscura! Recibes <b style="color:#f44336">${eDmg}</b> de daño.`);
         } else {
-            // El enemigo ataca con físico, mitigado por tu Armadura
             eDmg = Math.max(minDmg, enemy.atk - playerArmor);
-            if (enemy.isBoss && enemy.trait === 'crit' && Math.random() < combatFormulas.enemyCritChance) { 
-                eDmg = Math.floor(eDmg * combatFormulas.enemyCritMultiplier); logCombat(`⚡ <b style="color:#ffeb3b">¡CRÍTICO ENEMIGO!</b>`); 
+            if (enemy.isBoss && enemy.trait === 'crit' && Math.random() < combatFormulas.enemyCritChance) {
+                eDmg = Math.floor(eDmg * combatFormulas.enemyCritMultiplier); logCombat(`⚡ <b style="color:#ffeb3b">¡CRÍTICO ENEMIGO!</b>`);
             }
+            eDmg = Math.floor(eDmg * bossMulti);
             logCombat(`💥 Recibes <b style="color:#f44336">${eDmg}</b> de daño físico.`);
+        }
+
+        // ejemplo de un cc disparado por el enemigo (pudieras expandir según traits)
+        if (!isMagic && enemy.trait === 'stun' && Math.random() < 0.2) {
+            applyCC('stun', 2);
+        }
+        // efecto mana burn
+        if (!isMagic && enemy.manaBurn && eDmg > 0) {
+            gameState.player.mp = 0;
+            logCombat(`🔥 El ataque quema tu maná hasta dejarlo en 0.`);
+            spawnFloatingText('MP 0', '#2196f3', 'combat-player');
+        }
+        // aplicar efecto venenoso al jugador
+        if (!isMagic && enemy.trait === 'venomous' && eDmg > 0) {
+            gameState.combatState.playerPoisonTurns = combatFormulas.venomousTurns;
+            gameState.combatState.playerPoisonDamage = Math.max(combatFormulas.minPoisonDamage, Math.floor((enemy.maxHp||enemy.hp) * combatFormulas.poisonDamagePercent));
+            logCombat(`🐍 Has sido envenenado por ${combatFormulas.venomousTurns} turnos.`);
         }
 
         gameState.player.hp -= eDmg;
         if (eDmg > 0) {
-            playSFX(sfx.hurt); animateDamage('combatPlayerImg'); 
+            playSFX(sfx.hurt); animateDamage('combatPlayerImg');
             spawnFloatingText('-' + eDmg, '#f44336', 'combat-player');
         }
 
@@ -378,10 +574,13 @@ export function processEnemyTurn(enemy) {
         }
 
         updateCombatUI(); updateHUD();
-    } catch (e) { 
+        if (gameState.combatState.enemySlowTurns > 0) {
+            gameState.combatState.enemySlowTurns--;
+        }
+    } catch (e) {
         console.error("Error turno enemigo:", e); logCombat("<b style='color:red'>⚠️ Error de sistema.</b>");
-    } finally { 
-        setTimeout(() => { lockCombatButtons(false); if (gameState.player.hp <= 0) { showDeathScreen(); } }, 350); 
+    } finally {
+        setTimeout(() => { lockCombatButtons(false); if (gameState.player.hp <= 0) { showDeathScreen(); } }, 350);
     }
 }
 

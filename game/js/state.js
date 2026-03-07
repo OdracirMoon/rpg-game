@@ -53,15 +53,16 @@ export const gameState = {
         baseRange: 1, // 1 es cuerpo a cuerpo, 3+ es a distancia
 
         // Inventario y Progresión
-        weapon: null, armor: null,
-        inventory: { weapons: [], armors: [] },
+        weapon: null, armor: null, accessory: null,
+        inventory: { weapons: [], armors: [], accessories: [] },
         zoneQuestProgress: [0, 0, 0, 0, 0, 0],
         hasKey: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false },
         
         statPoints: 0,
         skillPoints: 0, 
         knownSkills: [], 
-        equippedSkills: { special: null, defensive: null }
+        equippedSkills: { special: null, defensive: null },
+        cooldowns: {}  // track remaining turns on abilities
     },
 
     quest: null, 
@@ -71,7 +72,17 @@ export const gameState = {
 
     combatState: {
         defBuffTurns: 0,
-        poisonTurns: 0
+        poisonTurns: 0,
+        playerPoisonTurns: 0, // veneno aplicado por enemigos
+        playerPoisonDamage: 0,
+        enemySlowTurns: 0,
+        // control de efectos de estado
+        stunTurns: 0,
+        silenceTurns: 0,
+        blindTurns: 0,
+        // iniciativa ATB
+        initiative: 0,
+        enemyInitiative: 0
     },
 
     checkpoints: {

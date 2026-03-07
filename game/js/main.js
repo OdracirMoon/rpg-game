@@ -16,7 +16,9 @@ function migrateSaveData(saveData) {
     
     console.log(`Migrando partida de v${currentSaveVersion} a v${GAME_VERSION}...`);
     if (currentSaveVersion < "1.0.0") {
-        if(!saveData.playerData.inventory) saveData.playerData.inventory = { weapons: [], armors: [] };
+        if(!saveData.playerData.inventory) saveData.playerData.inventory = { weapons: [], armors: [], accessories: [] };
+        else if(!saveData.playerData.inventory.accessories) saveData.playerData.inventory.accessories = [];
+        if(saveData.playerData.accessory === undefined) saveData.playerData.accessory = null;
         if(!saveData.playerData.playerClass) saveData.playerData.playerClass = "Guerrero";
         if(saveData.playerData.ep === undefined) saveData.playerData.ep = saveData.playerData.baseMaxEp || 50;
         if(saveData.playerData.energyPotions === undefined) saveData.playerData.energyPotions = 0;
@@ -185,10 +187,12 @@ export function selectCharacter(charId) {
     playSFX(sfx.ui_click); const char = charactersData[charId];
     
     gameState.player.potions = 3; gameState.player.manaPotions = 1; gameState.player.energyPotions = 1; 
-    gameState.player.gold = 0; gameState.player.weapon = null; gameState.player.armor = null;
+    gameState.player.gold = 0; gameState.player.weapon = null; gameState.player.armor = null; gameState.player.accessory = null;
     gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0]; gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+    gameState.player.inventory = { weapons: [], armors: [], accessories: [] };
     gameState.mapLevel = 1; gameState.player.knownSkills = []; gameState.player.equippedSkills = { special: null, defensive: null };
     gameState.player.statPoints = 0; gameState.player.skillPoints = 0;
+    gameState.player.cooldowns = {}; // iniciar sin enfriamientos
 
     gameState.player.role = char.role; gameState.player.characterId = char.id; gameState.player.characterName = char.name;
     gameState.player.mapImg = char.imgs.map; gameState.player.combatImg = char.imgs.combat;

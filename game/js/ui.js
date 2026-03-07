@@ -55,6 +55,16 @@ export function logCombat(t) {
     }
 }
 
+// muestra quién tiene el próximo turno y barras de iniciativa
+export function updateInitiativeDisplay() {
+    const infoEl = document.getElementById('initiativeInfo');
+    if (!infoEl) return;
+    const pi = gameState.combatState.initiative || 0;
+    const ei = gameState.combatState.enemyInitiative || 0;
+    const next = pi >= ei ? 'Jugador' : 'Enemigo';
+    infoEl.textContent = `Próximo: ${next} (${Math.floor(pi)} / ${Math.floor(ei)})`;
+}
+
 export function spawnFloatingText(text, color, target) {
     const container = document.getElementById('floatingTextContainer');
     if (!container) return;
@@ -169,12 +179,25 @@ export function openStatsModal() {
         const p = gameState.player;
         
         let atkSpeed = Number(p.baseAttackSpeed); if (isNaN(atkSpeed)) atkSpeed = 1.0;
+        // añadir bonus de accesorio
+        if (p.accessory) {
+            if(p.accessory.attackSpeed) atkSpeed += p.accessory.attackSpeed;
+        }
+        let haste = p.baseAbilityHaste || 0;
+        let moveSpd = p.baseMoveSpeed || 300;
+        let mpRegen = p.baseMpRegen || 0;
+        if (p.accessory) {
+            if(p.accessory.abilityHaste) haste += p.accessory.abilityHaste;
+            if(p.accessory.moveSpeed) moveSpd += p.accessory.moveSpeed;
+            if(p.accessory.mpRegen) mpRegen += p.accessory.mpRegen;
+        }
         
         let html = `
             <div style="background: #1a0f14; padding: 12px; border-radius: 8px; border: 1px solid #f44336; box-shadow: inset 0 0 10px rgba(244,67,54,0.1);">
                 <h3 style="color:#f44336; margin-top:0; font-size: 16px; border-bottom: 1px dashed #f44336; padding-bottom: 5px;">❤️ Supervivencia</h3>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Vida Máxima:</span> <b style="color:#fff;">${getMaxHp() || 0}</b></p>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Regen. Vida:</span> <b style="color:#4caf50;">+${p.baseHpRegen || 0}/5s</b></p>
+                <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Regen. MP:</span> <b style="color:#2196f3;">+${mpRegen}/5s</b></p>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>🛡️ Armadura:</span> <b style="color:#fff;">${getDef() || 0}</b></p>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>✨ Resist. Mágica:</span> <b style="color:#fff;">${getMr() || 0}</b></p>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Tenacidad:</span> <b style="color:#fff;">${p.baseTenacity || 0}%</b></p>
@@ -191,8 +214,8 @@ export function openStatsModal() {
             <div style="background: #0f1a1a; padding: 12px; border-radius: 8px; border: 1px solid #00bcd4; box-shadow: inset 0 0 10px rgba(0,188,212,0.1);">
                 <h3 style="color:#00bcd4; margin-top:0; font-size: 16px; border-bottom: 1px dashed #00bcd4; padding-bottom: 5px;">⚡ Velocidad</h3>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Vel. de Ataque:</span> <b style="color:#fff;">${atkSpeed.toFixed(2)}</b></p>
-                <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Ability Haste:</span> <b style="color:#fff;">${p.baseAbilityHaste || 0}</b></p>
-                <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>👟 Vel. Movimiento:</span> <b style="color:#fff;">${p.baseMoveSpeed || 300}</b></p>
+                <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>Ability Haste:</span> <b style="color:#fff;">${haste}</b></p>
+                <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>👟 Vel. Movimiento:</span> <b style="color:#fff;">${moveSpd}</b></p>
                 <p style="margin: 5px 0; font-size: 13px; display:flex; justify-content:space-between;"><span>🎯 Rango:</span> <b style="color:#fff;">${p.baseRange || 1}</b></p>
             </div>
 
@@ -265,6 +288,15 @@ function buildArmorStatsText(a) {
     return stats.join(' | ') || 'Sin atributos';
 }
 
+function buildAccessoryStatsText(acc) {
+    let stats = [];
+    if(acc.moveSpeed) stats.push(`Vel.move +${acc.moveSpeed}`);
+    if(acc.attackSpeed) stats.push(`Vel.ataque +${(acc.attackSpeed*100).toFixed(0)}%`);
+    if(acc.abilityHaste) stats.push(`Ability Haste +${acc.abilityHaste}`);
+    if(acc.mpRegen) stats.push(`MP Regen +${acc.mpRegen}`);
+    return stats.join(' | ') || 'Sin atributos';
+}
+
 
 // =========================================
 // INVENTARIO Y EQUIPAMIENTO
@@ -284,6 +316,12 @@ export function openInventory() {
     } else {
         htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px;">Armadura: Nada equipado</p>`;
     }
+    // accesorio
+    if (gameState.player && gameState.player.accessory) {
+        htmlEq += `<div class="shop-item"><div><img src="img/weapons/${gameState.player.accessory.icon}" class="icon"> <span class="color-epico">${gameState.player.accessory.name}</span><br><small>${buildAccessoryStatsText(gameState.player.accessory)}</small></div><button onclick="unequipItem('accessory')" class="btn-danger">Quitar</button></div>`;
+    } else {
+        htmlEq += `<p style="font-size:12px; color:#aaa; text-align:center; padding:10px;">Accesorio: Nada equipado</p>`;
+    }
     document.getElementById('invEquipped').innerHTML = htmlEq;
 
     let htmlBag = '<h4>Armas</h4>';
@@ -298,6 +336,25 @@ export function openInventory() {
         htmlBag += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${a.colorClass}">${a.name}</span><br><small>${buildArmorStatsText(a)}</small></div><button onclick="equipFromInv('armor', ${idx})" style="background:var(--accent); color:#000;">Equipar</button></div>`;
     });
     
+    htmlBag += '<h4>Accesorios</h4>';
+    if(!gameState.player.inventory.accessories || gameState.player.inventory.accessories.length === 0) htmlBag += '<p style="font-size:12px; color:#aaa; text-align:center;">No tienes accesorios.</p>';
+    else {
+        gameState.player.inventory.accessories.forEach((acc, idx) => {
+            htmlBag += `<div class="shop-item"><div><img src="img/weapons/${acc.icon}" class="icon"> <span class="color-epico">${acc.name}</span><br><small>${buildAccessoryStatsText(acc)}</small></div><button onclick="equipFromInv('accessory', ${idx})" style="background:var(--accent); color:#000;">Equipar</button></div>`;
+        });
+    }
+    // Consumibles dinámicos
+    let htmlConsumables = '';
+    if (gameState.player.potions > 0) {
+        htmlConsumables += `<div class="shop-item"><div><img src="img/items/potion.png" class="icon"> <span class="color-raro">Poción de Vida</span><br><small>Restaura 25 HP</small></div><button onclick="useConsumable('hp')" class="btn-success">Usar (${gameState.player.potions})</button></div>`;
+    }
+    if (gameState.player.manaPotions > 0) {
+        htmlConsumables += `<div class="shop-item"><div><img src="img/items/mana_potion.png" class="icon"> <span class="color-raro">Poción de Maná</span><br><small>Restaura 20 MP</small></div><button onclick="useConsumable('mp')" class="btn-magic">Usar (${gameState.player.manaPotions})</button></div>`;
+    }
+    if (gameState.player.energyPotions > 0) {
+        htmlConsumables += `<div class="shop-item"><div><img src="img/items/energy_potion.png" class="icon" style="filter: hue-rotate(280deg);"> <span class="color-raro">Poción de Energía</span><br><small>Restaura 30 EP</small></div><button onclick="useConsumable('ep')" class="btn-skill">Usar (${gameState.player.energyPotions})</button></div>`;
+    }
+    if (htmlConsumables !== '') { htmlBag += '<h4>Consumibles</h4>' + htmlConsumables; }
     document.getElementById('invBag').innerHTML = htmlBag; 
     document.getElementById('invModal').style.display = 'flex';
 }
@@ -314,6 +371,10 @@ export function unequipItem(type) {
         gameState.player.armor = null;
         gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp);
         logMsg("Desequipaste tu armadura.");
+    } else if (type === 'accessory' && gameState.player.accessory) {
+        gameState.player.inventory.accessories.push(gameState.player.accessory);
+        gameState.player.accessory = null;
+        logMsg("Desequipaste tu accesorio.");
     }
     updateHUD(); openInventory(); saveGame();
 }
@@ -324,15 +385,43 @@ export function equipFromInv(type, idx) {
         const item = gameState.player.inventory.weapons.splice(idx, 1)[0];
         if(gameState.player.weapon) { gameState.player.inventory.weapons.push(gameState.player.weapon); }
         gameState.player.weapon = item;
-    } else {
+    } else if (type === 'armor') {
         const item = gameState.player.inventory.armors.splice(idx, 1)[0];
         if(gameState.player.armor) { gameState.player.inventory.armors.push(gameState.player.armor); }
         gameState.player.armor = item; 
         gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + (item.hpBonus || 0));
+    } else if (type === 'accessory') {
+        const item = gameState.player.inventory.accessories.splice(idx, 1)[0];
+        if(gameState.player.accessory) { gameState.player.inventory.accessories.push(gameState.player.accessory); }
+        gameState.player.accessory = item;
     }
     updateHUD(); openInventory(); saveGame();
 }
 
+export function useConsumable(type) {
+    if (type === 'hp' && gameState.player.potions > 0) {
+        gameState.player.potions--;
+        gameState.player.hp = Math.min(getMaxHp(), gameState.player.hp + 25);
+        logMsg("Usaste una Poción de Vida (+25 HP).");
+        spawnFloatingText('+25 HP', '#4caf50', 'map');
+    } else if (type === 'mp' && gameState.player.manaPotions > 0) {
+        gameState.player.manaPotions--;
+        gameState.player.mp = Math.min(getMaxMp(), gameState.player.mp + 20);
+        logMsg("Usaste una Poción de Maná (+20 MP).");
+        spawnFloatingText('+20 MP', '#2196f3', 'map');
+    } else if (type === 'ep' && gameState.player.energyPotions > 0) {
+        gameState.player.energyPotions--;
+        gameState.player.ep = Math.min(getMaxEp(), gameState.player.ep + 30);
+        logMsg("Usaste una Poción de Energía (+30 EP).");
+        spawnFloatingText('+30 EP', '#9c27b0', 'map');
+    } else { return; } 
+    
+    playSFX(sfx.use_potion);
+    updateHUD(); 
+    openInventory(); 
+    saveGame();
+}
+window.useConsumable = useConsumable;
 window.openInventory = openInventory; window.closeInventory = closeInventory;
 window.unequipItem = unequipItem; window.equipFromInv = equipFromInv;
             // =========================================
@@ -489,9 +578,19 @@ export function openShop() {
         if(viewA.mr) viewA.mr = Math.floor(viewA.mr * scaleFactor);
         if(viewA.hpBonus) viewA.hpBonus = Math.floor(viewA.hpBonus * scaleFactor);
         if(viewA.mpBonus) viewA.mpBonus = Math.floor(viewA.mpBonus * scaleFactor);
-
+        
         htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${buildArmorStatsText(viewA)}</small></div><button onclick="buyArmor(${idx})">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`; 
     });
+    // accesorios
+    if (cd.shop.accessories) {
+        cd.shop.accessories.forEach((acc, idx) => {
+            let sPrice = Math.floor(acc.price * scaleFactor);
+            let sName = acc.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
+            let viewAcc = JSON.parse(JSON.stringify(acc));
+            // no scaling other than maybe speed? leave as is
+            htmlBuy += `<div class="shop-item"><div><img src="img/weapons/${acc.icon}" class="icon"> <span class="${cd.colorClass}">${sName}</span><br><small>${buildAccessoryStatsText(viewAcc)}</small></div><button onclick="buyAccessory(${idx})">${sPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
+        });
+    }
     
     document.getElementById('shopContentBuy').innerHTML = htmlBuy; 
     renderSellTab(); switchShopTab('buy'); 
@@ -512,6 +611,14 @@ export function renderSellTab() {
         let sellPrice = Math.floor((a.price || 20) / 2);
         htmlSell += `<div class="shop-item"><div><img src="img/weapons/${a.icon}" class="icon"> <span class="${a.colorClass}">${a.name}</span><br><small>${buildArmorStatsText(a)}</small></div><button class="btn-success" onclick="sellArmor(${idx}, ${sellPrice})">+${sellPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
     });
+    htmlSell += '<h4>Tus Accesorios</h4>';
+    if(!gameState.player.inventory.accessories || gameState.player.inventory.accessories.length === 0) htmlSell += '<p style="font-size:12px; color:#aaa; text-align:center;">Mochila vacía.</p>';
+    else {
+        gameState.player.inventory.accessories.forEach((acc, idx) => {
+            let sellPrice = Math.floor((acc.price || 20) / 2);
+            htmlSell += `<div class="shop-item"><div><img src="img/weapons/${acc.icon}" class="icon"> <span class="${acc.colorClass || ''}">${acc.name}</span><br><small>${buildAccessoryStatsText(acc)}</small></div><button class="btn-success" onclick="sellAccessory(${idx}, ${sellPrice})">+${sellPrice} <img src="img/items/coin.png" class="icon"></button></div>`;
+        });
+    }
     document.getElementById('shopContentSell').innerHTML = htmlSell;
 }
 
@@ -563,6 +670,36 @@ export function buyArmor(idx) {
     } else { playSFX(sfx.error); alert("Oro insuficiente."); } 
 }
 
+// nuevas funciones de accesorios (resuelven ReferenceError)
+export function buyAccessory(idx) { 
+    const cd = mapData[gameState.currentZoneIndex];
+    const baseItem = cd.shop.accessories[idx];
+    let scaleFactor = getMapScale();
+    let price = Math.floor(baseItem.price * scaleFactor);
+
+    if (gameState.player.gold >= price) { 
+        gameState.player.gold -= price; 
+        
+        let item = JSON.parse(JSON.stringify(baseItem));
+        item.name = item.name + (gameState.mapLevel > 1 ? ` +${gameState.mapLevel - 1}` : '');
+        // Mantener los stats del accesorio intactos
+        item.price = price;
+        item.colorClass = cd.colorClass;
+
+        gameState.player.inventory.accessories.push(item); 
+        playSFX(sfx.buy_item); logMsg(`Compraste: ${item.name}. Revisa tu mochila.`); 
+        updateHUD(); renderSellTab(); saveGame(); 
+    } else { playSFX(sfx.error); alert("Oro insuficiente."); } 
+}
+
+export function sellAccessory(idx, price) { 
+    playSFX(sfx.sell_item); 
+    gameState.player.inventory.accessories.splice(idx, 1); 
+    gameState.player.gold += price; 
+    logMsg(`Vendiste un accesorio por ${price} oro.`); 
+    updateHUD(); renderSellTab(); saveGame(); 
+}
+
 export function switchShopTab(tab) { playSFX(sfx.ui_click); if(tab === 'buy') { document.getElementById('tabBuy').classList.add('active-tab'); document.getElementById('tabSell').classList.remove('active-tab'); document.getElementById('shopContentBuy').style.display = 'grid'; document.getElementById('shopContentSell').style.display = 'none'; } else { document.getElementById('tabSell').classList.add('active-tab'); document.getElementById('tabBuy').classList.remove('active-tab'); document.getElementById('shopContentSell').style.display = 'grid'; document.getElementById('shopContentBuy').style.display = 'none'; } }
 export function closeShop() { playSFX(sfx.shop_close); document.getElementById('shopModal').style.display = 'none'; }
 export function sellWeapon(idx, price) { playSFX(sfx.sell_item); gameState.player.inventory.weapons.splice(idx, 1); gameState.player.gold += price; logMsg(`Vendiste un arma por ${price} oro.`); updateHUD(); renderSellTab(); saveGame(); }
@@ -571,7 +708,7 @@ export function buyPotion() { let p = Math.floor(20 * getMapScale()); if (gameSt
 export function buyManaPotion() { let p = Math.floor(25 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.manaPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Maná."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
 export function buyEnergyPotion() { let p = Math.floor(15 * getMapScale()); if (gameState.player.gold >= p) { gameState.player.gold -= p; gameState.player.energyPotions++; playSFX(sfx.buy_item); logMsg("Compraste 1 Poción Energía."); updateHUD(); saveGame(); } else { playSFX(sfx.error); alert("Oro insuficiente."); } }
 
-window.switchShopTab = switchShopTab; window.closeShop = closeShop; window.sellWeapon = sellWeapon; window.sellArmor = sellArmor; window.buyPotion = buyPotion; window.buyManaPotion = buyManaPotion; window.buyEnergyPotion = buyEnergyPotion; window.buyWeapon = buyWeapon; window.buyArmor = buyArmor;
+window.switchShopTab = switchShopTab; window.closeShop = closeShop; window.sellWeapon = sellWeapon; window.sellArmor = sellArmor; window.buyPotion = buyPotion; window.buyManaPotion = buyManaPotion; window.buyEnergyPotion = buyEnergyPotion; window.buyWeapon = buyWeapon; window.buyArmor = buyArmor; window.buyAccessory = buyAccessory; window.sellAccessory = sellAccessory;
 // =========================================
 // SISTEMA DE NPCs
 // =========================================
@@ -595,4 +732,4 @@ export function openSpecificNPCModal(npcData) {
 export function closeNPCModal() { playSFX(sfx.ui_click); pendingQuest = null; document.getElementById('npcModal').style.display = 'none'; }
 export function acceptNPCQuest() { gameState.quest = pendingQuest; pendingQuest = null; playSFX(sfx.quest_accept); logMsg("¡Misión aceptada!"); updateHUD(); saveGame(); document.getElementById('npcModal').style.display = 'none'; }
 window.closeNPCModal = closeNPCModal; window.acceptNPCQuest = acceptNPCQuest;
-                                     
+

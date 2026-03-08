@@ -16,14 +16,12 @@ import { saveGame } from './main.js';
 // UTILIDADES DEL MAPA
 // =========================================
 export function getZoneIndex(x, y) {
-    if (y < 50) {
-        if (x < 33) return 0;
-        if (x < 66) return 1;
-        return 2;
+    if (y < 34) {
+        return x < 50 ? 0 : 1; // Arriba-Izq(0), Arriba-Der(1)
+    } else if (y < 67) {
+        return x >= 50 ? 2 : 3; // Medio-Der(2), Medio-Izq(3) -> La 'S' regresa a la izquierda
     } else {
-        if (x > 65) return 3;
-        if (x > 32) return 4;
-        return 5;
+        return x < 50 ? 4 : 5; // Abajo-Izq(4), Abajo-Der(5) -> La 'S' va a la derecha
     }
 }
 
@@ -164,6 +162,34 @@ function drawEntitySprite(ctx, entity, fallbackSrc, px, py, TS) {
     }
 }
 
+const TILESETS = [
+    { first: 223, src: './img/tiles/tilesD.png' },
+    { first: 163, src: './img/tiles/tileopt2.png' },
+    { first: 55,  src: './img/tiles/opttiles.png' },
+    { first: 1,   src: './img/tiles/tiles.png' }
+];
+
+function drawGid(ctx, gid, px, py, TS) {
+    if (gid <= 0) return false;
+    let ts = TILESETS.find(t => gid >= t.first);
+    if (!ts) return false;
+
+    let img = getCachedImage(ts.src);
+    if (img && img.complete && img.naturalWidth !== 0) {
+        // Calcula matematicamente las columnas exactas de la imagen para que nunca falle
+        let cols = Math.floor(img.naturalWidth / 16);
+        let localId = gid - ts.first;
+        let col = localId % cols;
+        let row = Math.floor(localId / cols);
+
+        ctx.drawImage(img, col * 16, row * 16, 16, 16, Math.floor(px), Math.floor(py), TS, TS);
+        return true;
+    } else {
+        if (img) img.onload = () => { render(); };
+        return false;
+    }
+}
+
 function drawTile(ctx, t, px, py, TS, stride) {
     if (!t.discovered) {
         ctx.fillStyle = '#03070d';
@@ -171,48 +197,16 @@ function drawTile(ctx, t, px, py, TS, stride) {
         return;
     }
 
-    // Fondo base con Autotiling Universal y Offset
-    if (t.type === 'path' || t.type === 'water' || t.type === 'wall') {
-        let img = getCachedImage('./img/tiles/tiles.png');
-        if (img.complete && img.naturalWidth !== 0) {
-            let mask = getTileBitmask(t.x, t.y, t.type);
-            let [baseCol, baseRow] = autotileMap[mask] || [1, 1];
+    // Capa 1 (Fondo base)
+    let baseDrawn = drawGid(ctx, t.gid1, px, py, TS);
+    if (!baseDrawn) {
+        ctx.fillStyle = t.type === 'water' ? '#10304a' : '#184b20';
+        ctx.fillRect(Math.floor(px), Math.floor(py), TS, TS);
+    }
 
-            // Magia decorativa: Si es un centro solido, 45% de probabilidad de tener detalles (Fila 5)
-            if (mask === 15) {
-                let rand = ((t.x * 73) + (t.y * 31)) % 100;
-                if (rand < 15) { baseCol = 0; baseRow = 5; }
-                else if (rand < 30) { baseCol = 1; baseRow = 5; }
-                else if (rand < 45) { baseCol = 2; baseRow = 5; }
-            }
-
-            // Desplazamiento segun el tipo de terreno (Magia del Offset)
-            let offsetCol = 0;
-            if (t.type === 'path') offsetCol = 3;  // Inicia en la columna 3
-            if (t.type === 'water') offsetCol = 6; // Inicia en la columna 6
-            // Si es 'wall', se queda en 0
-
-            let finalCol = baseCol + offsetCol;
-
-            ctx.drawImage(img, Math.floor(finalCol * 16), Math.floor(baseRow * 16), 16, 16, Math.floor(px), Math.floor(py), TS, TS);
-        } else {
-            const fallbackColors = { path: '#5d4037', water: '#10304a', wall: '#444' };
-            ctx.fillStyle = fallbackColors[t.type] || '#222';
-            ctx.fillRect(px, py, TS, TS);
-            img.onload = () => render();
-        }
-    } else {
-        let tileKey = 'tile_' + t.type;
-        if (t.type === 'fountain') tileKey = 'tile_water';
-        let img = getCachedImage('./img/tiles/' + tileKey + '.png');
-        if (img.complete && img.naturalWidth !== 0) {
-            ctx.drawImage(img, Math.floor(px), Math.floor(py), TS, TS);
-        } else {
-            const colors = { grass: '#184b20', swamp: '#2b3b2c', fountain: '#008ba3' };
-            ctx.fillStyle = colors[t.type] || '#222';
-            ctx.fillRect(px, py, TS, TS);
-            img.onload = () => render();
-        }
+    // Capa 2 (Decoraciones de Tiled)
+    if (t.gid2 > 0) {
+        drawGid(ctx, t.gid2, px, py, TS);
     }
 
     // Dibujar el objeto de la fuente ENCIMA del fondo
@@ -380,13 +374,9 @@ function clearCachedMaps() {
 // =========================================
 // GENERACIÓN DEL MUNDO
 // =========================================
-export function generateWorld(force = false) {
-    // si ya tenemos mapa cargado y no se fuerza, no regeneramos
-    if (!force && gameState.worldMap && gameState.worldMap.length === MAP_W * MAP_H) {
-        return;
-    }
+export async function generateWorld(force = false) {
+    if (!force && gameState.worldMap && gameState.worldMap.length === MAP_W * MAP_H) return;
 
-    // intentar cargar mapa cacheado para el nivel actual
     const cache = loadCachedMap(gameState.mapLevel);
     if (cache && !force) {
         gameState.worldMap = cache.map;
@@ -395,103 +385,158 @@ export function generateWorld(force = false) {
         return;
     }
 
-    gameState.worldMap = new Array(MAP_W * MAP_H);
     gameState.flags = { boss0: false, boss1: false, boss2: false, boss3: false, boss4: false, boss5: false };
-
-    // 1. Base y Borde de Agua
-    for(let y=0; y<MAP_H; y++) {
-        for(let x=0; x<MAP_W; x++) {
-            let type = 'grass';
-            if(x <= 1 || y <= 1 || x >= MAP_W - 2 || y >= MAP_H - 2) type = 'water';
-            gameState.worldMap[y * MAP_W + x] = { x, y, type, enemy: null, npc: null, merchant: false, chest: null, isBossTile: false, discovered: false, zone: getZoneIndex(x,y) };
-        }
+    
+    // 1. Inicializar la cuadrícula base ANTES del fetch (Sistema Anti-Crash)
+    gameState.worldMap = new Array(MAP_W * MAP_H);
+    for (let i = 0; i < MAP_W * MAP_H; i++) {
+        let x = i % MAP_W;
+        let y = Math.floor(i / MAP_W);
+        gameState.worldMap[i] = { x, y, type: 'grass', gid1: 0, gid2: 0, enemy: null, npc: null, merchant: false, chest: null, isBossTile: false, discovered: false, zone: getZoneIndex(x, y) };
     }
 
-    // 2. Dibujar Caminos Rectos (Forma de 'S' invertida)
-    drawStraightPath(16, 25, 82, 25); // Fila Superior
-    drawStraightPath(82, 25, 82, 75); // Conector Vertical Derecho
-    drawStraightPath(82, 75, 16, 75); // Fila Inferior
+    // 2. Cargar el mapa de Tiled inteligentemente
+    try {
+        // El parametro ?v=Date.now() engaña al navegador para que NUNCA use el cache HTTP
+        let response = await fetch('./map.json?v=' + Date.now()).catch(() => null);
+        if (!response || !response.ok) {
+            response = await fetch('./mapa.json?v=' + Date.now()).catch(() => null);
+        }
+        
+        if (response && response.ok) {
+            const mapJson = await response.json();
 
-    // 3. Dibujar Muros Divisores (Solo donde hay pasto, creando huecos automaticos en el camino)
-    for(let y=0; y<MAP_H; y++) {
-        for(let x=0; x<MAP_W; x++) {
-            let t = gameState.worldMap[y * MAP_W + x];
-            if (t.type === 'grass') {
-                if (x === 33 || x === 66 || y === 50) t.type = 'wall';
+            // Capa 1: Base
+            if (mapJson.layers && mapJson.layers[0] && mapJson.layers[0].data) {
+                for (let i = 0; i < mapJson.layers[0].data.length; i++) {
+                    let gid = mapJson.layers[0].data[i];
+                    gameState.worldMap[i].gid1 = gid;
+                    if (gid > 0) {
+                        let col = (gid - 1) % 9;
+                        if (gid === 11 || gid === 12) gameState.worldMap[i].type = 'grass';
+                        else if (col >= 6) gameState.worldMap[i].type = 'water';
+                        else if (col >= 3 && col <= 5) gameState.worldMap[i].type = 'path';
+                        else if (col >= 0 && col <= 2) gameState.worldMap[i].type = 'wall';
+                    }
+                }
+            }
+            // Capa 2: Decoraciones
+            if (mapJson.layers && mapJson.layers[1] && mapJson.layers[1].data) {
+                for (let i = 0; i < mapJson.layers[1].data.length; i++) {
+                    gameState.worldMap[i].gid2 = mapJson.layers[1].data[i];
+                }
             }
         }
+    } catch (e) {
+        console.warn("Fallo al leer el JSON, usando cuadrícula base para evitar crash.", e);
     }
 
-    // 4. Colocar Jefes y Bloqueadores Invisibles
-    const gates = [
-        { x: 33, y: 25, bIdx: 0 },
-        { x: 66, y: 25, bIdx: 1 },
-        { x: 82, y: 50, bIdx: 2 },
-        { x: 66, y: 75, bIdx: 3 },
-        { x: 33, y: 75, bIdx: 4 },
-        { x: 16, y: 75, bIdx: 5 } // Jefe final
+    // 3. Escáner Geométrico de Jefes (Túneles)
+    function getBottleneckTiles(startX, endX, startY, endY, isVertWall) {
+        return gameState.worldMap.filter(t => {
+            if (t.x < startX || t.x > endX || t.y < startY || t.y > endY) return false;
+            if (t.type !== 'path') return false;
+            
+            if (isVertWall) {
+                let wallAbove = false, wallBelow = false;
+                for(let dy=1; dy<=5; dy++) {
+                    let topT = gameState.worldMap[(t.y-dy)*MAP_W + t.x];
+                    let botT = gameState.worldMap[(t.y+dy)*MAP_W + t.x];
+                    if(topT && topT.type === 'wall') wallAbove = true;
+                    if(botT && botT.type === 'wall') wallBelow = true;
+                }
+                return wallAbove && wallBelow;
+            } else {
+                let wallLeft = false, wallRight = false;
+                for(let dx=1; dx<=5; dx++) {
+                    let leftT = gameState.worldMap[t.y*MAP_W + (t.x-dx)];
+                    let rightT = gameState.worldMap[t.y*MAP_W + (t.x+dx)];
+                    if(leftT && leftT.type === 'wall') wallLeft = true;
+                    if(rightT && rightT.type === 'wall') wallRight = true;
+                }
+                return wallLeft && wallRight;
+            }
+        });
+    }
+
+    const bossGates = [
+        { id: 0, isVert: true, tiles: getBottleneckTiles(30, 70, 0, 33, true) },   
+        { id: 1, isVert: false, tiles: getBottleneckTiles(60, 99, 20, 50, false) }, 
+        { id: 2, isVert: true, tiles: getBottleneckTiles(30, 70, 34, 66, true) },  
+        { id: 3, isVert: false, tiles: getBottleneckTiles(0, 40, 50, 80, false) },  
+        { id: 4, isVert: true, tiles: getBottleneckTiles(30, 70, 67, 99, true) }   
     ];
 
-    gates.forEach((gate) => {
-        let gTile = gameState.worldMap[gate.y * MAP_W + gate.x];
-        gTile.gateIndex = gate.bIdx;
-        gTile.isBossTile = true;
-        gTile.enemy = scaleEnemy(mapData[gate.bIdx].boss, true, gate.bIdx);
-
-        // Anadir bloqueadores para que el jugador no esquive al jefe por el ancho del camino
-        if (gate.x === 33 || gate.x === 66) {
-            gameState.worldMap[(gate.y - 1) * MAP_W + gate.x].isBlocker = true;
-            gameState.worldMap[(gate.y + 1) * MAP_W + gate.x].isBlocker = true;
-        } else if (gate.y === 50) {
-            gameState.worldMap[gate.y * MAP_W + (gate.x - 1)].isBlocker = true;
-            gameState.worldMap[gate.y * MAP_W + (gate.x + 1)].isBlocker = true;
+    bossGates.forEach(bg => {
+        if (bg.tiles.length > 0) {
+            let centerTile = bg.tiles[Math.floor(bg.tiles.length / 2)];
+            centerTile.isBossTile = true; 
+            centerTile.enemy = scaleEnemy(mapData[bg.id].boss, true, bg.id);
         }
     });
 
-    let enemiesPools = [[],[],[],[],[],[]];
-    for(let z=0; z<=5; z++) {
-        for(let i=0; i<=z; i++) enemiesPools[z].push(...mapData[i].newEnemies);
+    // Jefe 5 Final 
+    let zone5Paths = gameState.worldMap.filter(t => t.zone === 5 && t.type === 'path');
+    if (zone5Paths.length > 0) {
+        let maxX = Math.max(...zone5Paths.map(t => t.x));
+        let endTiles = zone5Paths.filter(t => t.x === maxX);
+        endTiles.sort((a, b) => a.y - b.y);
+        let bFinal = endTiles[Math.floor(endTiles.length / 2)];
+        bFinal.isBossTile = true; 
+        bFinal.enemy = scaleEnemy(mapData[5].boss, true, 5);
     }
 
+    // Spawn del Jugador 
+    let zone0Paths = gameState.worldMap.filter(t => t.zone === 0 && t.type === 'path');
+    if (zone0Paths.length > 0) {
+        let minX = Math.min(...zone0Paths.map(t => t.x));
+        let startTiles = zone0Paths.filter(t => t.x === minX);
+        startTiles.sort((a, b) => a.y - b.y);
+        let spawnTile = startTiles[Math.floor(startTiles.length / 2)];
+        gameState.player.x = spawnTile.x; 
+        gameState.player.y = spawnTile.y;
+    } else {
+        gameState.player.x = 16; gameState.player.y = 25;
+    }
+
+    // 4. Población Estricta sin superposiciones
+    let enemiesPools = [[],[],[],[],[],[]];
+    for(let z=0; z<=5; z++) { for(let i=0; i<=z; i++) enemiesPools[z].push(...mapData[i].newEnemies); }
+    
     for(let i=0; i < MAP_W * MAP_H; i++) {
         let t = gameState.worldMap[i];
         if(t.type === 'grass' || t.type === 'path') {
-            if(!t.isBossTile && !(t.x === 16 && t.y === 25)) { 
+            let isFree = !t.isBossTile && !(t.x === gameState.player.x && t.y === gameState.player.y);
+            
+            if (isFree) {
                 let rand = Math.random();
-                if(rand < 0.06) {
+                if(rand < 0.05) {
                     let pool = enemiesPools[t.zone];
-                    let template = pool[Math.floor(Math.random() * pool.length)];
-                    t.enemy = scaleEnemy(template, false, t.zone);
-                } else if (rand < 0.08 && t.type === 'grass') {
+                    t.enemy = scaleEnemy(pool[Math.floor(Math.random() * pool.length)], false, t.zone);
+                } else if (rand < 0.07 && t.type === 'grass') {
                     t.type = 'fountain'; 
-                }
-
-                if (Math.random() < 0.02 && t.type !== 'fountain' && !t.enemy) {
+                } else if (rand < 0.09) {
                     t.chest = { opened: false };
                 }
             }
         }
     }
 
+    // 5. Ubicar NPCs dando prioridad ABSOLUTA al camino
     for(let z = 0; z <= 5; z++) {
-        let zoneTiles = gameState.worldMap.filter(t => t.zone === z && t.type === 'path' && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
+        let freePathTiles = gameState.worldMap.filter(t => t.zone === z && t.type === 'path' && !t.isBossTile && !t.enemy && !t.chest && !(t.x === gameState.player.x && t.y === gameState.player.y));
+        let freeGrassTiles = gameState.worldMap.filter(t => t.zone === z && t.type === 'grass' && !t.isBossTile && !t.enemy && !t.chest && t.type !== 'fountain' && !(t.x === gameState.player.x && t.y === gameState.player.y));
         
-        if (zoneTiles.length < 2) {
-            let extraTiles = gameState.worldMap.filter(t => t.zone === z && (t.type === 'grass' || t.type === 'swamp') && !t.isBossTile && !t.enemy && !(t.x === 16 && t.y === 25));
-            zoneTiles = zoneTiles.concat(extraTiles);
-        }
-
-        zoneTiles.sort(() => Math.random() - 0.5); 
+        freePathTiles.sort(() => Math.random() - 0.5); 
+        freeGrassTiles.sort(() => Math.random() - 0.5); 
         
-        let randomNPC = npcsData[Math.floor(Math.random() * npcsData.length)];
-
-        if(zoneTiles[0]) { zoneTiles[0].npc = randomNPC; }
-        if(zoneTiles[1]) { zoneTiles[1].merchant = true; }
+        let validTiles = freePathTiles.concat(freeGrassTiles);
+        
+        if(validTiles[0]) validTiles[0].npc = npcsData[Math.floor(Math.random() * npcsData.length)];
+        if(validTiles[1]) validTiles[1].merchant = true;
     }
 
-    gameState.player.x = 16; gameState.player.y = 25; 
     playSFX(sfx.map_change);
-    // guardamos versión cacheada del mapa inmediatamente
     saveCachedMap(gameState.mapLevel, gameState.worldMap, gameState.flags);
     updateFOV(); render(); saveGame();
 }
@@ -688,8 +733,9 @@ export function move(dx, dy) {
 
     let nx = gameState.player.x + dx, ny = gameState.player.y + dy;
     let tile = gameState.worldMap[ny * MAP_W + nx]; 
-    
-    if (!tile || tile.type === 'water' || tile.type === 'wall' || tile.isBlocker) return;
+
+    // Se elimino la validacion de isBlocker
+    if (!tile || tile.type === 'water' || tile.type === 'wall') return;
 
     let epCost = (tile.type === 'swamp') ? 2 : 1;
 
@@ -699,12 +745,11 @@ export function move(dx, dy) {
         return;
     }
 
-    if (tile.gateIndex !== undefined && (!gameState.player.hasKey || !gameState.player.hasKey[tile.gateIndex])) {
-        playSFX(sfx.error); logMsg("🚫 La puerta está cerrada. Necesitas la llave (completa la misión del Jefe)."); return; 
-    }
+    // Se elimino la verificacion de tile.gateIndex porque ya no existen las puertas con llave
 
     if (tile.enemy && tile.enemy.isBoss) {
-        if (!gameState.quest || gameState.quest.type !== 'kill_boss' || gameState.quest.target !== tile.enemy.name.replace(` (Lv.${gameState.mapLevel})`, '')) {
+        let baseBossName = mapData[tile.enemy.zone].boss.name;
+        if (!gameState.quest || gameState.quest.type !== 'kill_boss' || gameState.quest.target !== baseBossName) {
             playSFX(sfx.error);
             logMsg("🚫 Aún no estás listo para este Jefe. Completa las misiones de la zona primero.");
             return;

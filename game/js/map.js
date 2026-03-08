@@ -27,15 +27,53 @@ export function getZoneIndex(x, y) {
     }
 }
 
-export function drawPathWorld(startX, startY, endX, endY) {
-    let x = startX, y = startY;
-    while(x !== endX || y !== endY) {
+export function getTileBitmask(cx, cy, type) {
+    let mask = 0;
+    const isSame = (x, y) => {
+        // Los bordes del mapa cuentan como el mismo tipo para que se conecten a la orilla
+        if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return true;
         let t = gameState.worldMap[y * MAP_W + x];
-        if(t && t.type === 'grass') t.type = 'path';
-        if(Math.random() < 0.5) { 
-            if(x < endX) x++; else if(x > endX) x--; else if(y < endY) y++; else if(y > endY) y--; 
-        } else { 
-            if(y < endY) y++; else if(y > endY) y--; else if(x < endX) x++; else if(x > endX) x--; 
+        return t && t.type === type;
+    };
+    if (isSame(cx, cy - 1)) mask += 1; // Norte
+    if (isSame(cx + 1, cy)) mask += 2; // Este
+    if (isSame(cx, cy + 1)) mask += 4; // Sur
+    if (isSame(cx - 1, cy)) mask += 8; // Oeste
+    return mask;
+}
+
+const autotileMap = {
+    0: [1, 1],  // Aislado -> Usamos el centro solido temporalmente para evitar recortes vacios
+    1: [1, 2],  // Extremo Sur
+    2: [0, 1],  // Extremo Oeste
+    3: [0, 2],  // Esquina Inferior Izquierda
+    4: [1, 0],  // Extremo Norte
+    5: [0, 1],  // Tubo Vertical -> Forzamos el uso del borde izquierdo
+    6: [0, 0],  // Esquina Superior Izquierda
+    7: [0, 1],  // Borde Izquierdo
+    8: [2, 1],  // Extremo Este
+    9: [2, 2],  // Esquina Inferior Derecha
+    10: [1, 0], // Tubo Horizontal -> Forzamos el uso del borde superior
+    11: [1, 2], // Borde Inferior
+    12: [2, 0], // Esquina Superior Derecha
+    13: [2, 1], // Borde Derecho
+    14: [1, 0], // Borde Superior
+    15: [1, 1]  // Centro Solido
+};
+
+export function drawStraightPath(startX, startY, endX, endY) {
+    const brushSize = 1; // Genera un grosor de 3x3
+    const minX = Math.min(startX, endX);
+    const maxX = Math.max(startX, endX);
+    const minY = Math.min(startY, endY);
+    const maxY = Math.max(startY, endY);
+
+    for (let y = minY - brushSize; y <= maxY + brushSize; y++) {
+        for (let x = minX - brushSize; x <= maxX + brushSize; x++) {
+            if (x >= 0 && x < MAP_W && y >= 0 && y < MAP_H) {
+                let t = gameState.worldMap[y * MAP_W + x];
+                if (t && t.type === 'grass') t.type = 'path';
+            }
         }
     }
 }
@@ -133,21 +171,48 @@ function drawTile(ctx, t, px, py, TS, stride) {
         return;
     }
 
-    let tileKey = 'tile_' + t.type;
-    // Para la fuente, usamos el agua como fondo base
-    if (t.type === 'fountain') tileKey = 'tile_water';
+    // Fondo base con Autotiling Universal y Offset
+    if (t.type === 'path' || t.type === 'water' || t.type === 'wall') {
+        let img = getCachedImage('./img/tiles/tiles.png');
+        if (img.complete && img.naturalWidth !== 0) {
+            let mask = getTileBitmask(t.x, t.y, t.type);
+            let [baseCol, baseRow] = autotileMap[mask] || [1, 1];
 
-    let img = getCachedImage('img/tiles/' + tileKey + '.png');
-    
-    // Fallback visual mientras carga o si el archivo PNG no existe en la carpeta
-    const colors = { grass: '#184b20', path: '#5d4037', wall: '#444', water: '#10304a', swamp: '#2b3b2c', fountain: '#008ba3' };
-    
-    if (img.complete && img.naturalWidth !== 0) {
-        ctx.drawImage(img, px, py, TS, TS);
+            // Magia decorativa: Si es un centro solido, 45% de probabilidad de tener detalles (Fila 5)
+            if (mask === 15) {
+                let rand = ((t.x * 73) + (t.y * 31)) % 100;
+                if (rand < 15) { baseCol = 0; baseRow = 5; }
+                else if (rand < 30) { baseCol = 1; baseRow = 5; }
+                else if (rand < 45) { baseCol = 2; baseRow = 5; }
+            }
+
+            // Desplazamiento segun el tipo de terreno (Magia del Offset)
+            let offsetCol = 0;
+            if (t.type === 'path') offsetCol = 3;  // Inicia en la columna 3
+            if (t.type === 'water') offsetCol = 6; // Inicia en la columna 6
+            // Si es 'wall', se queda en 0
+
+            let finalCol = baseCol + offsetCol;
+
+            ctx.drawImage(img, Math.floor(finalCol * 16), Math.floor(baseRow * 16), 16, 16, Math.floor(px), Math.floor(py), TS, TS);
+        } else {
+            const fallbackColors = { path: '#5d4037', water: '#10304a', wall: '#444' };
+            ctx.fillStyle = fallbackColors[t.type] || '#222';
+            ctx.fillRect(px, py, TS, TS);
+            img.onload = () => render();
+        }
     } else {
-        ctx.fillStyle = colors[t.type] || '#222';
-        ctx.fillRect(px, py, TS, TS);
-        img.onload = () => { ctx.drawImage(img, px, py, TS, TS); };
+        let tileKey = 'tile_' + t.type;
+        if (t.type === 'fountain') tileKey = 'tile_water';
+        let img = getCachedImage('./img/tiles/' + tileKey + '.png');
+        if (img.complete && img.naturalWidth !== 0) {
+            ctx.drawImage(img, Math.floor(px), Math.floor(py), TS, TS);
+        } else {
+            const colors = { grass: '#184b20', swamp: '#2b3b2c', fountain: '#008ba3' };
+            ctx.fillStyle = colors[t.type] || '#222';
+            ctx.fillRect(px, py, TS, TS);
+            img.onload = () => render();
+        }
     }
 
     // Dibujar el objeto de la fuente ENCIMA del fondo
@@ -167,23 +232,72 @@ function drawTile(ctx, t, px, py, TS, stride) {
         ctx.strokeRect(px, py, TS, TS);
     }
 
+    // --- Bloque para Enemigos / Jefes ---
     if (t.enemy) {
-        // Prioriza el spriteSheet de animación, si no tiene usa la imagen estática
         let eImgUrl = t.enemy.spriteSheet ? t.enemy.spriteSheet : t.enemy.img;
         let eImg = getCachedImage(eImgUrl);
-        if (eImg.complete && eImg.naturalWidth !== 0) ctx.drawImage(eImg, px, py, TS, TS);
-        else eImg.onload = () => ctx.drawImage(eImg, px, py, TS, TS);
+        if (eImg.complete && eImg.naturalWidth !== 0) {
+            if (t.enemy.spriteSheet) {
+                // Extraer frame de LPC (832x256 = 13 cols x 4 filas)
+                let fw = eImg.naturalWidth / 13;
+                let fh = eImg.naturalHeight / 4;
+                let sx = globalIdleFrame * fw; // Alterna entre col 0 y 1
+                let sy = 2 * fh; // Fila 3 (Mirando hacia abajo, indice 2)
+                let aspect = fh / fw;
+                let drawHeight = TS * aspect;
+                let offsetY = drawHeight - TS;
+                ctx.drawImage(eImg, sx, sy, fw, fh, px, py - offsetY, TS, drawHeight);
+            } else {
+                // Imagen estatica normal
+                let aspect = eImg.naturalHeight / eImg.naturalWidth;
+                let drawHeight = TS * aspect;
+                let offsetY = drawHeight - TS;
+                ctx.drawImage(eImg, px, py - offsetY, TS, drawHeight);
+            }
+        } else {
+            eImg.onload = () => { render(); };
+        }
     }
     if (t.merchant) {
-        let mImg = getCachedImage('img/npcs/merchant.png');
-        if (mImg.complete && mImg.naturalWidth !== 0) ctx.drawImage(mImg, px, py, TS, TS);
-        else mImg.onload = () => ctx.drawImage(mImg, px, py, TS, TS);
+        let mImgUrl = 'img/npcs/merchant.png';
+        let mImg = getCachedImage(mImgUrl);
+        if (mImg.complete && mImg.naturalWidth !== 0) {
+            // Recorte del spritesheet de 13x4
+            let fw = mImg.naturalWidth / 13;
+            let fh = mImg.naturalHeight / 4;
+            let sx = globalIdleFrame * fw;
+            let sy = 2 * fh; // Fila 3
+            let aspect = fh / fw;
+            let drawHeight = TS * aspect;
+            let offsetY = drawHeight - TS;
+            ctx.drawImage(mImg, sx, sy, fw, fh, px, py - offsetY, TS, drawHeight);
+        } else {
+            mImg.onload = () => { render(); };
+        }
     }
+    // --- Bloque para NPCs ---
     if (t.npc) {
         let nImgUrl = t.npc.spriteSheet ? t.npc.spriteSheet : t.npc.img;
         let nImg = getCachedImage(nImgUrl);
-        if (nImg.complete && nImg.naturalWidth !== 0) ctx.drawImage(nImg, px, py, TS, TS);
-        else nImg.onload = () => ctx.drawImage(nImg, px, py, TS, TS);
+        if (nImg.complete && nImg.naturalWidth !== 0) {
+            if (t.npc.spriteSheet) {
+                let fw = nImg.naturalWidth / 13;
+                let fh = nImg.naturalHeight / 4;
+                let sx = globalIdleFrame * fw;
+                let sy = 2 * fh;
+                let aspect = fh / fw;
+                let drawHeight = TS * aspect;
+                let offsetY = drawHeight - TS;
+                ctx.drawImage(nImg, sx, sy, fw, fh, px, py - offsetY, TS, drawHeight);
+            } else {
+                let aspect = nImg.naturalHeight / nImg.naturalWidth;
+                let drawHeight = TS * aspect;
+                let offsetY = drawHeight - TS;
+                ctx.drawImage(nImg, px, py - offsetY, TS, drawHeight);
+            }
+        } else {
+            nImg.onload = () => { render(); };
+        }
     }
     if (t.chest) {
         let key = t.chest.opened ? 'chest_opened' : 'chest_closed';
@@ -284,41 +398,53 @@ export function generateWorld(force = false) {
     gameState.worldMap = new Array(MAP_W * MAP_H);
     gameState.flags = { boss0: false, boss1: false, boss2: false, boss3: false, boss4: false, boss5: false };
 
+    // 1. Base y Borde de Agua
     for(let y=0; y<MAP_H; y++) {
         for(let x=0; x<MAP_W; x++) {
             let type = 'grass';
-            if(x===0 || y===0 || x===MAP_W-1 || y===MAP_H-1) type = 'water';
-            else if (x === 32 || x === 65 || y === 50) type = 'wall'; 
-            
+            if(x <= 1 || y <= 1 || x >= MAP_W - 2 || y >= MAP_H - 2) type = 'water';
             gameState.worldMap[y * MAP_W + x] = { x, y, type, enemy: null, npc: null, merchant: false, chest: null, isBossTile: false, discovered: false, zone: getZoneIndex(x,y) };
         }
     }
 
-    const pois = [
-        { cX: 16, cY: 25, bX: 31, bY: 25, gX: 32, gY: 25, bIdx: 0 },
-        { cX: 49, cY: 25, bX: 64, bY: 25, gX: 65, gY: 25, bIdx: 1 },
-        { cX: 82, cY: 25, bX: 82, bY: 49, gX: 82, gY: 50, bIdx: 2 },
-        { cX: 82, cY: 75, bX: 66, bY: 75, gX: 65, gY: 75, bIdx: 3 },
-        { cX: 49, cY: 75, bX: 33, bY: 75, gX: 32, gY: 75, bIdx: 4 },
-        { cX: 16, cY: 75, bX: 16, bY: 90, gX: null, gY: null, bIdx: 5 }
+    // 2. Dibujar Caminos Rectos (Forma de 'S' invertida)
+    drawStraightPath(16, 25, 82, 25); // Fila Superior
+    drawStraightPath(82, 25, 82, 75); // Conector Vertical Derecho
+    drawStraightPath(82, 75, 16, 75); // Fila Inferior
+
+    // 3. Dibujar Muros Divisores (Solo donde hay pasto, creando huecos automaticos en el camino)
+    for(let y=0; y<MAP_H; y++) {
+        for(let x=0; x<MAP_W; x++) {
+            let t = gameState.worldMap[y * MAP_W + x];
+            if (t.type === 'grass') {
+                if (x === 33 || x === 66 || y === 50) t.type = 'wall';
+            }
+        }
+    }
+
+    // 4. Colocar Jefes y Bloqueadores Invisibles
+    const gates = [
+        { x: 33, y: 25, bIdx: 0 },
+        { x: 66, y: 25, bIdx: 1 },
+        { x: 82, y: 50, bIdx: 2 },
+        { x: 66, y: 75, bIdx: 3 },
+        { x: 33, y: 75, bIdx: 4 },
+        { x: 16, y: 75, bIdx: 5 } // Jefe final
     ];
 
-    pois.forEach((poi, i) => {
-        drawPathWorld(poi.cX, poi.cY, poi.bX, poi.bY);
-        if(poi.gX) drawPathWorld(poi.bX, poi.bY, poi.gX, poi.gY);
-        if(i < pois.length - 1) {
-            let nextPoi = pois[i+1];
-            if(poi.gX) drawPathWorld(poi.gX, poi.gY, nextPoi.cX, nextPoi.cY);
-        }
+    gates.forEach((gate) => {
+        let gTile = gameState.worldMap[gate.y * MAP_W + gate.x];
+        gTile.gateIndex = gate.bIdx;
+        gTile.isBossTile = true;
+        gTile.enemy = scaleEnemy(mapData[gate.bIdx].boss, true, gate.bIdx);
 
-        let bTile = gameState.worldMap[poi.bY * MAP_W + poi.bX];
-        bTile.isBossTile = true;
-        bTile.enemy = scaleEnemy(mapData[poi.bIdx].boss, true, poi.bIdx);
-
-        if(poi.gX) {
-            let gTile = gameState.worldMap[poi.gY * MAP_W + poi.gX];
-            gTile.type = 'gate';
-            gTile.gateIndex = poi.bIdx;
+        // Anadir bloqueadores para que el jugador no esquive al jefe por el ancho del camino
+        if (gate.x === 33 || gate.x === 66) {
+            gameState.worldMap[(gate.y - 1) * MAP_W + gate.x].isBlocker = true;
+            gameState.worldMap[(gate.y + 1) * MAP_W + gate.x].isBlocker = true;
+        } else if (gate.y === 50) {
+            gameState.worldMap[gate.y * MAP_W + (gate.x - 1)].isBlocker = true;
+            gameState.worldMap[gate.y * MAP_W + (gate.x + 1)].isBlocker = true;
         }
     });
 
@@ -336,15 +462,11 @@ export function generateWorld(force = false) {
                     let pool = enemiesPools[t.zone];
                     let template = pool[Math.floor(Math.random() * pool.length)];
                     t.enemy = scaleEnemy(template, false, t.zone);
-                } else if (rand < 0.12 && t.type === 'grass') {
-                    t.type = 'wall';
-                } else if (rand < 0.18 && t.type === 'grass') {
-                    t.type = 'swamp'; 
-                } else if (rand < 0.19 && t.type === 'grass') {
+                } else if (rand < 0.08 && t.type === 'grass') {
                     t.type = 'fountain'; 
                 }
 
-                if (Math.random() < 0.02 && t.type !== 'wall' && t.type !== 'fountain' && !t.enemy) {
+                if (Math.random() < 0.02 && t.type !== 'fountain' && !t.enemy) {
                     t.chest = { opened: false };
                 }
             }
@@ -388,14 +510,14 @@ export function updateFOV() {
 }
 
 export function getTileSize() {
-    return Math.floor(Math.min(window.innerWidth, window.innerHeight) / 3);
+    return Math.floor(Math.min(window.innerWidth, window.innerHeight) / 9);
 }
 
 export function centerCamera() {
     const mapEl = document.getElementById('map');
     if (!mapEl) return;
     const TS = getTileSize();
-    const stride = TS + 2; 
+    const stride = TS; // Sin margen para unificar el mapa
     
     const targetX = (gameState.player.x * stride) + (TS / 2) - (mapEl.clientWidth / 2);
     const targetY = (gameState.player.y * stride) + (TS / 2) - (mapEl.clientHeight / 2);
@@ -407,7 +529,7 @@ export function render() {
     if (gameState.player && gameState.worldMap) updateFOV();
 
     const TS = getTileSize();
-    const stride = TS + 2;
+    const stride = TS; // Sin margen para unificar el mapa
     const mapEl = document.getElementById('map');
 
     // actualizar variable CSS para tamaño de sprite
@@ -425,6 +547,10 @@ export function render() {
     canvas.style.background = '#000';
 
     const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    ctx.msImageSmoothingEnabled = false;
     // establecer fondo negro y limpiar
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -439,8 +565,13 @@ export function render() {
     const offsetX = Math.floor(tilesPerRow / 2);
     const offsetY = Math.floor(tilesPerCol / 2);
 
-    for (let dy = -offsetY; dy <= offsetY; dy++) {
-        for (let dx = -offsetX; dx <= offsetX; dx++) {
+    // Calculamos el centro exacto de la pantalla forzando enteros perfectos
+    const startDrawX = Math.floor((canvasWidth / 2) - (TS / 2));
+    const startDrawY = Math.floor((canvasHeight / 2) - (TS / 2));
+
+    // Añadimos +1 al rango para que no desaparezcan tiles abruptamente en los bordes
+    for (let dy = -offsetY - 1; dy <= offsetY + 1; dy++) {
+        for (let dx = -offsetX - 1; dx <= offsetX + 1; dx++) {
             const x = gameState.player.x + dx;
             const y = gameState.player.y + dy;
             if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) continue;
@@ -448,9 +579,9 @@ export function render() {
             let t = gameState.worldMap[y * MAP_W + x];
             if (!t) continue;
 
-            // posición en el canvas
-            const canvasX = (dx + offsetX) * stride;
-            const canvasY = (dy + offsetY) * stride;
+            // Posición en el canvas anclada al centro de la pantalla
+            const canvasX = startDrawX + (dx * stride);
+            const canvasY = startDrawY + (dy * stride);
 
             drawTile(ctx, t, canvasX, canvasY, TS, stride);
         }
@@ -476,13 +607,14 @@ export function render() {
     sprite.style.backgroundImage = "url('" + spriteUrl + "')";
     
     if (isSpriteSheet) {
-        sprite.className = "player-sprite is-spritesheet dir-" + (gameState.player.direction || 'down') + (gameState.player.isWalking ? " is-walking" : "");
+        sprite.className = "player-sprite is-spritesheet dir-" + (gameState.player.direction || 'down') + (gameState.player.isWalking ? " is-walking" : " anim-idle");
     } else {
         sprite.className = "player-sprite is-static";
     }
 
-    sprite.style.left = (canvasWidth / 2 - TS / 2) + 'px';
-    sprite.style.top = (canvasHeight / 2 - TS / 2) + 'px';
+    // Asegurar que el sprite HTML coincida exactamente con la matemática del canvas
+    sprite.style.left = startDrawX + 'px';
+    sprite.style.top = startDrawY + 'px';
 
     // no necesitamos centerCamera con viewport rendering
     // setTimeout(centerCamera, 10);
@@ -557,7 +689,7 @@ export function move(dx, dy) {
     let nx = gameState.player.x + dx, ny = gameState.player.y + dy;
     let tile = gameState.worldMap[ny * MAP_W + nx]; 
     
-    if (!tile || tile.type === 'water' || tile.type === 'wall') return;
+    if (!tile || tile.type === 'water' || tile.type === 'wall' || tile.isBlocker) return;
 
     let epCost = (tile.type === 'swamp') ? 2 : 1;
 
@@ -567,7 +699,7 @@ export function move(dx, dy) {
         return;
     }
 
-    if (tile.type === 'gate' && (!gameState.player.hasKey || !gameState.player.hasKey[tile.gateIndex])) {
+    if (tile.gateIndex !== undefined && (!gameState.player.hasKey || !gameState.player.hasKey[tile.gateIndex])) {
         playSFX(sfx.error); logMsg("🚫 La puerta está cerrada. Necesitas la llave (completa la misión del Jefe)."); return; 
     }
 
@@ -625,3 +757,15 @@ export function move(dx, dy) {
         }, 300);
     }
 }
+
+// =========================================
+// MOTOR DE ANIMACION IDLE (NPCs y Enemigos)
+// =========================================
+export let globalIdleFrame = 0;
+setInterval(() => {
+    globalIdleFrame = globalIdleFrame === 0 ? 1 : 0;
+    // Solo renderiza si el mapa esta cargado y activo
+    if (gameState.worldMap && gameState.worldMap.length > 0) {
+        render();
+    }
+}, 600);

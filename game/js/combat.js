@@ -180,7 +180,18 @@ export function startCombat(tile) {
     if (enemy.isBoss) { playSFX(sfx.boss_spawn); playBGM('boss'); } else { playSFX(sfx.enemy_spawn); }
     document.getElementById('combatModal').style.display = 'flex'; document.getElementById('modalLog').innerHTML = '';
     document.getElementById('modalName').textContent = enemy.isBoss ? `JEFE: ${enemy.name}` : enemy.name;
-    document.getElementById('modalImg').src = enemy.img;
+    let modalImg = document.getElementById('modalImg');
+    if (modalImg.tagName === 'IMG') {
+        let div = document.createElement('div'); div.id = 'modalImg';
+        modalImg.replaceWith(div); modalImg = div;
+    }
+    modalImg.style.width = '128px'; modalImg.style.height = '128px'; modalImg.style.margin = '0 auto';
+    modalImg.style.backgroundImage = `url('${enemy.spriteSheet || enemy.img}')`;
+    modalImg.style.backgroundSize = enemy.spriteSheet ? '1300% 400%' : 'contain';
+    modalImg.style.backgroundPositionY = enemy.spriteSheet ? '66.666%' : 'center'; // Solo fijamos la Y (Frente)
+    modalImg.style.backgroundRepeat = 'no-repeat';
+    modalImg.style.imageRendering = 'pixelated';
+    modalImg.className = enemy.spriteSheet ? 'anim-idle' : '';
 
     let traitText = "";
     if (enemy.isBoss && enemy.trait) {
@@ -193,7 +204,19 @@ export function startCombat(tile) {
     }
     document.getElementById('enemyTraitDisplay').textContent = traitText;
     document.getElementById('combatPlayerName').textContent = gameState.player.characterName || "Héroe";
-    document.getElementById('combatPlayerImg').src = gameState.player.combatImg;
+    let combatPlayerImg = document.getElementById('combatPlayerImg');
+    if (combatPlayerImg.tagName === 'IMG') {
+        let div = document.createElement('div'); div.id = 'combatPlayerImg';
+        combatPlayerImg.replaceWith(div); combatPlayerImg = div;
+    }
+    combatPlayerImg.style.width = '128px'; combatPlayerImg.style.height = '128px'; combatPlayerImg.style.margin = '0 auto';
+    let pSprite = gameState.player.spriteSheet || gameState.player.combatImg;
+    combatPlayerImg.style.backgroundImage = `url('${pSprite}')`;
+    combatPlayerImg.style.backgroundSize = gameState.player.spriteSheet ? '1300% 400%' : 'contain';
+    combatPlayerImg.style.backgroundPositionY = gameState.player.spriteSheet ? '66.666%' : 'center';
+    combatPlayerImg.style.backgroundRepeat = 'no-repeat';
+    combatPlayerImg.style.imageRendering = 'pixelated';
+    combatPlayerImg.className = gameState.player.spriteSheet ? 'anim-idle' : '';
     logCombat(`<div>¡Un <b>${enemy.name}</b> salvaje aparece!</div>`);
     updateCombatUI(); render();
 

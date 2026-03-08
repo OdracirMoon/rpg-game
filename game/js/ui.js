@@ -752,7 +752,8 @@ export function openSpecificNPCModal(npcData) {
     else if (step === 1) { const gTarget = Math.floor(30 * (gameState.currentZoneIndex + 1) * qScale); pendingQuest = { type: 'collect_gold', goal: gTarget, progress: 0, rewardType: 'xp', rewardAmount: Math.floor(15 * (gameState.currentZoneIndex + 1) * qScale), text: `Consigue ${gTarget} de oro`, zone: gameState.currentZoneIndex }; } 
     else if (step === 2) { pendingQuest = { type: 'kill_boss', target: cd.boss.name, goal: 1, progress: 0, rewardType: 'potion', rewardAmount: 1, text: `Derrota al Jefe: ${cd.boss.name}`, zone: gameState.currentZoneIndex }; }
     const dialog = npcData.dialogues[Math.floor(Math.random() * npcData.dialogues.length)];
-    document.getElementById('npcIcon').innerHTML = `<img src="${npcData.img}">`; document.getElementById('npcName').textContent = npcData.name; document.getElementById('npcDialog').textContent = `"${dialog}"`;
+    const isNpcSprite = !!npcData.spriteSheet;
+    document.getElementById('npcIcon').innerHTML = `<div class="${isNpcSprite ? 'anim-idle' : ''}" style="width: 96px; height: 96px; margin: 0 auto; background-image: url('${npcData.spriteSheet || npcData.img}'); background-size: ${isNpcSprite ? '1300% 400%' : 'contain'}; background-position-y: ${isNpcSprite ? '66.666%' : 'center'}; background-repeat: no-repeat; image-rendering: pixelated;"></div>`; document.getElementById('npcName').textContent = npcData.name; document.getElementById('npcDialog').textContent = `"${dialog}"`;
     let rewardText = pendingQuest.rewardAmount + " " + (pendingQuest.rewardType === 'gold' ? 'Oro' : pendingQuest.rewardType === 'xp' ? 'XP' : 'Poción'); if (step === 2) rewardText += " y la Llave";
     document.getElementById('npcQuestDetail').innerHTML = `<b>Objetivo:</b> ${pendingQuest.text}<br><b>Recompensa:</b> ${rewardText}`;
     document.getElementById('npcModal').style.display = 'flex';

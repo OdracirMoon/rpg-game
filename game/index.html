@@ -59,9 +59,9 @@
 
             <div style="border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;">
                 <h4 style="color: #00bcd4; margin-top: 0;">Navegación</h4>
-                <button onclick="openInventory(); toggleMainMenu();" style="width: 100%; margin-bottom: 5px;">🎒 Inventario</button>
-                <button onclick="openStatsModal();" style="width: 100%; margin-bottom: 5px;">📊 Estadísticas</button>
-                <button onclick="openMapModal(); toggleMainMenu();" style="width: 100%; margin-bottom: 5px;">🗺️ Mapa y Misiones</button>
+                <button onclick="toggleMainMenu(); setTimeout(openInventory, 50);" style="width: 100%; margin-bottom: 5px;">🎒 Inventario</button>
+                <button onclick="toggleMainMenu(); setTimeout(openStatsModal, 50);" style="width: 100%; margin-bottom: 5px;">📊 Estadísticas</button>
+                <button onclick="toggleMainMenu(); setTimeout(openMapModal, 50);" style="width: 100%; margin-bottom: 5px;">🗺️ Mapa y Misiones</button>
             </div>
 
             <div class="menu-section">

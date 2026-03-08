@@ -12,6 +12,18 @@ import {
 } from './ui.js';
 import { generateWorld, updateFOV, render, move } from './map.js';
 
+const idleStyle = document.createElement('style');
+idleStyle.innerHTML = `
+@keyframes spriteIdle {
+    0%, 49.9% { background-position-x: 0%; }
+    50%, 100% { background-position-x: 8.3333%; }
+}
+.anim-idle {
+    animation: spriteIdle 1.2s infinite;
+}
+`;
+document.head.appendChild(idleStyle);
+
 // =========================================
 // SISTEMA DE MIGRACIÓN DE VERSIONES
 // =========================================

@@ -418,13 +418,14 @@ export function useSkill(skillId) {
 
     // Defensas efectivas
     let effDef = Math.max(0, enemy.def - getLethality());
-    let effMr = Math.max(0, Math.floor(enemy.def * combatFormulas.magicResistanceMultiplier) - getMagicPen()); // Magia ignora resistencia mágica
+    let effMr = Math.max(0, (enemy.mr || 0) - getMagicPen()); // Magia reduce contra MR efectiva
 
     let dmgDealt = 0;
 
     // --- HABILIDADES ---
     if (skillId === 'golpe_brutal') {
         dmgDealt = Math.max(combatFormulas.minDamage, Math.floor(pAtk * combatFormulas.golpeBrutalMultiplier) - effDef);
+        enemy.hp -= dmgDealt;
         playSFX(sfx.attack); animateDamage('modalImg'); spawnFloatingText('-' + dmgDealt, '#ffeb3b', 'combat-enemy');
         logCombat(`💥 Golpe Brutal: <b style="color:#ffeb3b">${dmgDealt}</b> de daño físico.`);
     }
@@ -697,7 +698,7 @@ export function resolveVictory() {
         if (enemy.isBoss && enemy.zone === 5) { 
             gameState.mapLevel++;
             alert(`¡HAS DERROTADO AL DRAGÓN DORADO!\nAvanzas al Mapa Nivel ${gameState.mapLevel}.`);
-            gameState.quest = null; gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0]; gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+            gameState.quest = null; gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
             gameState.player.hp = getMaxHp(); gameState.player.mp = getMaxMp(); gameState.player.ep = getMaxEp();
             endCombat(); generateWorld(true); saveCheckpoint('boss'); checkLevelUp(); saveGame(); return;
         }
@@ -746,13 +747,6 @@ export function resolveVictory() {
                 if (gameState.quest.rewardType === 'gold') gameState.player.gold += gameState.quest.rewardAmount; 
                 if (gameState.quest.rewardType === 'xp') gameState.player.xp += gameState.quest.rewardAmount; 
                 if (gameState.quest.rewardType === 'potion') gameState.player.potions += gameState.quest.rewardAmount; 
-                
-                if (gameState.quest.type === 'kill_boss') {
-                    if (!gameState.player.hasKey) gameState.player.hasKey = {};
-                    gameState.player.hasKey[gameState.quest.zone] = true;
-                    logMsg(`🔑 ¡Has obtenido la Llave del Jefe!`);
-                    spawnFloatingText('+ Llave', '#ffeb3b', 'map');
-                }
                 
                 if (!gameState.player.zoneQuestProgress) gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
                 gameState.player.zoneQuestProgress[gameState.quest.zone]++;

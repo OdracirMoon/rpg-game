@@ -56,7 +56,6 @@ export const gameState = {
         weapon: null, armor: null, accessory: null,
         inventory: { weapons: [], armors: [], accessories: [] },
         zoneQuestProgress: [0, 0, 0, 0, 0, 0],
-        hasKey: { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false },
         
         statPoints: 0,
         skillPoints: 0, 

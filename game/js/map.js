@@ -25,57 +25,6 @@ export function getZoneIndex(x, y) {
     }
 }
 
-export function getTileBitmask(cx, cy, type) {
-    let mask = 0;
-    const isSame = (x, y) => {
-        // Los bordes del mapa cuentan como el mismo tipo para que se conecten a la orilla
-        if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return true;
-        let t = gameState.worldMap[y * MAP_W + x];
-        return t && t.type === type;
-    };
-    if (isSame(cx, cy - 1)) mask += 1; // Norte
-    if (isSame(cx + 1, cy)) mask += 2; // Este
-    if (isSame(cx, cy + 1)) mask += 4; // Sur
-    if (isSame(cx - 1, cy)) mask += 8; // Oeste
-    return mask;
-}
-
-const autotileMap = {
-    0: [1, 1],  // Aislado -> Usamos el centro solido temporalmente para evitar recortes vacios
-    1: [1, 2],  // Extremo Sur
-    2: [0, 1],  // Extremo Oeste
-    3: [0, 2],  // Esquina Inferior Izquierda
-    4: [1, 0],  // Extremo Norte
-    5: [0, 1],  // Tubo Vertical -> Forzamos el uso del borde izquierdo
-    6: [0, 0],  // Esquina Superior Izquierda
-    7: [0, 1],  // Borde Izquierdo
-    8: [2, 1],  // Extremo Este
-    9: [2, 2],  // Esquina Inferior Derecha
-    10: [1, 0], // Tubo Horizontal -> Forzamos el uso del borde superior
-    11: [1, 2], // Borde Inferior
-    12: [2, 0], // Esquina Superior Derecha
-    13: [2, 1], // Borde Derecho
-    14: [1, 0], // Borde Superior
-    15: [1, 1]  // Centro Solido
-};
-
-export function drawStraightPath(startX, startY, endX, endY) {
-    const brushSize = 1; // Genera un grosor de 3x3
-    const minX = Math.min(startX, endX);
-    const maxX = Math.max(startX, endX);
-    const minY = Math.min(startY, endY);
-    const maxY = Math.max(startY, endY);
-
-    for (let y = minY - brushSize; y <= maxY + brushSize; y++) {
-        for (let x = minX - brushSize; x <= maxX + brushSize; x++) {
-            if (x >= 0 && x < MAP_W && y >= 0 && y < MAP_H) {
-                let t = gameState.worldMap[y * MAP_W + x];
-                if (t && t.type === 'grass') t.type = 'path';
-            }
-        }
-    }
-}
-
 function ensureEnemy(enemy) {
     if (!enemy) return null;
     if (enemy.spriteSheet === undefined) enemy.spriteSheet = null;
@@ -377,14 +326,6 @@ function clearCachedMaps() {
 export async function generateWorld(force = false) {
     if (!force && gameState.worldMap && gameState.worldMap.length === MAP_W * MAP_H) return;
 
-    const cache = loadCachedMap(gameState.mapLevel);
-    if (cache && !force) {
-        gameState.worldMap = cache.map;
-        gameState.flags = cache.flags;
-        updateFOV(); render();
-        return;
-    }
-
     gameState.flags = { boss0: false, boss1: false, boss2: false, boss3: false, boss4: false, boss5: false };
     
     // 1. Inicializar la cuadrícula base ANTES del fetch (Sistema Anti-Crash)
@@ -408,7 +349,8 @@ export async function generateWorld(force = false) {
 
             // Capa 1: Base
             if (mapJson.layers && mapJson.layers[0] && mapJson.layers[0].data) {
-                for (let i = 0; i < mapJson.layers[0].data.length; i++) {
+                const maxBase = Math.min(mapJson.layers[0].data.length, MAP_W * MAP_H);
+                for (let i = 0; i < maxBase; i++) {
                     let gid = mapJson.layers[0].data[i];
                     gameState.worldMap[i].gid1 = gid;
                     if (gid > 0) {
@@ -422,7 +364,8 @@ export async function generateWorld(force = false) {
             }
             // Capa 2: Decoraciones
             if (mapJson.layers && mapJson.layers[1] && mapJson.layers[1].data) {
-                for (let i = 0; i < mapJson.layers[1].data.length; i++) {
+                const maxDeco = Math.min(mapJson.layers[1].data.length, MAP_W * MAP_H);
+                for (let i = 0; i < maxDeco; i++) {
                     gameState.worldMap[i].gid2 = mapJson.layers[1].data[i];
                 }
             }
@@ -702,11 +645,12 @@ export function openChest(tile) {
         const droppedItem = JSON.parse(JSON.stringify(pool[Math.floor(Math.random() * pool.length)]));
         
         if (isWeapon) {
-            droppedItem.atk = Math.floor(droppedItem.atk * scaleFactor);
-            droppedItem.mag = Math.floor(droppedItem.mag * scaleFactor);
+            if (droppedItem.ad !== undefined) droppedItem.ad = Math.floor(droppedItem.ad * scaleFactor);
+            if (droppedItem.ap !== undefined) droppedItem.ap = Math.floor(droppedItem.ap * scaleFactor);
             gameState.player.inventory.weapons.push(droppedItem);
         } else {
-            droppedItem.def = Math.floor(droppedItem.def * scaleFactor);
+            if (droppedItem.armor !== undefined) droppedItem.armor = Math.floor(droppedItem.armor * scaleFactor);
+            if (droppedItem.mr !== undefined) droppedItem.mr = Math.floor(droppedItem.mr * scaleFactor);
             droppedItem.hpBonus = Math.floor(droppedItem.hpBonus * scaleFactor);
             droppedItem.mpBonus = Math.floor(droppedItem.mpBonus * scaleFactor);
             gameState.player.inventory.armors.push(droppedItem);

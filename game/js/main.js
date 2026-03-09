@@ -42,7 +42,6 @@ function migrateSaveData(saveData) {
         if(!saveData.playerData.mapImg) saveData.playerData.mapImg = `img/player/${saveData.playerData.playerClass.toLowerCase()}_mapa.png`;
         if(!saveData.playerData.combatImg) saveData.playerData.combatImg = `img/player/${saveData.playerData.playerClass.toLowerCase()}_combate.png`;
         if(!saveData.playerData.zoneQuestProgress) saveData.playerData.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
-        if(!saveData.playerData.hasKey) saveData.playerData.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
         if(!saveData.playerData.knownSkills) saveData.playerData.knownSkills = [];
         if(!saveData.playerData.equippedSkills) saveData.playerData.equippedSkills = { special: null, defensive: null };
         if(saveData.playerData.statPoints === undefined) saveData.playerData.statPoints = 0;
@@ -205,7 +204,7 @@ export function selectCharacter(charId) {
     
     gameState.player.potions = 3; gameState.player.manaPotions = 1; gameState.player.energyPotions = 1; 
     gameState.player.gold = 0; gameState.player.weapon = null; gameState.player.armor = null; gameState.player.accessory = null;
-    gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0]; gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
+    gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
     gameState.player.inventory = { weapons: [], armors: [], accessories: [] };
     gameState.mapLevel = 1; gameState.player.knownSkills = []; gameState.player.equippedSkills = { special: null, defensive: null };
     gameState.player.statPoints = 0; gameState.player.skillPoints = 0;

@@ -53,13 +53,18 @@ export function getMr() { return (gameState.player.baseMagicResist || 0) + (game
 // =========================================
 export function logMsg(t) { 
     const logs = [document.getElementById('log'), document.getElementById('menuLog')];
+    let wroteToDom = false;
     logs.forEach(log => {
         if(log) {
             const d = document.createElement('div'); 
             d.innerHTML = `> ${t}`; 
             log.prepend(d); 
+            wroteToDom = true;
         }
     });
+    if (!wroteToDom) {
+        console.log('[LOG]', t);
+    }
 }
 
 export function logCombat(t) {
@@ -744,9 +749,8 @@ export function openSpecificNPCModal(npcData) {
     if (gameState.quest) { playSFX(sfx.error); logMsg(`${npcData.name} te dice: '¡Termina la misión que tienes primero!'`); return; }
     playSFX(sfx.ui_click);
     if (!gameState.player.zoneQuestProgress) gameState.player.zoneQuestProgress = [0, 0, 0, 0, 0, 0];
-    if (!gameState.player.hasKey) gameState.player.hasKey = { 0: false, 1: false, 2: false, 3: false, 4: false, 5: false };
     let step = gameState.player.zoneQuestProgress[gameState.currentZoneIndex];
-    if (step >= 3) { playSFX(sfx.error); logMsg(`${npcData.name} te dice: 'Ya has completado todas mis tareas en esta zona. ¡Cruza la puerta y avanza!'`); return; }
+    if (step >= 3) { playSFX(sfx.error); logMsg(`${npcData.name} te dice: 'Ya has completado todas mis tareas en esta zona. ¡Sigue explorando y fortalece tu equipo!'`); return; }
     const cd = mapData[gameState.currentZoneIndex]; let qScale = getMapScale(); 
     if (step === 0) { pendingQuest = { type: 'kill_enemy', target: cd.newEnemies[0].name, goal: 3, progress: 0, rewardType: 'gold', rewardAmount: Math.floor(20 * (gameState.currentZoneIndex + 1) * qScale), text: `Derrota 3 ${cd.newEnemies[0].name}s`, zone: gameState.currentZoneIndex }; } 
     else if (step === 1) { const gTarget = Math.floor(30 * (gameState.currentZoneIndex + 1) * qScale); pendingQuest = { type: 'collect_gold', goal: gTarget, progress: 0, rewardType: 'xp', rewardAmount: Math.floor(15 * (gameState.currentZoneIndex + 1) * qScale), text: `Consigue ${gTarget} de oro`, zone: gameState.currentZoneIndex }; } 
@@ -754,7 +758,7 @@ export function openSpecificNPCModal(npcData) {
     const dialog = npcData.dialogues[Math.floor(Math.random() * npcData.dialogues.length)];
     const isNpcSprite = !!npcData.spriteSheet;
     document.getElementById('npcIcon').innerHTML = `<div class="${isNpcSprite ? 'anim-idle' : ''}" style="width: 96px; height: 96px; margin: 0 auto; background-image: url('${npcData.spriteSheet || npcData.img}'); background-size: ${isNpcSprite ? '1300% 400%' : 'contain'}; background-position-y: ${isNpcSprite ? '66.666%' : 'center'}; background-repeat: no-repeat; image-rendering: pixelated;"></div>`; document.getElementById('npcName').textContent = npcData.name; document.getElementById('npcDialog').textContent = `"${dialog}"`;
-    let rewardText = pendingQuest.rewardAmount + " " + (pendingQuest.rewardType === 'gold' ? 'Oro' : pendingQuest.rewardType === 'xp' ? 'XP' : 'Poción'); if (step === 2) rewardText += " y la Llave";
+    let rewardText = pendingQuest.rewardAmount + " " + (pendingQuest.rewardType === 'gold' ? 'Oro' : pendingQuest.rewardType === 'xp' ? 'XP' : 'Poción');
     document.getElementById('npcQuestDetail').innerHTML = `<b>Objetivo:</b> ${pendingQuest.text}<br><b>Recompensa:</b> ${rewardText}`;
     document.getElementById('npcModal').style.display = 'flex';
 }

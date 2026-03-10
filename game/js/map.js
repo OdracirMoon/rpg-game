@@ -43,10 +43,11 @@ export function scaleEnemy(template, isBoss, zoneIdx) {
     let finalMagMulti = 2.0 * mapScale * lvlScale * globalMapLevelScale; 
     
     if(isBoss) { 
-        finalHpMulti *= 2.5; 
-        finalAtkMulti *= 1.8; 
-        finalDefMulti *= 1.8; 
-        finalMagMulti *= 1.8; 
+        // Balance boss-only tuning: less HP and less outgoing damage.
+        finalHpMulti *= 1.4; 
+        finalAtkMulti *= 1.1; 
+        finalDefMulti *= 1.6; 
+        finalMagMulti *= 1.1; 
     } 
 
     e.hp = Math.floor(e.hp * finalHpMulti); e.maxHp = e.hp;
